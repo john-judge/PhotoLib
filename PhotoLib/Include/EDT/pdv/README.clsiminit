@@ -1,0 +1,93 @@
+
+Using clsiminit with the CL2 simulator
+
+6/7/05
+
+The clsiminit program works like the reverse version of initcam. It can read the same configuration files, which fill in the values for width, height, and number of channels. There are also a set of simulator specific parameters which can be used to set the clock speed, blanking, etc. After running clsiminit, the simulator will be ready for output DMA at the specified size. 
+
+Like initcam, clsiminit works by filling in the PdvDependent structure which is then associated with the pdv driver handle, and is persistent across process calls. These values are then set on the CL2 card by calling the function "pdv_cls_set_dep" in the library file "clsim_lib.c". This in turn calls a number of functions for setting individual registers and bits on the card. These same functions ar available for direct modification in user programs; the function prototypes are in "clsim_lib.h".
+
+Running clsiminit
+
+The basic method for running clsiminit is to specify a camera configuration file:
+
+clsiminit -u <unit> -f <config file>
+
+This will work with any 8-bit Camera Link configuration file, using defaults for clock speed and frame blanking. To specify the CLSIM specific parameters, these parameters can be added to the config file without interfering with the C-Link framegrabber initialization:
+
+cls_pixel_clock:	<frequency in megahertz>
+
+The next set are all single bit parameters which default to 0
+
+cls_linescan:		<1 to enable linescan>
+
+cls_lvcont:		<1 to enable continuous line valid>
+
+cls_rven:		<1 to enable using the read-valid values>
+
+cls_uartloop:		<1 to enable serial loop back>
+
+cls_smallok:		<1 to enable small image sizes>
+
+cls_intlven:		<1 to enable interleave> (this requires specifying interleave values)
+
+cls_firstfc:		<1 to put the frame count in the first word of each frame>
+
+cls_datacnt:		<1 to use internal counters rather than DMA>
+
+cls_dvskip:		<number of clocks to skip between dval high>
+
+cls_dvmode:		<data valid mode>
+
+cls_led:		<1 to turn on LED>
+
+cls_trigsrc:	
+cls_trigpol:	
+cls_trigframe:	
+cls_trigline:	
+
+cls_filla:		<byte value to use for left side of output>
+
+cls_fillb:		<byte value to use for right side of output>
+
+One or the other of the next two should be set, since they are redundant
+If hgap is set, it will be maintained with different widths
+
+cls_hgap:		<extra clocks/line to add to defined image width>
+
+cls_hcntmax:		<total clocks/line>
+
+
+One or the other of the next two should be set, since they are redundant
+If vgap is set, it will be maintained with different frame height
+
+cls_vgap:		<lines between active video>
+
+cls_vcntmax:		<total lines per frame>
+
+The next values are all in pixel clocks, so they need to set based on the number of channels. If they aren't set, they default to a start value of 0 and
+end value appropriate to width
+
+cls_hfvstart:		<where frame valid starts on first line>
+cls_hfvend:		<where frame valid ends on last line>
+
+cls_hlvstart:		<where line valid starts relative to frame>
+cls_hlvend:		<where line valid ends>
+
+cls_hrvstart:		<where dma data starts>
+cls_hrvend:		<where dma data ends>	
+
+
+To set the simulator interleave, the line_interleave parameter should be set. This consists of a string with the first value the number of taps, followed by a start, delta pair for each tap. Currently the number of taps is required to be 4.
+This same interleave value will then be used for deinterleaving within pdvshow if the capture card is a DV C-Link.
+
+
+line_interleave:	"4 0 1 1024 1 2048 1 3072 1"
+
+
+USING serial with the CL2 simulator
+
+The clsiminit program will initialize serial communications on the CLSIM card. To test it, the program "pdvterm" can be used, which acts as a terminal program.
+
+
+

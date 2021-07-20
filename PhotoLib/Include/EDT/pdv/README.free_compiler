@@ -1,0 +1,58 @@
+
+This document describes how to use the Minimal GNU for Windows (MinGW) to
+compile and run EDT programs.  MinGW should be able to be used in place of
+e.g. the Microsoft Visual C++ development environment.  Cygwin should work
+also, but you may have to make sure to install the mingw package from the
+cygwin setup tool.  Below is a list of steps to follow to download and
+install MinGW and then compile the EDT programs.
+
+1) Download the packages.  
+  The two you'll need are MinGW and MSYS.  As of January 19, 2005, the
+  corresponding file names are "MinGW-3.2.0-rc-2.exe" and "MSYS-1.0.10.exe".
+  Those can be found on either one of the two webpages:
+  http://mingw.org/download.shtml
+  http://sourceforge.net/project/showfiles.php?group_id=2435
+
+2) Install the packages.
+  First install MinGW, using all the defaults.  You may need to specify
+  to install it in C:/MinGW.
+
+  Then install MSYS.  After a while it will run a script on the console
+  asking you some questions.  Here are the answers (make sure to say 'y'
+  and not "yes"): 
+  Continue? y 
+  MinGW installed? y 
+  Where? c:/MinGW
+
+3 A) Open the MSYS shell and start working.
+  On the desktop, click on the MSYS icon.  It will open a terminal.
+  Change directory to the edt package directory:
+    $ cd /c/EDT/pdv
+  (or pcd, p11w, etc. depending on which board/package you have.)
+  Start working: running "make" should build the package. 
+    $ vim 
+  will start an editor for coding.  (see vim.org for documentation)
+
+3 B) Another option: DOS shell (SHOULD WORK WITH CYGWIN or MinGW.)
+   The EDT software should have installed an icon on your desktop 
+   ("pdv utilities", "pcd utilities", or something like that).  
+   Click on that and it opens a cmd.exe window to the EDT directory.
+   In order to use cygwin or mingw from the windows terminal, you'll 
+   need to edit your path to include cygwin or mingw's bin directory, but -
+   if you don't want to edit the system wide path settings, just run
+   "use_cygwin" or "use_mingw" from the terminal and it will set your
+   path correctly.  If you installed in a directory other than the one listed 
+   in that use_*.bat file, go ahead and change it.
+   
+   From here, "make" should work. Note: if you get errors mentioning "nmake",
+   the simplest solution is to rename make.bat to msmake.bat
+   ("ren make.bat msmake.bat") and just call msmake if you should ever need
+   to use the MS make tool or the VC++ tools in the future.
+
+
+---------
+
+Note that EDT primarily uses Microsoft development tools, so while we've
+tried to make it possible to use the Free GNU compiler and tools, we only
+provide limited support for other compilers. If you need more complete support,
+talk to us about a support contract.

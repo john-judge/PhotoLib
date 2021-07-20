@@ -1,0 +1,20 @@
+
+Tue Nov 13 16:09:34 PST 2007
+
+		EDT Time Distribution Board
+
+The latest documentation is located at
+
+	http://www.edt.com/manuals/PCD/time-dist.pdf#view=FitV,0
+
+To test the board after installation, connect an IRIG-B signal to
+the LIMO connector and run:
+
+	initpcd -f pcd_config/spi.cfg
+	timing_test
+
+At the timing_test prompt, give the command "t 10" to capture
+10 one-second timestamps, or "t 0" to capture one-second timestamps
+indefinitely.
+
+Contact mark@edt.com or dan@edt.com; 503-690-1234.

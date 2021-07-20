@@ -1,0 +1,35 @@
+
+Using the PCI-DV C-Link board with two cameras
+
+The PCI-DV C-Link board can be used with two base-model Camera Link cameras, treating each camera as if it were on its own board. It does this by creating two devices pdv0_0 and pdv0_1 (channels 0 and 1) which can be opened independently. Each gets its own DMA channel , its own serial channel, and its own set of registers on the board.
+
+Using the supplied software with two channels
+
+
+To use the two channels, you need to specify the channel when opening the device. (Normally, the default behavior of the programs provided with the driver is to open channel 0, so if there is a single camera the channel number is optional.) 
+
+For example, to initalize a camera on channel 1, run
+
+initcam -u 0 -c 1 -f <cfg file name>
+
+To capture a single image, run 
+
+take -u 0 -c 1
+
+On Windows NT/2000/XP, to run pdvshow for channel 1, specify the device name including the channel number:
+
+pdvshow -pdv0_1 -noreset
+
+
+The "-noreset" option for pdvshow allows two cameras to run continuous captures simultaneously. Without it, there is a flush step for each camera which will stop capture on the other camera.
+
+
+To send a serial command, run
+
+serial_cmd -u 0 -c 1
+
+
+Using the pdv library with two channels
+
+The only thing that generally needs to change is to use "pdv_open_channel" instead of "pdv_open". Also, call pdv_setup_continuous_channel instead of pdv_setup_continuous. 
+

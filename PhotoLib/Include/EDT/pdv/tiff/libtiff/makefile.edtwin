@@ -1,0 +1,166 @@
+# $Id: Makefile.vc,v 1.15 2006/03/23 14:54:02 dron Exp $
+#
+# Copyright (C) 2004, Andrey Kiselev <dron@ak4719.spb.edu>
+#
+# Permission to use, copy, modify, distribute, and sell this software and 
+# its documentation for any purpose is hereby granted without fee, provided
+# that (i) the above copyright notices and this permission notice appear in
+# all copies of the software and related documentation, and (ii) the names of
+# Sam Leffler and Silicon Graphics may not be used in any advertising or
+# publicity relating to the software without the specific, prior written
+# permission of Sam Leffler and Silicon Graphics.
+# 
+# THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND, 
+# EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY 
+# WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  
+# 
+# IN NO EVENT SHALL SAM LEFFLER OR SILICON GRAPHICS BE LIABLE FOR
+# ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL DAMAGES OF ANY KIND,
+# OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+# WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF 
+# LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE 
+# OF THIS SOFTWARE.
+#
+# Makefile for MS Visual C and Watcom C compilers.
+#
+# To build:
+# C:\libtiff\libtiff> nmake /f makefile.vc all
+#
+
+!INCLUDE ..\nmake.opt
+
+INCL	= -I. $(JPEG_INCLUDE) $(ZLIB_INCLUDE)
+
+!IFDEF USE_WIN_CRT_LIB
+OBJ_SYSDEP_MODULE = $(INTDIR)\tif_unix.obj
+!ELSE
+OBJ_SYSDEP_MODULE = $(INTDIR)\tif_win32.obj
+!ENDIF
+
+### EDT build env-specific
+
+CFG=Release
+
+!IFNDEF ARCH
+
+!IFDEF PROGRAMW6432
+
+ARCH=amd64
+
+!else
+
+ARCH=x86
+
+!ENDIF
+
+!ENDIF
+
+!IFNDEF PDVHOME
+PDVHOME = ..\..
+!ENDIF
+
+!IFDEF BUILD_ID
+
+BINDIR=$(PDVHOME)\bin\$(ARCH)
+LIBDIR=$(PDVHOME)\lib\$(ARCH)
+
+!ELSE
+
+BINDIR=$(PDVHOME)
+LIBDIR=$(PDVHOME)
+
+!ENDIF
+
+#call with ARCH set to x86 or amd64
+CFGNAME=$(CFG)$(ARCH)
+INTDIR=$(CFGNAME)
+
+TARGET=$(LIBDIR)\libtiff.lib
+
+### End of EDT build env-specific
+
+
+OBJ	= \
+	$(INTDIR)\tif_aux.obj \
+	$(INTDIR)\tif_close.obj \
+	$(INTDIR)\tif_codec.obj \
+	$(INTDIR)\tif_color.obj \
+	$(INTDIR)\tif_compress.obj \
+	$(INTDIR)\tif_dir.obj \
+	$(INTDIR)\tif_dirinfo.obj \
+	$(INTDIR)\tif_dirread.obj \
+	$(INTDIR)\tif_dirwrite.obj \
+	$(INTDIR)\tif_dumpmode.obj \
+	$(INTDIR)\tif_error.obj \
+	$(INTDIR)\tif_extension.obj \
+	$(INTDIR)\tif_fax3.obj \
+	$(INTDIR)\tif_fax3sm.obj \
+	$(INTDIR)\tif_getimage.obj \
+	$(INTDIR)\tif_jpeg.obj \
+	$(INTDIR)\tif_ojpeg.obj \
+	$(INTDIR)\tif_flush.obj \
+	$(INTDIR)\tif_luv.obj \
+	$(INTDIR)\tif_lzw.obj \
+	$(INTDIR)\tif_next.obj \
+	$(INTDIR)\tif_open.obj \
+	$(INTDIR)\tif_packbits.obj \
+	$(INTDIR)\tif_pixarlog.obj \
+	$(INTDIR)\tif_predict.obj \
+	$(INTDIR)\tif_print.obj \
+	$(INTDIR)\tif_read.obj \
+	$(INTDIR)\tif_stream.obj \
+	$(INTDIR)\tif_swab.obj \
+	$(INTDIR)\tif_strip.obj \
+	$(INTDIR)\tif_thunder.obj \
+	$(INTDIR)\tif_tile.obj \
+	$(INTDIR)\tif_version.obj \
+	$(INTDIR)\tif_warning.obj \
+	$(INTDIR)\tif_write.obj \
+	$(INTDIR)\tif_zip.obj \
+	$(OBJ_SYSDEP_MODULE)
+
+default: dir $(TARGET)
+
+DLLNAME=$(BINDIR)\$(DLLNAME)
+
+all: $(TARGET) $(DLLNAME)
+
+$(BINDIR)::
+    @echo BINDIR $(BINDIR)
+    @if not exist "$(BINDIR)/" mkdir $(BINDIR)
+
+$(LIBDIR)::
+    @echo LIBDIR $(LIBDIR)
+    @if not exist "$(LIBDIR)/" mkdir $(LIBDIR)
+
+$(INTDIR)::
+    @echo INTDIR $(INTDIR)
+    @if not exist "$(INTDIR)/" mkdir $(INTDIR)
+
+dir: $(BINDIR) $(LIBDIR) $(INTDIR)
+
+tif_config.h:	tif_config.h.vc
+	-copy tif_config.h.vc tif_config.h
+
+tiffconf.h:	tiffconf.h.vc
+	copy tiffconf.h.vc tiffconf.h
+
+libtiff.lib $(TARGET):	tif_config.h tiffconf.h $(OBJ)
+	$(AR) /out:$(TARGET) $(OBJ) $(LIBS)
+
+$(DLLNAME):	tif_config.h tiffconf.h libtiff.def $(OBJ)
+	$(LD) /debug /dll /def:libtiff.def /out:$(DLLNAME) \
+	/implib:$(LIBDIR)\libtiff_i.lib $(OBJ) $(LIBS)
+
+# Template command for compiling .c to .obj
+{}.c{$(INTDIR)}.obj:
+	$(CC) -c $(CFLAGS) -Fo$(INTDIR)\ $<
+
+# Template command for compiling .cxx to .obj
+{}.cxx{$(INTDIR)}.obj:
+	$(CC) -c $(CFLAGS) -Fo$(INTDIR)\ $<
+	
+clean:
+	if exist $(INTDIR)\*.obj del $(INTDIR)\*.obj
+	if exist $(TARGET) del $(TARGET)
+	if exist $(DLLNAME) del $(DLLNAME)

@@ -1,0 +1,141 @@
+EDT PCD & PDV Driver Package Dependencies
+Engineering Design Team, Inc.
+Updated 04/25/2019
+================================================
+
+CONTENTS
+1) INTRODUCTION
+2) CURRENT / TESTED DISTRIBUTIONS
+3) SUPLEMENTAL INFORMATON FOR VISIONLINK / PDV
+4) PCD AND SUB-PACKAGES
+5) OLDER & UNSUPPORTED DISTRIBUTIONS
+
+
+1) INTRODUCTION
+  EDT only tests on (and therefore supports) Ubuntu, Fedora, and CentOS
+  distributions. Driver kernel support update releases occur twice a year.
+
+  Beyond a basic OS installation, there are a few packages which are necessary
+  for the EDT software to run. This text gives a short description of which
+  extra packages (or package groups) may be needed on each major distribution.
+
+  In general, the EDT software needs standard C development tools (gcc/g++,
+  make, libc) plus the kernel development headers matching the currently loaded
+  kernel (which usually means you need the kernel source package).
+
+2) CURRENT / TESTED DISTRIBUTIONS
+  There are numerous Linux distributions and versions; as of this writing the
+  following has been tested on the OS distrubtions listed:
+
+  Ubuntu 19.04 & Debian 9.8, install:
+  - kernel headers by running "apt-get install linux-headers-`uname -r`"
+  - gcc by running "apt-get install gcc"
+  - g++ by running "apt-get install g++"
+  - libtiff5 by running "apt-get install libtiff5-dev (vision boards /pdv only)"
+  - make by running "apt-get install make"
+   
+
+  CentOS 7.6-1810 & Fedora 29
+  - kernel headers by running "yum install kernel-headers.x86_64"
+  - kernel development headers by running "yum install kernel-devel-`uname -r`"
+  - elfutils by running "yum install elfutils-libelf-devel"
+  - gcc by running "yum install gcc"
+  - gcc-c++ by running "yum install gcc-c++.x86_64"
+  - libtiff by running "yum install libtiff-devel.x86_64" (vision boards / pdv only)
+  - make by running "yum install make"
+
+3) SUPLEMENTAL INFORMATON FOR VISIONLINK / PDV
+  vlviewer has been updated and is now a separate package, it is automatically 
+  included in the driver package. The new vlviewer retains similar installation
+  steps to the original - respective of operating system:
+
+  Windows: vlviewer-installer.exe is automatically run via the EDTpdv*.exe
+
+  Linux: vlv-linux.tgz is placed in the PDV installation location, to install:
+
+    tar xzf vlv-linux.tgz
+
+  For vlviewer specific support please visit the following links:
+    Issues: https://gitlab.com/engineering-design-team/vlviewer/-/issues
+    Wiki: https://gitlab.com/engineering-design-team/vlviewer/-/wikis/home
+
+4) PCD AND SUB-PACKAGES
+  The EDT drx16, sse, srxl and v4 sub-packages depend on the EDT PCD package.
+  Install the EDT PCD package first. Make sure any sub-packages have the
+  same version number as the EDT PCD package.
+
+
+5) OLDER & UNSUPPORTED DISTRIBUTIONS
+  Linux distributions and required / default packages change frequently and
+  vary widely; the following are some snapshots made at a specific time for
+  various older and unsupported OS distribtions, for guidance only.
+
+* Debian GNU / Linux
+  Package Groups: C Development
+  Required Packages: make, gcc, kernel-source*
+  How to install: tasksel, apt-get, et al
+  Notes: There may be multiple versions of kernel-source; any of them should
+  work. The name of the package group to look for may actually be something
+  other than "C Development", but thats what I'd look for.
+
+  Package Groups: Development Tools
+  Required Packages: gcc, make, tk
+  How to install: Menu->System Settings->Add/Remove Applications
+  Notes: 
+    - Fedora (at least Core Test 2) appears to come with the kernel headers
+      inside /lib/modules/*/build, and so the kernel source is not required. 
+    - Tk has wish, and is a single package on CD4: rpm -i tk from RPMS dir
+      on cd 4.  None of the extra optional packages (only the standard
+      included packages) in the "Development Tools" group are needed, so
+      they can be deselected if you wish to save space.
+    - Fedora 10 requires the currently supported kernel to be installed along
+      with its header files prior to installing the EDT driver.  The header
+      files for the default kernel may not be available for download or
+      installation.
+
+* Mandrake 9.1
+  Package Groups: Development, LSB(?)
+  Required Packages: gcc, kernel-source, pciutils, tk
+  How to install: Menu->Configuration->Packaging->Install Software; (or urpmi)
+  Notes:
+   - Linux Standard Base may not be required, but I would think having it
+     would be a good idea in general.  Make sure you have lspci (from
+     pciutils package); you may have to install pciutils or just put
+     /usr/bin in your $PATH.
+   - The kernel-source package may be difficult to find in Mandrake's GUI
+     package installer system, but "urpmi kernel-source" will get it.  
+   - The kernel may need to be recompiled so that the headers in
+     /lib/modules/your_kernel_version/build match your loaded kernel.
+     This is most likely the case if you are getting "unresolved symbol"
+     errors when loading the edt.o module.
+ 
+* Red hat 9
+   Package Groups: Development Tools, Kernel Development
+   Required Packages: gcc, make, tk
+   How to install: Menu->System Settings->Add/Remove Applications
+   Notes: 
+    - Like Fedora, only the standard packages in the "Development Tools"
+      group are required, so feel free to remove the extras from that group
+      if you don't need them.
+
+* Red Hat Enterprise
+  Package Groups: Kernel Development
+  Required Packages: kernel-sources
+  How to install: Menu->System Settings->Add/Remove Applications
+  Notes:
+    - Enterprise should come with C development tools, so just grab the
+      kernel source.
+
+* SUSE
+  Package Groups: C/C++ Compiler and Tools, Kernel Development
+  Required Packages: gcc, make, kernel-source
+  How to install: Menu->YaST, select "Software" then "Install/Remove Software"
+
+* Ubuntu (older)
+  On older Ubuntu releases (prior to 8.04) :
+    apt-get install module-assistant libtiff4-dev libncurses5-dev
+
+    Then do, 'module-assistant prepare' to set up the link from
+    lib/modules/*/build to /usr/src/linux-headers-XXX where XXX is the
+    current kernel version.
+

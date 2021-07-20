@@ -1,0 +1,78 @@
+<h1>
+<p>
+Using the PCI-DV C-Link board with two cameras
+</h1>
+</p>
+<p>
+The PCI-DV C-Link board can be used with two base-model Camera Link cameras, treating each camera as if it were on its own board. It does this by creating two devices pdv0_0 and pdv0_1 (channels 0 and 1) which can be opened independently. Each gets its own DMA channel , its own serial channel, and its own set of registers on the board. The ports on the back of the card are labeled 0 and 1, with 0 being the port on the bottom.
+
+</p>
+
+<font size="+1"><b>Using the supplied software with two channels</b>
+</font>
+
+<p>
+To use the two channels, you need to specify the channel when opening the device. (Normally, the default behavior of the programs provided with the driver is to open channel 0, so if there is a single camera the channel number is optional.) The command line programs generally take an argument "-c channel"
+
+</p>
+
+<p>
+For example, to initalize a camera on channel 1, run
+
+</p>
+
+<p>
+<b>initcam -u 0 -c 1 -f file</b>
+
+</p>
+
+To capture a single image on camera 1, run 
+
+<p>
+<b>take -u 0 -c 1</b>
+
+</p>
+
+On Windows NT/2000/XP, to run pdvshow for channel 1, specify the device name including the channel number:
+
+<p>
+<b>pdvshow -pdv0_1 -noreset</b>
+
+</p>
+
+
+The "-noreset" option for pdvshow allows two cameras to run continuous captures simultaneously. Without it, there is a flush step for each camera which will stop capture on the other camera. To run two copies of pdvshow, run
+
+<p>
+<b>pdvshow -pdv0_0 -noreset</b>
+</p>
+
+<p>
+<b>pdvshow -pdv0_1 -noreset</b>
+</p>
+
+
+<p>
+To send a serial command, run
+
+</p>
+
+<p>
+<b>serial_cmd -u 0 -c 1
+</b>
+</p>
+
+
+<p>
+<font size="+1"><b>Using the pdv library with two channels</b>
+</font>
+
+</p>
+<p>
+The only thing that generally needs to change is to use <i>"pdv_open_channel"</i> (which takes an extra channel argument) instead of "<i>pdv_open</i>". 
+</p>
+
+<p>
+If you want to run both cameras simultaneously in continuous acquire, you need to be careful about calling <i>pdv_flush_fifo</i>, as it flushes both channels. There is a new routine <i>pdv_flush_channel_fifo</i> which flushes only that one channel. Call <i>pdv_setup_continuous_channel</i> instead of <i>pdv_setup_continuous</i> before starting continuous capture. 
+</p>
+

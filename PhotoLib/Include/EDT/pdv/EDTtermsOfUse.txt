@@ -1,0 +1,27 @@
+LICENSE AND TERMS OF USE AGREEMENT
+FOR ENGINEERING DESIGN TEAM, Inc. (EDT) PRODUCTS
+
+DEFINITIONS
+This agreement, between Engineering Design Team, Inc. (Seller) and the user or distributor (Buyer), covers the use and distribution of the following items provided by Seller: a) the binary and all provided source code for any and all device drivers, software libraries, utilities, and example applications (collectively, Software); b) the binary and all provided source code for any and all configurable or programmable devices (collectively, Firmware); and c) the computer boards and all other physical components (collectively, Hardware). Software, Firmware, and Hardware are collectively referred to as Products. This agreement also covers Sellers published Limited Warranty (Warranty) and all other published manuals and product information in physical, electronic, or any other form (Documentation).
+
+LICENSE
+Seller grants Buyer the right to use or distribute Sellers Software and Firmware Products solely to enable Sellers Hardware Products. Sellers Software and Firmware must be used on the same computer as Sellers Hardware.  Sellers Products and Documentation are furnished under, and may be used only in accordance with, the terms of this agreement. By using or distributing Sellers Products and Documentation, Buyer agrees to the terms of this agreement, as well as any additional agreements (such as a nondisclosure agreement) between Buyer and Seller.
+
+EXPORT RESTRICITONS
+Buyer will not permit Sellers Software, Firmware, or Hardware to be sent to, or used in, any other country except in compliance with applicable U.S. laws and regulations. For clarification or advice on such laws and regulations, Buyer should contact: U.S. Department of Commerce, Export Division, Washington, D.C., 20230, U.S.A.  Limitation of Rights. Seller grants Buyer a royalty-free right to modify, reproduce, and distribute executable files using the Sellers Software and Firmware, provided that: a) the source code and executable files will be used only with Sellers Hardware; b) Buyer agrees to indemnify, hold harmless, and defend Seller from and against any claims or lawsuits, including attorneys fees, that arise or result from the use or distribution of Buyers products containing Sellers Products.  Sellers Hardware may not be copied or recreated in any form or by any means without Sellers express written consent.
+
+NO LIABILITY FOR CONSEQUENTIAL DAMAGES
+In no event will Seller, its directors, officers, employees, or agents be liable to Buyer for any consequential, incidental, or indirect damages (including damages for business interruptions, loss of business profits or information, and the like) arising out of the use or inability to use the Products, even if Seller has been advised of the possibility of such damages. Because some jurisdictions do not allow the exclusion or limitation of liability for consequential or incidental damages, the above limitations may not apply to Buyer. Sellers liability to Buyer for actual damages for any cause whatsoever, and regardless of the form of the action (whether in contract, product liability, tort including negligence, or otherwise) will be limited to fifty U.S. dollars ($50.00).
+
+LIMITED HARDWARE WARRANTY
+Seller warrants that the Hardware it manufactures and sells shall be free of defects in materials and workmanship for a period of 12 months from date of shipment to initial Buyer. This warranty does not apply to any product that is misused, abused, repaired, or otherwise modified by Buyer or others. Sellers sole obligation for breach of this warranty shall be to repair or replace (F.O.B. Sellers plant, Beaverton, Oregon, USA) any goods that are found to be non-conforming or defective as specified by Buyer within 30 days of discovery of any defect. Buyer shall bear all installation and transportation expenses, and all other incidental expenses and damages.
+
+LIMITATION OF LIABILITY
+In no event shall Seller be liable for any type of special consequential, incidental, or penal damages, whether such damages arise from, or are a result of, breach of contract, warranty, tort (including negligence), strict liability, or otherwise. All references to damages herein shall include, but not be limited to: loss of profit or revenue; loss of use of the goods or associated equipment; costs of substitute goods, equipment, or facilities; downtime costs; or claims for damages. Seller shall not be liable for any loss, claim, expense, or damage caused by, contributed to, or arising out of the acts or omissions of Buyer, whether negligent or otherwise.
+
+NO OTHER WARRANTIES
+Seller makes no other warranties, express or implied, including without limitation the implied warranties of merchantability and fitness for a particular purpose, regarding Sellers Products or Documentation. Seller does not warrant, guarantee, or make any representations regarding the use or the results of the use of the Products or Documentation or their correctness, accuracy, reliability, currentness, or otherwise. All risk related to the results and performance of the Products and Documentation is assumed by Buyer. The exclusion of implied warranties is not permitted by some jurisdictions. The above exclusion may not apply to Buyer.
+
+DISCLAIMER
+Sellers Products and Documentation, including this document, are subject to change without notice.
+Documentation does not represent a commitment from Seller.

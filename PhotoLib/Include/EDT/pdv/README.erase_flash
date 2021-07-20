@@ -1,0 +1,65 @@
+Erasing volatile memory on EDT boards
+Engineering Design Team, Inc.
+Updated 2/13/2019
+
+EDT PCI and PCIe boards incorporate one or more EEproms which store the board's
+FPGA configuration file (bitfile) along with identifying information such as
+part number and serial number. The EEproms can be read and written by EDT's
+pciload utility, and potentially other utilities using EDT libraries. If
+needed, this non-volatile memory can be erased*. This renders the board
+unusable, and depending on the board being erased, it may need to be returned
+to the factory for reprogramming if it is to be used again. Therefore the erase
+functionality should only be used when security requirements dictate.
+
+Different EDT boards have different EEprom configurations, but the process for
+erasing them is essentially the same. In general, all boards have one or more
+primary and backup sectors, which may be different sectors on the same EEprom,
+or on different physical parts. The specific sector or EEprom being booted
+from is selected via a jumper on the board, labeled varously as NORM | PROT or
+PRI | SEC, or similiar silkscreening. Running 
+
+  pciload
+
+with no arguments will show you all of the installed boards, and the sector
+numbers for each one.
+
+To erase all sectors on a board, simply run
+
+  pciload -u <unit> -s <sector> ERASE
+
+separately for all sectors that the board has, typically 0, 0 & 1, or 0
+through 4. Since some boards have primary and backup sectors in separate
+EEproms, you should do the above with the jumper in the NORM or PRI position,
+and again in the PROT or SEC position.
+
+If after completing this process a pciload with no arguments still shows
+header information in some sectors, it means that your board model is one
+of those with electrically protected sector -- that is, a sector that is
+effectively non-volatile, meaning that any erasing or reporgramming of that
+particular sector can only be done at the factory. Some EDT board board
+have this feature and some do not, but either way, performing the above
+procedure will erase all of the board's volatile memory.
+
+If your board is one that does have an electrically protected backup sector,
+recovery after an ERASE can be accomplished in the field by powering it up
+with the jumper in the PROT or SEC position, verifying that it can be seen
+by running
+
+  pciload
+
+with no arguments, then moving the jumper to the NORM or PRI position, and
+running
+
+  pciload -u <unit> <fpga_file>
+
+Where <fpga_file> is the FPGA configuration file for your board.
+
+For information on specific FPGA configuration files, see the users guide
+for your board. For complete pciload usage, run pciload --help. For support,
+visit edt.com/support.
+
+
+
+* This README applies to pciload as included in EDT PCD and PDV version
+5.5.6.6 and later packages. If you have an earlier version, contact EDT to
+get an up- dated version that supports ERASE functionality as described.

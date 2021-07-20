@@ -1,0 +1,60 @@
+#
+# part number/xilinx xref file, for bitload
+#
+# used by bitload to prioritize order in which bitfiles are tried, beyond
+# the simple size-based sort. If a match is found for a 10-digit part
+# number, that xilinx will go to the top of the sort list regardless of
+# size. If no 10 digit match is found then it checks for an 8 digit one.
+# If a single part number has the same xilinx regarless of rev number,
+# just make one 8-digit entry so it can be used in lieu of listing all the
+# 10-digit ones.
+#
+# enter new entries at the bottom, white-space delimited. First field is
+# the part number (8 or 10 digits), 2nd is the xilinx (case insensitive but
+# otherwise must match a directory name under pcd_bitfiles or pdv_bitfiles)
+# 3rd on is the description (can be anything, ignored by the program)
+#
+01901933	xc2s100e	PCI DVa
+01901950	xc2s100e	PCI DVa
+01901978	xc2s100e	PCI DVa
+01901978	xc2s100e	PCI DVa
+0190XXXX	xc2s600e	PCI DVa/600e, LVDS (lhs)
+01901854   	xc2s100e	PCI CDa, LVDS 
+01901960	xc2s100e	PCI CDa, RS422 
+01902039	xc2s600e	PCI CDa/600e, LVDS
+0190104100	4005		PCI DVK 
+0190104101	4005		PCI DVK 
+0190104102	4005		PCI DVK 
+0190104103	4010		PCI DVK 
+0190104110	4010		PCI DVK 
+01901041	4013		PCI DVK 
+01901331	4013		PMC DVK 
+01901436	4013		PCI DVK
+01901534	4013		PCI DVK
+01901701	4013		PCI DVK
+01901810	4013		PMC DVK
+01901819	4013		PMC DVK
+01902131	4013		PMC DVK
+01901645	xcv1000e	PCI SS/1000e
+01901741	xcv600e		PCI SS/600e
+01901767	xcv2000e	PCI SS/2000E
+01901825	xcv1000e	PCI SS opt BAE (bd set)
+01901847	xcv2000e	PCI SS 1 meg sram (bd set)
+01901915	xcv600e		PCI SS/600E, 1 ram socket (bd set)
+01901966	xcv1000e	PCI SS/1000e, 256k sram
+01901999	xcv1000e	PCI SS/1000e 1 ram socket no mem
+01902063	xc2vp50		PCI GS/vp50
+01902135	xc2vp70		PCI GS/vp70
+01902011  	xc2s400e	PCI CD FOX/F1
+01902087  	xc2s400e	PCI DV FOX/F2 opt TTL
+01902099   	xc2s400e	PCI DV FOX
+01902103   	xc2s400e	PCI DV FOX/F2
+01902221   	xc2s400e	PCI DV FOX, opt F4
+01902227   	xc2s400e	PCI DV FOX/F1
+01902344   	xc2s400e	PCI DV FOX/F2/ER 
+01912798    xc5vlx30t   PCIe8 DV CLS
+01914008    xc5vlx30t   PCIe8 DVA CLS
+01912804	xc5vlx110	PCIe LX/5VLX110-8M
+01912806	xc5vlx220	PCIe LX/5VLX220-8M
+01912808	xc5vlx330	PCIe LX/5VLX330-8M
+

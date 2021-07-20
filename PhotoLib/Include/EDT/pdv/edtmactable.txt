@@ -1,0 +1,36 @@
+# mac address calculation details for EDT devices
+# used as input for pciload & other applicable devices
+#
+# format: device_name type_number prefix offset count
+#
+# - device_name: informational
+# - type_number: specific type number for each board; see wiki (edt internal)
+# - prefix: is the part of the serial number that is not used in the calculation
+# - offset: offset for macaddr calculation
+# - count: number of macaddrs assigned to this device
+#
+# EDT OUI (left 24 bits) is 00251c, the type number is the next 8 bits, and
+# the rest (right 16 bits) are calculated, as follows:
+#
+#     00251C << 24 | type_num << 16 | offset * (sn * multiplier) + 0..count-1
+#
+# to produce count macaddrs
+#
+# Copyright (c) 2015, Engineering Design Team, Inc.
+# www.edt.com
+#
+
+AMCFX5 0 FX5 64 4
+DDSP 1 DDS 64 2
+SNAP1 2 SN 0 1
+WSU1 3 WRSB100G 0 1
+3P 4 M502 0 3
+SC2 5 SC2 0 1
+PCIE8G3_KU B KU 0 4
+PCIE8G3_A5 C A5 0 2
+TACWRAP 11 TWV 0 2
+
+# note: LCR blades have been removed from this table since a) this (older, more
+# rudimentary) format doesn't include all needed fields to determine their macaddr
+# types correctly, and b) this file is only used by pciload, which isn't used
+# to program LCR devices anyway (see lcr/cpp/sidebandbus/SbbPartXref.h)

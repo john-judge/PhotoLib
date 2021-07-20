@@ -1,0 +1,2337 @@
+Change Log for EDT PCI DV Software/Driver Package
+=================================================
+
+(For Linux device drivers, see also CHANGELOG_LINUX.txt and README.lnx.pkg.reqs)
+
+Version Notes
+  * NOTE: Windows Versions 5.x are the new WDF drivers, designed for Win XP/32,
+    Vista/32&64 Win7/32&64. Always use a 5.x driver for Vista or Win7/8/10 or
+    any new installation
+  * Linux  Versions 5.x use our updated package build and support the latest
+    Linux kernels
+
+BE SURE you are using the correct driver for your operating system version:
+   * If you have applications built with XP/32 using 4.x packages, install the
+     matching 4.x driver package
+   * For new installations, or any installation where third-party software is or
+     can be recompiled/re-linked with newer EDT libs, use the latest 5.x package
+
+==============================================
+V. 5.5.10.0 11/04/2020 release
+==============================================
+- added support for GCC 10 + up to kernel 5.8
+- added edt module unload protection (wont unload if in use)
+- minor updates to simple_* applications
+- major update to vlviewer application (new binary only format)
+- - legacy available as zip file 
+
+==============================================
+V. 5.5.9.0 08/7/2020 release
+==============================================
+- Visionlink CLS id string updated
+- Ubuntu 20.04 driver installation bug (102) fixed
+- Added support for ARM (64bit GCC7)
+
+==============================================
+V. 5.5.8.9 05/11/2020 release
+==============================================
+- (pcd) fixed S5/A5 behavior relating to module and signal
+
+==============================================
+V. 5.5.8.8 04/30/2020 release
+==============================================
+- reworked pciload bitfile find and select
+- properly cleanup PCI device on driver unload
+- fixed memory leak in edt_system
+- updated libedt open device mode
+- MSI API updates
+- automatically handle system kernel updates now
+- driver permissions policy (executables & bitfiles) developed and tested
+- added Proprietary license to linux kernel module
+
+----------------------------------------------
+V. 5.5.8.3 07/31/2019 eng
+-----------------------------------------------
+- pciload fixed misleading JEDEC error with VisionLink CLS 
+- Updated build scripts to work on new server
+
+==============================================
+V. 5.5.8.2 07/15/2019 release 
+==============================================
+- Aggregate changes since 5.5.7.2, merged and tested for release
+
+----------------------------------------------
+V. 5.5.7.5 06/27/2019 eng 
+----------------------------------------------
+- EDTAPI_VERSION had gotten stuck at 5.5.5.8, fixed & added test
+- Updates to Windows driver, fixes intermittent freeze issues on Win10
+
+----------------------------------------------
+V. 5.5.7.4 05/03/2019 eng 
+----------------------------------------------
+- Updated FW for VisionLink F1 (rev08) & F4 (rev10); modified IRIG functionality
+  for >= HW rev 20 boards (deprecates IRIG if flashed into earlier HW versions;
+  added debounce logic to mitigate noisy external triggers. Only applicable if
+  you have one of these rev boards AND have need of IRIG functionality
+- pciload warning for deprecated IRIG functionality earlier boards (see above)
+- Updated linux package requirements readme (README.lnx_pkg_reqs)
+- Fixed API/doc omissions & bad links on distribution CD
+- Trimmed file list in validate_install.sh to speed up valition tests
+
+==============================================
+V. 5.5.7.2 04/22/2019 release 
+==============================================
+- Aggregate changes since 5.5.6.2, merged and tested for release
+
+----------------------------------------------
+V. 5.5.7.1 04/17/2019 eng
+----------------------------------------------
+- Support for Linux kernels 4.18 through 5.03
+- Fixed Linux SG corruption / crash issue that was failing some stress-tests
+
+----------------------------------------------
+V. 5.5.6.7 04/01/2019 eng
+----------------------------------------------
+- Support for Linux kernel 4.4.143, specific to SUSE Linux SELS 12 SP3
+  NOTE: SUSE is not tested and support for it is not provided
+
+----------------------------------------------
+V. 5.5.6.6 02/14/2019 eng
+----------------------------------------------
+- Fixed pciload ERASE functionality, added README.erase_prom
+- Added -D a functionality to pciload (dump all)
+
+----------------------------------------------
+V. 5.5.6.5 01/17/2019 eng
+----------------------------------------------
+- Fixed Linux driver load problem introduced in ENG release 5.5.6.4
+- Windows EV code signining certificate updated, new one expires 11/2021
+- pdv_decode_timestamp added to pdvlib, updated documentation for
+  pdv_wait_image_timed and related subroutines
+- Deprecated -X in take.c
+- Updated API documentation for pdv_wait_image_timed
+
+----------------------------------------------
+V. 5.5.6.4 10/23/2018 eng
+----------------------------------------------
+- Updated pciload with 4 byte r/w mode for Micron flash
+- pciload added -D i option (dump info space)
+
+----------------------------------------------
+V. 5.5.6.3 09/18/2018 eng
+----------------------------------------------
+- Removed extraneous debug going to dmesg on conflicting register lock ioctls
+- Fixed an issue that was preventing vlviewer from building on fedora 
+
+==============================================
+V. 5.5.6.2 08/31/2018 release
+==============================================
+- Aggregate changes for release
+
+----------------------------------------------
+V. 5.5.6.1 09/11/2018 eng
+----------------------------------------------
+- Fixed typo in .conf files, relates to ldconfig change in 5.5.5.2
+
+==============================================
+V. 5.5.5.8 08/10/2018 release
+==============================================
+- Changes to support custom vision/s5 update
+- Added bitfile option string to PDV codebase & pciload for VisionLink CLS,
+  added optstr / optstr.c utility to get the bitfile option string if present
+- edtinit service failing on newer Ubuntu (18.x) / Debian etc. fixed
+- Aggregate changes, tested for release
+
+----------------------------------------------
+V. 5.5.5.7 07/11/2018 eng
+----------------------------------------------
+- pciload added check/warning for PCIe8 G3 A5 (not related to any vision board
+  but pciload is agnostic to that)
+
+----------------------------------------------
+V. 5.5.5.5 05/09/2018 eng
+----------------------------------------------
+- Added automatic uninstall of previous package to Windows installallation
+- Windows EV code signing 1507 through R4
+  NOTE: If the driver shows up as unsigned on Windows 7, 8 or 10, ensure
+  that all the recommended Microsoft security updates have been applied
+
+==============================================
+V. 5.5.5.4 04/23/2018 release
+==============================================
+- REQUIRED FIRMWARE UPDATE for VisionLink F1 boards, see 5.5.5.3 below.
+- Setdebug -g (scatter-gather diagnostic) fixed in linux driver code
+- Aggregate changes since 5.5.5.1, tested for release
+
+----------------------------------------------
+V. 5.5.5.3 04/17/2018 eng
+----------------------------------------------
+- REQUIRED FIRMWARE UPDATE for VisionLink F1 boards. F1 boards will not
+  operate correctly with this (or any driver from 5.5.5.1 going forward) unless
+  the boards' firmware has been updated to rev. -08 or newer. To update, run
+
+    pciload -u <unit> update
+
+  See "Updating the Firmware" in your users guide for more details 
+- Driver fix for MSI interrupts to match interupt register size
+- Updated ID macros for LF blades (internal, n/a for vision products)
+
+----------------------------------------------
+V. 5.5.5.2 04/03/2018 eng
+----------------------------------------------
+- ldconfig file for edt libs added to linux install, provides
+  simplified/automatic dynamic linking for edt-specific applications
+- Refactored linux driver install script, improves & simplifies internal
+  processes for adding new devices
+- Fixed linux driver install warning from not-ubiquitous "wheel" group
+- Fixed vlviewer issue on linux, graceful error out on permission errors
+  during camera configuration
+
+==============================================
+V. 5.5.5.1 2/28/2018 (windows), 3/5/2018 (linux) release 
+==============================================
+- Implemented support for Windows 10 build 1709 (Creator update)
+- MSI interrupts fixed in Linux, including CentOS 6 boot problem,
+  allowing driver removal with MSI interrupts enabled
+- Added Linux 4.13-4.15 kernel support (gcc7)
+
+----------------------------------------------
+V. 5.5.4.8 02/07/2018 eng
+----------------------------------------------
+- Partial fix for Windows 10 1709 memory error problem
+- Partial implementation of Linux MSI interrupt support
+
+----------------------------------------------
+V. 5.5.4.7 01/22/2018 eng
+----------------------------------------------
+- Fixed potential malloc/strlen memory overrun issues in simple_clsend example
+  application
+- Fixed VisionLink test validate_pdvsim.sh (missing zero-init for CONN variable)
+
+==============================================
+V. 5.5.4.5 12/18/2017 release
+==============================================
+- Modified lib_two_wire.c for c++ compatability
+- Removed superfluous CLS ID entry as PCD in wdf_reload (Windows)
+- Added si5338 clock code to library; production support for VisionLink CLS
+- Updated visionlink F1 FPGA firmware to v.7 (visionlink-f1.bit): added PCIe
+  core stability check
+- Tested recent eng. modifications, build for release
+
+----------------------------------------------
+V. 5.5.4.4 12/07/2017 eng
+----------------------------------------------
+- Added SHA2 / Windows 10 EV attestation-signing; SHA1 code signing deprecated.
+  Windows 7 users should have recommended updates applied or ref. KB3033929
+
+----------------------------------------------
+V. 5.5.4.3 12/04/2017 eng
+----------------------------------------------
+- pdvplus / vlviewer min/max conflict (Debian) fix
+- Code signing work, EOL for Windows XP & Vista
+
+----------------------------------------------
+V. 5.5.4.2 11/13/2017 eng
+----------------------------------------------
+- Linux 4.10 support, added dmy
+
+==============================================
+V. 5.5.4.1 10/23/2017 release
+==============================================
+- Install validation scripts fixed false-negatives on some Linux distros
+- Fixed syntax error in libedt.h, rebuilt for release
+
+----------------------------------------------
+V. 5.5.3.9 10/19/2017 eng
+----------------------------------------------
+- Added PAL IDs to flash sw for identification of new CML board
+- Added rev. pe8dvacamlk_t06.bit, update PCIe8 DVa C-Link boards only if you're
+  system boot problems are occurring with the board(s)
+  
+----------------------------------------------
+V. 5.5.3.8 09/29/2017 eng
+----------------------------------------------
+- Fixed changes to kernel vm_pages structure to
+  allow for building in 4.8+ kernels
+
+==============================================
+V. 5.5.3.7 08/17/2017 release
+==============================================
+- DevId 00ae assigned to E3 NIC (non-vision specific)
+- Renamed install validation script from validate_pdvinst.sh to
+  validate_install.sh
+- Fixed memory leak in edt_open_device
+
+==============================================
+V. 5.5.3.6 07/19/2017 release
+==============================================
+- Updated driver & libs to support building on linux kernels using GCC 5 or 6
+
+----------------------------------------------
+V. 5.5.3.5 07/17/2017 eng
+----------------------------------------------
+- Fixed devid ordering problem introduced in  5.5.3.4
+
+----------------------------------------------
+
+V. 5.5.3.4 07/13/2017 eng
+----------------------------------------------
+- Devids 00ac and 00ae reverted to reserved (future use)
+
+----------------------------------------------
+V. 5.5.3.1 06/01/2017 eng
+----------------------------------------------
+- Backed out timeout recovery code changes from 5.5.2.9; production testing
+  showed it's not stable
+- updated edt_get_buf_bytecount to improve reliability, when updated
+  bitfile w/EDT_HAS_BYTECOUNT & EDT_HAS_DDMA is detected
+
+----------------------------------------------
+V. 5.5.2.9 05/19/2017 eng
+----------------------------------------------
+- Updated VisionLink F1 firmware visionLinkf1.bit, rev06: mods to abort logic
+  to ensure no DMA transfer during abort (ETSR-23)
+- Timeout recovery / abort DMA lib updates (libpdv, take.c) to avoid potential
+  hang conditions from race conditions/multiple unit interference (ETSR-23)
+
+----------------------------------------------
+V. 5.5.2.7 02/27/2017 eng
+----------------------------------------------
+- Updated windows code signing timpestamp refs per RFC3161 svc SHA256/symantec
+
+==============================================
+V. 5.5.2.6 01/25/2017 release
+==============================================
+- pciload -D (dump) output bug fixed, works with DV/Visionlink + non- (i.e. pcd) 
+
+----------------------------------------------
+V. 5.5.2.5 01/17/2017 eng
+----------------------------------------------
+- Linux 4.8 kernel support
+
+----------------------------------------------
+V. 5.5.2.4 10/05/2016 eng
+----------------------------------------------
+- added msvc_stdint.h for use by apps that use it but compiling with vs2008
+- added pdv_cls_set_dvalid() to header file as EDTAPI
+
+==============================================
+V. 5.5.2.3 06/09/2016 eng
+==============================================
+- merge pcd changes, PDV n/a
+
+==============================================
+V. 5.5.2.2 08/04/2016 eng
+==============================================
+- merge pcd changes, PDV n/a
+
+==============================================
+V. 5.5.2.1 06/07/2016 release
+==============================================
+- pciload no longer disallows programming with jumper in PROT position
+  (necessary for some boards)
+- pciload failing to ID some boards e.g. PCIe4 CDa (bug introduced some
+  time after 5.5.1.1) ; fixed
+
+----------------------------------------------
+V. 5.5.1.8 05/12/2016 eng
+----------------------------------------------
+- Removed / repurposed blade ids (non-pdv)
+
+==============================================
+V. 5.5.1.7 02/24/2016 release
+==============================================
+- Updated Windows authenticode signature to use SHA1/SHA256 dual-hash encryption
+  (improves security & resolves IE11 install block issue present in 5.5.1.6)
+- camconfig script fixed for linux, now works as documented
+- Fixed windows validation script error (no lsb_release in windows)
+
+==============================================
+V. 5.5.1.6 01/25/2016 release
+==============================================
+- pciload added invalid filename check & exit before 1st time or -I program
+- Tested aggregate changes since 5.5.1.4 for release
+- Backed out not-ready-for-release contiguous sglist code in 5.5.1.5
+- Includes RECOMMENDED FIRMWARE UPDATE, rev05 for VisionLink F1 and F4
+  (01/13/2016). Use 'pciload update' to update your devices, see the users
+  guide for details. Firmware changes include:
+   - Changed region of interest to accomodate non aligned dval
+   - Fixed intermittent serial hang problems 
+   - Fixed board shutter timer off-by-one problem
+   - Fixed framegrabber_base.vhd and framegrabber_full.vhd instance of progio
+     did not have readback connection on registers 0x03 and 0x43.
+
+----------------------------------------------
+V. 5.5.1.5 12/17/2015 eng
+----------------------------------------------
+- Optimize kernel page handling in edt_lnx_mm.c by maximizing #contiguous pages
+- pciload fixed summary list so -u <unit> works to show only one board
+- Added lsb_release (linux release info) to dvinfo and edt_sysinfo diagnostics
+- pciload added -u functionality for summary list
+
+==============================================
+V. 5.5.1.4 11/24/2015 release
+==============================================
+- Linux gcc5 drv module ln (lib)_4.a->_5.a, compat. workaround for 4.x kernels
+- Aggregate changes since 5.4.9.6, tested for release
+
+----------------------------------------------
+V. 5.5.1.3 11/16/2015 eng
+----------------------------------------------
+- Linux dispatchlib unrecognized flags on older gcc versions, fixed
+- Linux driver build fixes to fix compatabiliy issues with 4.x kernels
+- vlviewer/pdv_qtlib remaining fixes for config/disp mismatch on init/reconfig
+- vlviewer desktop icon replaces pdvshow (pdvshow remains, but not supported)
+- Updated / added windows desktop icons
+
+----------------------------------------------
+V. 5.5.1.2 10/30/2015 eng
+----------------------------------------------
+- pciload added -D option (dump flash), support for new (non-dv) boards
+
+----------------------------------------------
+V. 5.5.1.1 10/01/2015 eng
+----------------------------------------------
+- vlviewer/pdv_qtlib partial fixes for config/disp mismatch on startup/reconfig
+- pciload added output of negotiated pcie link width & speed
+- clsiminit added xregwrite directive support
+- dvinfo fixed camsetup.sh detect, pci precludes pciediag, smarter about
+  finding lspci on linux, other minor changes
+- API comment (doxygen) changes for edt_open_ calls
+- irigdump fixed output timing reported values
+- cleaned some potential memory leaks from libs/vlviewer, added flags to
+  makefiles to quell pedantic warnings
+
+----------------------------------------------
+V. 5.4.9.9 09/22/2015 eng
+----------------------------------------------
+- validation script fixes for CentOS 6.6, & added check for vlviewer lock file
+- vlviewer tiff .so version reference fixed (manifested in CentOS 6.6)
+
+==============================================
+V. 5.4.9.6 08/04/2015 release
+==============================================
+- Change to support Linux Kernels 3.18.9
+- vlviewer build failed on some linux distros due to libjpeg, fixed
+- Generic & test configs updated for validation test changes (cksums)
+- Adjusted cl_speed messaging parameters for VisionLink F1 & PCI devices
+- Linux driver builds failing on edtinit PE8G3KU, fixed 
+
+==============================================
+V. 5.4.9.4 07/13/2015 release
+==============================================
+- Linux build changes so local jpeg-6b lib is referenced instead of having to
+  depend on external jpeg library which varies system to system
+- vlviewer fixed spurious "no such slot" qtlib messages
+- last rev (5.4.9.2) broke vlviewer -i (initcam) feature, fixed
+- Includes RECOMMENDED FIRMWARE UPDATE, rev04 for VisionLink F1 (06/22/2015) and
+  VisionLink F4 (6/18/2015). Use 'pciload update' to update your devices, see
+  the users guide for details. Firmware changes include:
+    * Improved non-qword aligned data handling 
+    * Fixed problem with ROI/linescan acquire & fvalgen missing 2 lines
+    * Using 2-tap 8-bit mode on ch0 caused ch1 to be inactivated on F4, fixed
+    * Reset issue on Visionlnk f4 causing inconsistent ch2 generated data, fixed
+    * Added 5-tap 16-bit mode
+    * Increased FIFO size on F4
+    * F1: Corrected Pixels per Line / Clocks per line status registers
+- Added flash/xc5vlx30t/pe8dvaclsim128b.bit, alternate FPGA file for PCIe8 DVa
+  CLS -- same as std. FPGA file except 128 byte burst size; slower max data 
+  rates but it resolves CLS data glitches on many newer GEN2 chipsets
+- Aggregate changes since 5.4.8.4, tested for release
+- Windows 10 release validation added (to Win 7 & 8)
+
+----------------------------------------------
+V. 5.4.9.2 06/25/2015 eng
+----------------------------------------------
+- vlviewer -i check / force ./ if not full path
+- Updated VisionLink F1 & F4 firmware (06/18/2014)
+- release candiate / testing
+
+----------------------------------------------
+V. 5.4.9.1 06/25/2015 eng
+----------------------------------------------
+- vlviewer updated help text
+- initcam added 10 msec sleep at finish for non-fox boards
+- More validation tests including cls->fg (automated build/test) 
+- cls devices: configured lval values were being overwritten on init, fixed
+
+----------------------------------------------
+V. 5.4.8.8 06/03/2015 eng
+----------------------------------------------
+- clseredt.dll removed force long serial timeout from 5.4.8.6 (windows)
+
+----------------------------------------------
+V. 5.4.8.7 05/20/2015 eng
+----------------------------------------------
+- Updated/added pdv_cl_set_base_channels to API (resets #taps programatically)
+- vlviewer added options to save a file on startup, show about box, usage, quit
+- vlviewer expanded help
+- Updated to tiff-4.0.3, include as a .zip & reworked makefile & linux depen-
+  dencies for it & jpeg-6b so those libs don't have to be separately installed
+- Added some verbosity to linux setup script output when errors are detected
+
+----------------------------------------------
+V. 5.4.8.6 04/28/2015 eng
+----------------------------------------------
+- clseredt.dll potential problem with clSerialRead; would timeout if more data
+  than expected; fixed
+- vlviewer fixes & enhancements:
+    * cleaned up numerous stub functions
+    * standardized dialog buttons
+    * fixed dialog resize issues & close dialog on app exit
+    * added skip, serial, settings & help dialogs
+- Uniq up685 config framesize updates (16-byte boundary issue)
+- pdv_set_shutter_method failure bug fixed
+- Added cert. file & silent install example .bat files in wdf/install (Windows)
+- Improved validation in automated build procedures
+- Linux pkgs: tiff (4.0.3) & jpeglib build / link now automatic (removed the
+  need for those libes to be on the system for gen_tiffs, vlviewer, send_tiffs).
+- Added new device IDs aa-af (pcd: gp/ku + future)
+
+==============================================
+V. 5.4.8.4 03/26/2015 release
+==============================================
+- dvinfo diagnostic: added -c option, fixed FW check & output message
+- Aggregate changes since 5.4.8.2, tested for release
+
+----------------------------------------------
+V. 5.4.8.3 03/23/2015 eng
+----------------------------------------------
+- Fixed Linux serial hang/crash bug (crit. in crit. + preempt_disable)
+- CLS (simulator) products, fixed clsiminit uninitialized pixel clock problem
+  introduced in 5.4.8.2 
+- Updated installation CD docs browser with format / files matching new website
+
+==============================================
+V. 5.4.8.2 02/24/2015 release
+==============================================
+- vlviewer added -v/--version and -h/--help options, clean exit if no board
+  found, updated to v1.1,
+- build updates to enable jenkins build/validation testing (internal)
+- aggregate changes for release candiate build
+
+----------------------------------------------
+V. 5.4.8.1 02/12/2015 eng
+----------------------------------------------
+- added pdv_get_shutter_method, same as pdv_shutter_method but with mcl arg
+- aggregate changes build/test
+
+----------------------------------------------
+V. 5.4.7.9 02/11/2015 eng
+----------------------------------------------
+- added validate_pdvinst.sh for validation testing
+- added pdv_set_shutter_method() to pdvlib (libpdv.c)
+
+----------------------------------------------
+V. 5.4.7.8 01/21/2015 eng
+----------------------------------------------
+- pcix_diagtool renamed pciediag, built on install, added to windows & pdv pkgs
+- make clean more complete (esp. windows)
+- vlviewer fixed occasional crash on 1st config, fixed
+
+----------------------------------------------
+V. 5.4.7.7 01/13/2015 eng
+----------------------------------------------
+- vlviewer updates:
+    * detects/warns/quits if already running on same device/channel
+    * fixed file save autonumber feature & added the autonum ckbox to save pane
+    * updated top bar info (+cfgname +size)
+    * camconfig dialog remembers last selected config
+    * fixed crashing problems  when camconfig to different #bits per pixel
+- pdv_cls_set_clock & pdv_cls_set_dep (clsim_lib.c): values outside valid clock
+  range now produce a warning but will set specified value (useful for testing)
+- clser_example.cpp added to edt_camlink subdir
+- clseredt.dll & .so code modified, clSerialRead wouldn't timeout per CL spec
+- Doxygen changes updated urls to match new website in code comments
+- Comments added re. vxworks on all applications clarifying NO_MAIN purpose
+- edtlib: edt_get_xref_info added/updated with new optional file params &,
+  edt_find_xpn calls that internally now
+
+----------------------------------------------
+V. 5.4.7.5 11/25/2014 eng
+----------------------------------------------
+- cl_speed was miscalculating MBytes/sec; fixed
+- clseredt.dll added linux build, fixed EDT-specific error text, added #ifdef
+  on win-specific postproc in libpdv so that'll work when linked statically
+
+==============================================
+V. 5.4.7.4 10/28/2014 release
+==============================================
+- Fixed clink_tester occasional crash bug introduced in v 5.4.6.4.(CLS bds only) 
+- Aggregate changes since last production release (see below)
+
+----------------------------------------------
+V. 5.4.7.3 10/24/2014 eng
+----------------------------------------------
+- pdv_cls_set_height() bug fixed (affects simulator products only)
+- added edt_flash_prom_header() to API; returns boot sector prom header string
+- CD installation script issues for linux & some linux distributions, fixed
+- linux installation CD: linux.go renamed linux.go.sh (since clicking on a .go
+  file will just bring it up in the editor under some configurations)
+- vlviewer build problem (-lreadline, -lncurses) on some linux distros, fixed
+- Linux: deprecated (and unused) sleep_on calls removed from driver
+- Updated firmware (rev03) for visionlink f1/f4. Recommended update -- use
+  pciload -u <unit> visionlinkf1 or pciload -u <unit> visionlinkf4 to update
+  your board (see the users guide for detailed information. The following
+  modifications are included in this update:
+    * Fixed configuration timing issues that caused sporadic boot failures
+    * Fixed bad pixel issues during max speed (85mhz) operations
+
+----------------------------------------------
+V. 5.4.7.2 10/2/2014 eng
+----------------------------------------------
+- vlviewer linux build problem introduced in 5.4.7.1, fixed
+- wdf unload devs added for cleaner uninstall
+
+==============================================
+V. 5.4.7.1 07/31/2014 release
+==============================================
+- vlviewer single button not working on first config after boot, fixed
+- gen_tiffs fixed for 10-14 bit (created as packed, shouldn't have)
+- wdf_reload fixed missing DVa/Visionlink IDs, for cleaner uninstall/reinstall
+- Added remove_pdvwdf.bat to wdf dir, for the occasional case where it's
+  necessary to force removal of persistent old of driver .sys file
+
+==============================================
+V. 5.4.6.5 07/07/2014 release
+==============================================
+- pdvcom added (com port method for serial, see README.pdvcom.txt)
+
+----------------------------------------------
+V. 5.4.6.4 06/23/2014 eng
+----------------------------------------------
+- Rev02 FPGA firmware files for VisionLink F1/F4, updated to swap ext. trigger
+  pins, see the users guide for how to update boards using pciload
+- vlviewer fixed some warning output (linux), disables capture if not config'd
+- rcxload, bitload: increased verbosity level to EDTDEBUG>0 for "invalid magic
+  bytes" message
+- rcx c-link med & full mode unit FPGA files added to package
+- clink_tester added alloc 3 bufs
+
+----------------------------------------------
+V. 5.4.6.3 06/17/2014 eng
+----------------------------------------------
+- Fixed include file & library path issues with dispatch, vlviewer & linux
+- cl_speed added fpga names & adjusted speed params for visionlink
+- rev01 FPGA firmware files for VisionLink F1/F4; first production release
+  includes fval-adjust timing improvements -- see the users guide for how
+  to update boards using pciload
+
+==============================================
+V. 5.4.6.1 05/27/2014 release
+==============================================
+- vlviewer now correctly stops continuous if single button is pressed
+- Fixed pdvshow camselect to show only camera link cfgs if camera link dev
+- Modified edt_types.h so #defines are EDT_TYPE_BYTE instead of TYPE_BYTE, etc.
+  because of conflicts with other libraries
+- Added extra checks for required packages on linux install, fixed no error out
+  on no g++
+- Moved pdv_flshow back into linux installations (not quite ready to retire)
+- Added remove_edtinf.bat to wdf dir (util to remove archived win EDT drivers)
+- linux edtinit (make load) driver permissions bug for >3 enumerated devs fixed
+
+----------------------------------------------
+V. 5.4.5.9 05/15/2014 eng
+----------------------------------------------
+- vlviewer fixed start continuous bad images / continuous delayed display bug
+- vlviewer implemented -nb flag (command line numbufs arg, see vlviewer --help)
+- clsiminit (clsim_lib) fixed bug where mono cfg failed if first init as rgb
+- doxygen api updates
+
+----------------------------------------------
+V. 5.4.5.8 05/05/2014 engineering beta release
+----------------------------------------------
+- VisionLink F1 & F4 rev 00 FPGA firmware files added to package
+- Added cfgread to pciload micron_read/write (more solid FPGA burn for VL bds)
+- pcix_diagtool makefile bug fixed
+
+----------------------------------------------
+V. 5.4.5.7 04/30/2014 test build
+----------------------------------------------
+- Fixed VisionLink F4 driver/lib recognition/id (as imaging board) problem
+- take utility -N 0 flag wasn't working as advertised, fixed
+- clink_tester added test for 16-byte hex serial send/receive
+- Added cleanup of more files on Windows pkg uninstall
+- pciload useage update re. OSN
+- vlviewer added menu exit, added Skipped item in footer
+
+----------------------------------------------
+V. 5.4.5.6 04/21/2014 eng
+----------------------------------------------
+- New deinterlace method QUADRANT3_INTLV; 4-port interlace, starting from the
+  center, iterating out to the corners
+- vlviewer updated devinfo dialog, related changes to libs &  edt_flash.c
+- simplest take fixed -u arg
+- Fixes to dispatch library 
+
+----------------------------------------------
+V. 5.4.5.3 03/28/2014 
+----------------------------------------------
+- pciload support for VisionLink F1 & F4 FPGA id/load/verify
+- simple_event example added -f switch for FVAL, removed -r (disabled ring
+  buffers) -- see simple_event --help for useage
+- pciload completed support for VisionLink F1/F4 (now can ID, load and verify)
+- vlviewer/pdvplus/pdv_qtlib: pdvplus corrected string ident. for newer bds,
+  vlviewer reformatted devinfo output
+
+==============================================
+V. 5.4.5.1 03/12/2014  release
+==============================================
+- Fixed header_type (IRIG, etc.) getting overwritten bug introduced in 5.4.1.1
+- pciload initial support for VisionLink F1/F4 (detects/IDs but no load/verify)
+- Aggregate changes (see below), tested for production release
+
+----------------------------------------------
+V. 5.4.4.8 02/27/2014 eng
+----------------------------------------------
+- Added 'default' arg for .run installs; sets no-prompt target to /opt/EDTpdv
+- Incremental fixes /updates to vlviewer & pdv_qtlib
+- Removed pdv_flshow from all installations
+- More error checking in Linux install scripts, more cleanup on uninstall
+- simplest_take udpated, removed option to save obsolete .ras (or anything)
+
+----------------------------------------------
+V. 5.4.4.7 02/19/2014 eng
+----------------------------------------------
+- vlviewer added (new/improved pdvshow-like application): replacement for
+  pdv_flshow on Linux, eventual replacement for pdvshow on Windows
+- Windows build optimizations & error checking/tracking
+- Changes to pciload to check IDs w/o burning, run pciload --help for useage
+- Updated linux install scripts & cd install menu: added error checking & logging
+  to Linux install scripts, install much more quietly
+- Installation log contents added to dvinfo & edt_sysinfo output
+
+----------------------------------------------
+V. 5.4.4.3 01/2/2014 eng
+----------------------------------------------
+- Updated PCIe8 DV/DVa CLS (simulator) FPGA files (rev04) provide bandwidth im-
+  provements: DMA engine now supports 256 SG list read requests & 2048 byte data
+  read requests (base & full), increased FIFO size to 32KB (full mode only). To
+  update your CLS board, run 'pciload update' (see the users guide for details
+  on querying & updating board firmware.)
+
+----------------------------------------------
+V. 5.4.4.2 12/16/2013 eng
+----------------------------------------------
+- Added pdv_qtlib; Qt layer used by vlviewer & other possible pdv GUI apps
+- Uninstall does more cleanup esp. make & vcproj-created files/dirs
+- Updated libtiff makefile
+- Updated CD install menu splash & fixed spurious error on menu quit
+
+==============================================
+V. 5.4.4.1 12/02/2013 PRODUCTION RELEASE
+==============================================
+- Added check in initcam, graceful exit if not a known framegrabber (as
+  opposed to simulator)
+- Build/test with aggregate changes (below) for release
+- Support for VisionLink F1, excepting pciload program and verify
+
+----------------------------------------------
+V. 5.4.3.9 11/20/2013 eng
+----------------------------------------------
+- send_tiffs -m (memory) option broken, fixed
+- simple_clsend removed asserts, fixes probs with non-debug builds
+- simple_clsend removed setsize; fixes probs sending 10-16x2-tap
+- clsiminit (simulators) fixed baud rate setting for other than 9600 
+
+==============================================
+V. 5.4.3.7 11/06/2013 PRODUCTION RELEASE
+==============================================
+- More ID changes, #defined labels for new devs
+- More library work for (still to be released) qt pdvshow
+- cl_speed updated limits & output
+- Take now defaults to 4 ring buffers; -N 0 now forces pdv_read (was default)
+- Simple_clsend removed asserts that could cause probs with non-debug builds
+- Support for the most recent linux kernels, up through 3.8.0-30
+- Aggregate changes since last production release (5.4.2.7), see below 
+
+----------------------------------------------
+V. 5.4.3.6 10/24/2013  eng test
+----------------------------------------------
+- Fixed linux .bmp file bad header write (libdvu) & core on no-permissions write
+
+----------------------------------------------
+V. 5.4.3.5 10/23/2013  eng test
+----------------------------------------------
+- Fixed some (recently introduced) edtimage & pdvplus linux compile errs/warns
+- Test build for beta release
+
+----------------------------------------------
+V. 5.4.3.4 10/21/2013  eng 
+----------------------------------------------
+- Fixed some build/install issues that effect certain Linux distributions 
+
+----------------------------------------------
+V. 5.4.3.3 10/14/2013  eng test
+----------------------------------------------
+- Test build
+- pclock_speed (fg) & cls.pixel_clock (sim) synched (lib, clsiminit, readcfg)
+- Ids for possible future devices added
+- Ongoing (still unfinished) FPGA & PROM support for new dv boards
+
+----------------------------------------------
+V. 5.4.3.2 10/8/2013 eng
+----------------------------------------------
+- Renewed digital signature for windows packages/drivers
+- Added IDs & support for new ImageLink series boards
+- Library work to support new qt-based pdvshow
+
+----------------------------------------------
+V. 5.4.2.7 08/20/2013 eng
+----------------------------------------------
+- simple_clsend removed unnecessary msleep(1)
+- Test for release
+
+----------------------------------------------
+V. 5.4.2.3 08/13/2013 eng
+----------------------------------------------
+- Pdvshow checks if board is simulator, quits if so
+- Added 8-bit quadrant deinterlace
+- New configs: SVS-VISTEK hr29050m
+- Pre-work (idstuff) for next generation PCIe vision boards
+- clsim_lib fixed rvstart/end init, & sets lib vars for fv/lv/rv start/end to persist
+
+----------------------------------------------
+V. 5.4.2.2 07/16/2013 eng
+----------------------------------------------
+- Cert. files updated (internal, for build system cert. updates)
+
+----------------------------------------------
+V. 5.4.2.1 07/08/2013 eng
+----------------------------------------------
+- Updated digital signature chain; windows install & devmgr now correctly reports driver
+  as digitally signed 
+
+----------------------------------------------
+V. 5.4.1.10 06/13/2013 eng
+----------------------------------------------
+- Removed some obsolete configs, for obsolete FOI devices, incorrect clsim16
+- Fixed simple_clsend buffersize calculation
+- New custom interlace methods INTLV_20BAND, INTLV_21BAND
+
+----------------------------------------------
+V. 5.4.1.9 06/03/2013 eng
+----------------------------------------------
+- gen_tiffs re-added to package
+- clsim_lib fixed some instances of dependent element cls.taps not getting set
+
+----------------------------------------------
+V. 5.4.1.8 05/31/2013 eng
+----------------------------------------------
+- Pciload now displays driver & library versions
+- Pdv .sln / .vcproj fixes including .users files to set working dir,
+  consistent paths and settings for x64 as well as x32 builds
+- pdvshow version synched with driver/lib/pkg & going forward
+
+----------------------------------------------
+V. 5.4.1.7 05/23/2013 eng
+----------------------------------------------
+- Fixed pdvshow vs2008 solution (dispatch missing as if 5.1.4.4, dependencies)
+- Fixed / updated pdvapps.sln; includes all sample pdv applications
+
+----------------------------------------------
+V. 5.4.1.5 05/08/2013 eng
+----------------------------------------------
+- Fixed pciload for some older devs
+- Modified serial_init, serial_binit (config) to allow multiple/mixed instances
+
+----------------------------------------------
+V. 5.4.1.2 04/30/201 eng
+----------------------------------------------
+- test build, fix missing dispatch dir and project (pdvshow doesn't build in pkg)
+
+==============================================
+V. 5.4.1.1 04/25/2013 PRODUCTION RELEASE
+==============================================
+*** This release includes RECOMMENDED FIRMWARE UPDATES for several boards. 
+    for directions on updating your firmware, see the users guide.
+- New base and full mode firmware v.14 RECOMMENDED UPTATE for PCIe4 DVa C-Link
+  and PCIe8 DVa C-Link, and base mode firmware v.03 RECOMMENDED UPDATE for
+  PCIe8 DVa FOX / F2. Changes include:
+    * ROI padding disabled by default (yields better underrun detection/time-
+      outs); can be re-enablied via CL_CFG2_NORM bit 7 [0x80])
+    * ext. trigger updates for PCIe4 DVa FOX (corrects diffs w/other PCIe bds)
+    * update to support 30-bit RGB mode (compat. w/older boards/existing cams)
+    * DVaFOX dflt clock speed now 2.5GHz; can reset via MGTSPEED reg
+- New base firmware v.03 RECOMMENDED UPDATE for PCIe8 DVa CLS. Changes include:
+    * Fix for si570 clock, fixes intermittent problems setting serial baud
+    * Fixed broken channel 1 serial communications
+- Fixed clsiminit hgap/vgap setting (broken sometime arouund/after last release)
+- Aggregate changes since last production release (5.3.8.1)
+- pdv_read, pdv_write, edt_read, edt_write re-coded to use 1 ring buffer
+- pdvshow fixed file save autonumber feature
+
+----------------------------------------------
+V. 5.3.9.8 04/17/2013 release test beta
+----------------------------------------------
+- New config directive CL_MGTSPEED_NORM, sets PCIe4DVa FOX clock speed; see
+  the Firmware Guide, Camera Configuration Guide and Framegrabber Users Guide.
+- New for PCIe8 DVa C-Link, pe8dvacamlkddr_fm.bit, enables DDR2 for PCIe8 DVa-
+  C-Link base through full mode, 40MHz and above
+- Configs:  new Basler Ace 10b8t, updated Cohu 7700 (ROI now clips to valid)
+- Added edt_readinfo back into edtlib, previously removed for no good reason
+- rcxload utility fixed to work with PCIe4 DVa FOX
+- pciload output format changes, fewer unnecessary 'continue' prompts
+
+----------------------------------------------
+V. 5.3.9.6_beta 04/01/2013 eng
+----------------------------------------------
+- pdvshow added hexidecimal option for pixel text display
+- Fixed 10-bit 8-tap intlv for PCIe8 DVa C-Link (was missing last 1/5th rows)
+
+----------------------------------------------
+V. 5.3.9.4_beta 03/20/2013 eng
+----------------------------------------------
+- Initcam increased max #bytes for serial_init & serial_binit from ~64 to 1024,
+  both directives can now be specified multiple times
+- New subroutines pdv_framesync_enable, pdv_framesync_mode, pdv_check_framesync
+  and method_framesync config file directive, including timeout emulation to
+  detect timeouts on framecync error
+- Fix u_int foundend >= 0 always true warning.
+
+----------------------------------------------
+V. 5.3.9.2_beta 03/4/2013 eng
+----------------------------------------------
+- New config directive start_delay & removed hard-coded 10-sec initcam serial delay
+  for Hamamatsu, replaced with the new directive in older Hamamatsu configs
+- Updated Hamamatsu Orcaflash 4.0 config with correct width (2050).
+- Install pkg updates (Windows): icons, splash gfx, signed driver warning msg
+- Updated pcie4 dva fox -50t version FPGA to rev01
+- Added special-purpose _tsi full mode FPGA for PCIe4 DVa 
+- Fixed clseredt.dll copy to registry-defined loc (broken in a recent eng ver.)
+- Fixed clseredt.dll indexing error on units / channels other than 0
+----------------------------------------------
+V. 5.3.8.9 02/13/2013 eng
+----------------------------------------------
+- pciload changes to support pcd devs (mostly unrelated to pdv but common code)
+
+----------------------------------------------
+V. 5.3.8.7 01/29/2013 eng
+----------------------------------------------
+- pdv_set_depth & pdv_set_extdepth deprecated; use new combined
+  pdv_set_depth_extdepth
+- pciload reorg for non-dv devs including re-org (eg edt_xilinx.c->edt_flash.c)
+- serial enabled check fixed to prevent resource lock on serial reads / waits
+
+----------------------------------------------
+V. 5.3.8.6 12/20/2012 eng
+----------------------------------------------
+- linux driver mod to address hangups from serial
+- edt_flash.c replaced replacing edt_xilinx.c and preliminary pciload
+  support of new pcd board
+- new configs for Basler Ace and Sprint model cameras
+
+----------------------------------------------
+V. 5.3.8.4  12/2012 eng
+----------------------------------------------
+- advanced Vision Technologies (AVT) Bonito camera support
+- corrected Hamamatsu OrcaFLASH 4.0 config error (fixed interlace directive)
+- 10-bit 8-tap packed mode for PCIe8 DVa C-Link (firmware update to rev. 13
+  FPGA file required), and associated configs for Dalsa Falcon 2-12M
+- installation CD improvements (exception handling in menu, windows autorun,
+  added MacOS package to standard CD)
+
+==============================================
+V. 5.3.8.1  11/06/2012 PRODUCTION RELEASE
+==============================================
+- aggregate engineering changes tested for production release 5.3.8.1
+
+----------------------------------------------
+V. 5.3.7.9  11/01/2012 engineering
+----------------------------------------------
+- deinterleave support for Hamamatsu Orca Flash 4.0
+----------------------------------------------
+V. 5.3.7.8  10/18/2012 engineering
+----------------------------------------------
+- fixed sysctl bug for Linux kernels > 2.6.31
+- linux package install changes including no more auto-save of date-changed files
+----------------------------------------------
+V. 5.3.7.5  10/2/2012 engineering 
+----------------------------------------------
+- fixed ROI which was broken in 5.3.3.7
+----------------------------------------------
+V. 5.3.7.4  9/20/2012 engineering 
+----------------------------------------------
+- simple_clsend and send_tiffs added -rgb4 option; NOW REQUIRED to enable CLS
+  4-tap emulation for 24-bit RGB, in anticipation of FPGA FW with native 24-bit
+- clsiminit no longer modifies datapath per RGB (related to above)
+----------------------------------------------
+V. 5.3.6.3  8/30/2012 engineering 
+----------------------------------------------
+- dvafox now properly ID'd (not dvfox) in pciload
+- clsim_lib changes for robustness (img size related)
+- PCIe4 DVa FOX support, including serial on channel 2 (3rd txcvr)
+- added -l option to clsiminit, to enable uartloop for CLS boards
+- updated FPGA files pdvcamlk_3v/5v.bit (rev 41a), fast re-arm acq. block,
+  enabled by setting reg. 0x35 (CL_CFG2) 0x40 bit
+- config files for PCO.edge cameras
+- added manifest to clseredt.dll, fixes missing msvcrt90.dll error
+- added delay / retry code to pciload; prevents lockup if pciload write fails
+- fixed channel 1 serial DV C-Link boards
+----------------------------------------------
+V. 5.3.3.8  4/19/2012 engineering 
+----------------------------------------------
+- removed FOI artifacts from driver serial code, fixed serial_waitc problem
+  on ch. 1 (also possibly fixed serial_wait probs in general?)
+- added ;2 dll manifest tag, fixed link problems (missing MSVCRT90.dll for
+  apps built with /MT)
+- added channel arg to clsiminit & clink_tester for simulators (still no-go for
+  clink_tester -c 1 on simulator however)
+- clsim_lib: sets width/height/depth directly rather than pdv_ lib calls for that
+  which had the negative side-effect of reconfiguring buffers ; (should be
+  explicit in simulator apps)
+- clsim_lib: pdv_cls_set_taps() added to api
+- clseredt.dll fix for getSerialPortIdentifier and getManufacturerInfo: returns 4
+  if uninitialized, correctly indexes ports /channels
+
+==============================================
+V. 5.3.3.7  4/5/2012 PRODUCTION RELEASE
+==============================================
+- Linux driver scatter-gather list resisze bug from 5.3.3.6 fixed
+- Tested package release including aggregage changes below
+
+----------------------------------------------
+V. 5.3.3.6  3/26/2012 release candidate
+----------------------------------------------
+- PCIe8 DVa c-link full mode: RECOMMENDED FPGA UPDATE; rev 12 _fm FPGA
+  (pe8dvacamlk-fm.bit) corrects a bug introduced in rev11 that broke 8x10
+  "extended full" mode (note: only for boards running full mode FW)
+- Rev12 FPGA updates also for PCIe4 DVa C-Link and PCIe8 DVa C-Link base mode;
+  no major changes from rev11 but keeps FW builds tracking with the same rev.
+- Manifest added so apps can use pdvlib.dll instead of static in windows
+- initcam resets FIFO / clears any left-over overruns from dvinfo, etc.
+- send_tiffs, simple_clsend added -c to enable use on other than ch. 0
+- Nonessential code-cleanups and comments/doxygen API docage
+
+==============================================
+V. 5.3.3.3  2/17/2012 PRODUCTION RELEASE
+==============================================
+- RECOMMENDED FPGA UPDATES (rev 11) for PCIe8 DV and DVa framegrabbers: 
+   * added dual RGB/BGR modes (dpath 57 & d7)
+   * added dalsa dual processing medium mode (dpath b7)
+   * DMA FIFO performance fixes
+   * fixed erroneous bytecnt output for RGB modes
+- RECOMMENDED FPGA UPDATES (rev 02) for PCIe8 DV CLS simulators:
+   * significant output performance improvements; now supports complete Camera 
+     Link range at 20-85MHz, up to and including extend full (80-bits)
+   * Baud rate now sets correctly for full range, and larger serial RX FIFO
+   * fix for 2 tap 10 bit mode
+  (see "Updating the firmware" in the users guide for details on re-flashing
+  your board with updated firmware)
+- Added FPGA files (rev00) for PCIe4 DVa FOX (Camera Link fiberoptic board)
+- Support for Linux kernels 2.6.18 through 3.2.7 (but excepting 3.0.1.4)
+- Install: removed windows requirement to disable user account control (UAC)
+- Install sets $PDVHOME envvar on windows; include this in your path  if you
+  want to run pdv EDT applications from other than the EDT installation dir
+- Support for MacOS v10.6, 32 and 64-bit (use 5.3.2.8 for MacOS v10.5)
+- Install now creates install.log; useful for diagnosing install problems
+- dvinfo, edt_sysinfo, setdebug: updated diagnostics & options, cleaner output
+- New config files for Baumer and Basler
+- Aggregate fixes in engineering versions since last production release
+
+----------------------------------------------
+V. 5.3.2.8 (ENG)
+----------------------------------------------
+- Fixed script error that was causing vcredist_x86 (SBS) to not get called on
+  32-bit systems
+- Pciload now recognizes 'a' version boards and presents them as such (e.g.
+  pcie8 dva c-link)
+- clseredt.dll for Camera Link control added for 64-bit, and re-added (since
+  4.x) for 32-bit,
+  and updated to conform to Camera Link 2.0 seri dll location and registry
+  guidelines
+- Bitload (rbtfile: config reference) was failing on some legacy PCI boards
+  when full rbtfile path was not specified in config ; fixed
+- Support for Linux 3.0 kernels
+
+==============================================
+V. 5.2.1.3 PRODUCTION RELEASE
+==============================================
+- Added pe4dvacamlk.bit and pe8dvcamlk.bit (new FPGA files for PCIe 'a' bds)
+
+==============================================
+V. 5.2.1.2  PRODUCTION RELEASE
+==============================================
+- Supports WinXP/32, Vista 32/64, Win7/32&64, Linux
+- Fixed remaining bluescreen problem (certain windows platforms)
+- Trigger via serial problem fixed (cfg directive serial_trigger, force_single)
+- serial_cmd -x 16-byte limit increased to 512
+- simple_clsend (for simulator boards) improvements including list and dir optns
+- Broken deinterleave algorithms fixed
+
+----------------------------------------------
+Win7 V. 5.1.1.8 (BETA for Win7/32&64)
+----------------------------------------------
+- fixed channel 1 / serial bluescreen problem 
+
+----------------------------------------------
+Win7 V. 5.1.1.5 (BETA for Win7/32&64)
+----------------------------------------------
+- Fixed blusescreen problem caused by buffer reallocation
+- pdvshow icon (bad arguments in properties) problem *really* fixed now
+- Uninstall removes more stuff including objs created from rebuilds using nmake
+- PCIe8 DV CLS FPGA files pe8dvcls_bm.bit (base) & pe8dvcls_fm.bit (full) added
+- send_tiffs -m (memory) option added 
+
+----------------------------------------------
+Win7 V. 5.1.1.3 (BETA for Win7/32&64)
+----------------------------------------------
+- Added pe8dvclsim_bm and _fm fpga files for PCIe8 DV CLS. If you have a PCIe8
+  simulator, run pciload -v to check the file against the currently flashed FPGA
+  and update if different (see users guide for instructions on updating firmware)
+- Makefile fixed to copy .exes up to parent just as 
+
+----------------------------------------------
+Win7 V. 5.1.1.2 (BETA for Win7/32&64)
+----------------------------------------------
+- Fixed pdvshow icon (bad arguments in properties); now correctly invokes pdvshow
+- Channel 1 serial didn't work in 5.1.1.1; fixed
+- Supports PCIe8 DV CLS (8 lane PCI Express Camera Link simulator)
+- Installs required Microsoft side-by-side assembly (VC++ redistributable)
+- Cleaned up some confusing install dialog behavior 
+- Known issues still include:
+   * no clserialedt.dll
+   * User Account Control must be disabled or applications will not see the driver
+   * "make" or "nmake" puts the .exe files in the bin directory instead of expected local dir
+
+----------------------------------------------
+Win7 5.1.1.1 (BETA for Win7/32&64)
+----------------------------------------------
+- First release (beta) WDF driver (see NOTE above for applicable OSs). 
+
+==============================================
+V. 4.2.6.8 PRODUCTION RELEASE for XP32
+==============================================
+- Support for Linux v.2.6.37+
+- Simulator (CLS) boards: added simple_clsend (simpler send_tiffs)
+- Simulator (CLS) boards: added tiffs256 dir with sample 256x256 files and imagelist to match,
+  for out of the box send_tiffs and simple_clsend testing using camera_config/clstest256.cfg
+
+==============================================
+V. 4.2.5.7 PRODUCTION RELEASE for XP32
+==============================================
+- send_tiffs (cls boards only) added -m (memory) option
+- Aggregate changes since 4.2.4.3 built / tested for production
+
+----------------------------------------------
+V. 4.2.5.5 (eng)
+----------------------------------------------
+- pciload structural changes (transparent)
+
+V. 4.2.4.8 (eng)
+- New pcie8 bitfile pe8dvcamlk2.bit; rev09 fixes 2nd (ch1) DMA & serial. This is 
+  a RECOMMENDED UPDATE for customers running base or medium mode cameras -- run
+  pciload with no arguments; if it shows that your board's FPGA firmware is earlier
+  than 9/9/2010, we recommend applying this update. See your users guide or README.pdv
+  for directions on using pciload to update your firmware.
+- Also in the new firmware, re-added PCLVVFREE to free pixel clock counter BUT different
+  reg (CL_CFG2); rewrote pdv_camera_connected() to use this new reg/bit
+
+----------------------------------------------
+V. 4.2.4.4 (eng)
+----------------------------------------------
+- Fixed Vieworks 4-tap deinterleave
+- new firmware for pcie8, includes frame footer and IrigB (pe8dvcamlk2.bit)
+  and fix for problem that occurred when frames aren't a multiple of 128
+  (pe8dvcamlk2.bit and pe8dvcamlk2_fm.bit) -- see Firmware in the users guide
+- New subroutine pdv_set_header_type() and predefined IRIG2 method for frame
+  tagging, counter and image time stamping on PCIe8
+
+==============================================
+V. 4.2.4.3 PRODUCTION RELEASE for XP/32
+==============================================
+- Configs for Vision System Tech VieWorks cameras VM-16F3, VA-8M16
+  and VH-5M16 and image reorder (deinterleave) support (TOPBOTTOM) for same
+- rcx c-link firmware update to rgb11d -- updates so modules can load
+  via other modules and EDT C-Link boards not just DVFOX
+- Fixed spurious debug output from bitload 
+- Fixed take.c segfault bug when using bayer deinterleave and no ring buffers
+  (i.e. no -N flag) on Linux
+- Fixed camconfig for linux pdv_flshow -- now comes up automatically. Also
+  depricated the ASCII version (achooser) so if fltk is not installed / pdvshow
+  not built, users should just use initcam directly to init the board
+- Updated firmware pcie8dvcamlk.bit for PCIe8 DV C-Link base mode w/IRIG-B
+  timestamp support
+
+----------------------------------------------
+V. 4.2.3.8 (eng)
+----------------------------------------------
+- Updates to dvinfo diag
+- New configs for Geospatial / Duncantech, DVC4000, Toshabi-Teli, Cohu
+- Updates to several configs to reflect the serial changes in 4.2.3.2
+- checkcam now checks board type and gives pixels/lines on C-link boards
+- Various doxygen (API doc) updates
+- Aggregate changes in below eng versions rolled into production candidate
+- PCIe8 DV C-Link new firmware for speedgrade 2 chipsets -- specifically
+  pe8dvcamlk2.bit (base / medium mode) and pe8dvcamlk2_fm.bit (full mode). If
+  your PCIe8 DV C-Link board doesn't work in a computer with PCI Express gen2
+  chipset see the directions in the users guide for verifying and updating
+  your firmware.
+
+----------------------------------------------
+V. 4.2.3.2 (eng)
+----------------------------------------------
+- Added printf-like argument formatting to serial_exposure/gain/blacklevel
+- Added config directives exposure_min/max (aliases for shutter_speed_min/max)
+- Added base/medium mode firmware for PCIe8 DV C-Link r.11+ : pe8dvcamlk2.bit
+
+----------------------------------------------
+V. 4.2.3.1 (eng)
+----------------------------------------------
+- IMI Yukon 2040C and B configs
+- pdv_flshow (Linux) implemented bayer color dialog 
+- PCI DV CLS send_tiffs support for RGB (sends 4 bands: 3 RGB + 1 throwaway)
+
+----------------------------------------------
+V. 4.2.2.9 (eng)
+----------------------------------------------
+- Toshiba CS3960DCL configs and lib exposure / controls
+- Cohu 7700 configs and lib exposure / controls
+- Basler avA1000-120 configs
+- Sentech STC-CLC232A configs
+- New serial fmt ASCII_NOSPACE added; Atmel/Thompson cfgs changed accordingly
+
+----------------------------------------------
+V. 4.2.2.8 (eng)
+----------------------------------------------
+- Mikrotron Eosens 1362 support for PCIe8 DV C-Link
+- Basler A504k configs/support for PCIe8 DV C-Link
+- Fix for Visual Studio sample applications project build
+- DeInterleave method for Piranha 3 in library
+- Dalsa PC30, P2, P3 config enhancements/additions (mostly for encoder
+  & calibration)
+- Sun Solaris X/86 driver fixes for PCIe8
+- RGB30 cfg directive depricated for PCIe8 and future boards (now gets ignored
+  if it is in the config file since it's been overloaded to something else);
+  now use CL_DATA_PATH_NORM
+- Updated PCIe8 DV C-Link ltrig (line trigger) FPGA to add clock devider
+- pdvshow (pdv_flshow) GUI added to solaris package, use instead of dv30
+
+==============================================
+V. 4.2.1.7 PRODUCTION RELEASE
+==============================================
+- PCIe8 DV C-Link firmware updates for full mode and dual base and corrected
+  serial FIFO code. Includes RECOMMENDED firmware updates for the PCIe8 DV
+  C-Link (see "Updating the Firmware" in the PCI DV Family Users Guide for
+  instructions on updating your board)
+- Completed camera link serial dll updates to v1.13 spec, including registry
+  manipulation / location for clseredt.dll 
+- Updated cl_speed to include PCIe4, PCIe8
+- updated dvinfo to be more robust for all boards; includes more information
+- Fixed achooser (solaris camera chooser) too many cameras bug
+
+----------------------------------------------
+V. 4.2.1.6 (eng)
+----------------------------------------------
+- IDT M5 support for PCIe8 DV C-Link
+- camera link serial dll update to v1.13 spec (all except registry)
+
+----------------------------------------------
+V. 4.2.1.5 (eng)
+----------------------------------------------
+- Fedora 10 support
+- Added medium mode firmware for PCIe4 DV C-Link: pe4dvcamlk32_mm.bit
+  (4-tap) and pe4dvcamlk32_mmrgb.bit (3-tap 10-bit)
+- JAI CV-L107CL support (24- and 30-bit mode)
+- UNIQ UP685 support 
+- Illunis XMV 16000 support
+- Updated clseredt.dll serial dll for newer Camera Link standard / GUIs
+- minor (but useful) updates to dvinfo diagnostic
+- New FPGA firmware, v.39 pdvcamlk2 and pdvcamlk (for PCI DV C-Link rev 52+
+  and rev 50- respectively): fix to serial FIFO code (see note in v.4.1.9.9
+  below) to fix off-by-one or -two error in baud rate bits setting -- see
+  the Users Guide for instructions on updating board FPGAs with pciload if
+  you think you may need to apply this fix to your boards.
+
+----------------------------------------------
+V. 4.2.1.4 (eng)
+----------------------------------------------
+- Fedora 10 support
+- camconfig (linux) quits if no boards found instead of running ascii chooser
+  (3-tap/8-bit)
+
+----------------------------------------------
+V. 4.2.1.2 (eng)
+----------------------------------------------
+- FiX for fatal 4.2.1.1 timestamp bug (engineering pkg)
+- htaps/vatps made automatic in initcam if not set explicitly in cfg
+
+----------------------------------------------
+V. 4.1.9.9 (eng)
+----------------------------------------------
+- Updated Adimec 1600M/D and S config files to correct ID string and mode
+  setting errors, particlarly D (dual-tap) models
+- New FPGA firmware, v.38 for rev 52 or highter PCI DV C-Link boards: added
+  serial FIFO which fixes occasional dropped serial character problems. See
+  Users Guide for instructions on updating board FPGAs if you need this fix.
+
+----------------------------------------------
+V. 4.1.9.8 (eng)
+----------------------------------------------
+- removed cl_logic from dvinfo diagnostic
+
+----------------------------------------------
+V. 4.1.9.7 (eng)
+----------------------------------------------
+- pdv_get_baud fixed in libedt -- would always return 9600 even if different
+  on newer boards that have BRATE register
+- bitload (edt_bitload) fixed -d flag to again work for dv boards (rarely used)
+- take.c bytes/sec output would print a negative number if bytes/sec number was
+  too high, fixed.
+
+==============================================
+V. 4.1.9.6 PRODUCTION RELEASE
+==============================================
+- Fixed device driver problem introduced in 4.1.9.2 that was
+  causing system crashes on some 64-bit Linux systems
+- clsiminit: fixed so setup actions are also done if  -r (rest)
+  argument specified. 
+- pdv_flshow: 
+  * -pdvN_C option now supported to specify unit and channel 
+  * usage message (available by --help) now explains usage fully
+  * code changed to compile on Ubuntu 8.04 
+  * compiler warning about deprecated cast fixed
+- camconfig: fixed issue which sometimes prevented script from
+             running on Linux.
+- changes to reduce numerous compile warnings
+
+==============================================
+V. 4.1.9.3 PRODUCTION RELEASE
+==============================================
+- Aggrgate changes, tested for production release
+
+----------------------------------------------
+V. 4.1.9.2 (release candidate)
+----------------------------------------------
+- Support for Linux kernel 2.6.25 (Fefora 9, Ubuntu 8, others)
+- edt_get_dma_info fixed for solaris and linux
+- Scimeasure Lil-Joe 1024 Camera Link config added (Note: SciMeasure
+  generally supports configs for Lil-Joe camera configs)
+- library updated to correctly support Spectral Instruments 800 serial
+  control (pdv_set_exposure, etc.)
+
+----------------------------------------------
+V. 4.1.8.9 (eng)
+----------------------------------------------
+- initcam: added check for camera link simulator & exit with message since N/A 
+- added lspci to edt_sysinfo
+- new pcie4 dv c-link FPGA file (pedvcamlk32.bit), rev 09 2008/04/07, includes
+  bit to enable separate triggers on channel 0 and 1
+- fixed pdv_flshow exposure increase/decrease bug
+- pdv_flshow now checks for uninitialized board and bails out with message
+  instead of seg-faulting
+- si800cl.cfg for Spectral Instruments 800 camera link
+- no filesystem (vxworks) updates: pciload now always loads from array (no file
+  option); also tansparent makefile issues 
+- fixed xchooser (camera chooser for solaris) for PCIe8 boards
+- spectral instruments 800 support
+
+----------------------------------------------
+V. 4.1.8.8 (eng)
+----------------------------------------------
+- added CHANGELOG_PDV.txt to Windows package
+- Added README.txt to the pdv_flshow directory
+- added redlake es4020 configs
+- More PCIe8 DV C-Link hooks (pciload and fpga files)
+- MacOS limitation -- raised imagesize limit to 512MB in MacOS driver
+
+----------------------------------------------
+V. 4.1.8.6 (eng)
+----------------------------------------------
+- added redlake es3200 configs
+- More PCIe8 DV C-Link hooks (linux driver detect)
+
+----------------------------------------------
+V. 4.1.8.5 (eng)
+----------------------------------------------
+- steve's changes (?)
+
+----------------------------------------------
+V. 4.1.8.4 (eng)
+----------------------------------------------
+- Updated interface fw (aiagcl4.bit) for PMC DV FOX, enables rcxload
+- bitload from prom code and PCI FPGA added for PMC DV FOX (custom, cust.-specific)
+
+==============================================
+V. 4.1.8.2  PRODUCTION RELEASE
+==============================================
+- completed support for PMC DV FOX (added aiagcl4 bitfile)
+- Updated flash files for pci dv c-link (pdvcamlk2_3/5v.bit)
+  (pedvcamlk32.bit); adds CL_CFG2 register; update your PCI FPGA using
+  pciload and set bit 0 (config directive CL_CFG2_NORM: 01) to enable
+  separate external trigger inputs/outputs on the two channels
+- New flash file for pcie4 dv c-link -- same as above except separate
+  triggers are on by default (no CL_CFG2_NORM). Note that this functionality
+  will be updated to match the behavior of the PCI version in a future rev.
+- Fixed triggered mode bug introduced in 4.1.7.1 -- the addition of
+  expexsync had broken functionality for triggering a camera from the
+  board.
+- fixed pciload for pcie4 dv c-link (not working in 4.1.7.1)
+- added ROI / clip first line in dt3100-30t.cfg -- was in all the other
+  dt4100 configs, possible cause for occational out of synch problems
+  with this camera/mode
+
+----------------------------------------------
+V. 4.1.7.6  (eng)
+----------------------------------------------
+- Hitachi KP-F500 configs
+- Install tells user to reboot
+- updated PCI DV C-LINK FPGA to pdvcamlk-36; changes default ROI behavior;
+- PMC DV FOX support
+- Fixed PCIe8 DV C-Link hooks
+
+----------------------------------------------
+V. 4.1.7.5  (eng)
+----------------------------------------------
+- updated pdvk_3v/5v.bit to what was previously called pdvkkla_3v/5v.bit
+  won't pad if missing data unless bit 0x80 in CL_CFG_NORM is set  
+- added hooks for PCIe8 DV C-Link
+
+==============================================
+V. 4.1.7.1  PRODUCTION RELEASE
+==============================================
+- Fixed serial_waitc -- wasn't working on Windows OS versions
+- Added trigdiv config directive; sets PDV_TRIGDIV register; applies only to
+  DV C-Link, if flashed w/pdvcamlkXX_ltrig.bit (linescan/encoder cameras/apps)
+- Updated included libtiff library to version 3.8.2
+- Fixed linux fltk install script; would install fltk even if already there
+- MacOS 10 driver package added to distribution
+- Added expexsync directive, to enable 15 clock trigger with FRENA on c-link
+- Aggregate changes since last production release (v4.1.5.4)
+
+----------------------------------------------
+V. 4.1.6.6  (eng)
+----------------------------------------------
+- added filter in pedvcamlk32_ltrig.bit (special line scan encoder FPGA) for
+  RS422 opto coupler trgiger in boards PCIe DV C-Link boards that have that
+  option (board pn 019-02906-10)
+
+----------------------------------------------
+V. 4.1.6.4 (eng)
+----------------------------------------------
+- Updated pedvcamlk_ltrig bitfile, includes encoder skip reg (linescan only)
+  and PDV_TRIGDIV register (see edtreg.h) for line scan encoder pulse skipping
+  -- run pcilod pedvcamlk_ltrig to re-flash the prom if you have a linescan
+  camera and need to use this new functionality (not recommended otherwise).
+- Fixed Bayer interpolation bug (bright value 'blooming' on linux/solaris)
+- updated PCI DV C-LINK FPGA to pdvcamlk-35; fixes FMRATE_ENABLE method for
+  sending continuous triggers from the board. Ref. method_frame_timing,
+  pdv_set_frame_period()
+- added support for PCO 1600 camera
+- updated initcam (pdv_initcam) to deal with serial_binit grouped binary,
+  now sends each space-separated group of bytes as one cmd, doesn't require
+  individual bytes to be separated, only individual commands for writes
+- fixed crash bug in readcfg (initcam) on > ~100 chars in init string
+
+----------------------------------------------
+V. 4.1.6.2 (eng)
+----------------------------------------------
+- END-OF-LIFE for FOI/RCI products, no longer supported this version fwd
+
+----------------------------------------------
+V. 4.1.5.11
+----------------------------------------------
+- Added Dalsa spyder & PII configs w/special linescan directives,
+  specifc to pedvcamlkXX-ltrig.bit
+- dvinfo added check for active pclock before running cl_logic
+- Changes to low-level driver to make it thread-safe when accessing the
+  remote FPGA register set (large ioctl transactions are still thread-unsafe
+  and that will be addressed soon in a later driver.)
+
+----------------------------------------------
+V. 4.1.5.11 (eng)
+----------------------------------------------
+- Added Dalsa spyder & PII configs w/special linescan directives,
+  specifc to pedvcamlkXX-ltrig.bit
+
+----------------------------------------------
+V. 4.1.5.10 (eng)
+----------------------------------------------
+- Added Dalsa PII configs w/special linescan directives, plus
+  pedvcamlk32_ltrig.bit for external line & frame encoder functionality
+- FOI / RCI END OF LIFE, for real this time
+
+----------------------------------------------
+V. 4.1.5.9 (eng)
+----------------------------------------------
+- Added Redlake ES2020 configs
+- Added FCi4 config
+- dvinfo added check for active pixel clock on camera link boards
+
+----------------------------------------------
+V. 4.1.5.7 (eng)
+----------------------------------------------
+- Added timeout to cl_logic so if cam isn't freerunning it won't hang and
+  leave camlkla flashed (also updated dvinfo accordingly)
+- removed README.clsim_registers and README.send_tiffs (that info is now
+  in the CLS manual)
+- fixed pdv_auto_set_timeout to correctly incorporate pclock_speed in its
+  calculations and reduce excessive timeouts when set
+
+----------------------------------------------
+V. 4.1.5.5 (eng)
+----------------------------------------------
+- added Redlake ES16000 configs
+
+==============================================
+V. 4.1.5.4  PRODUCTION RELEASE
+==============================================
+- tested for production release
+
+----------------------------------------------
+V. 4.1.5.3 (release candidate)
+----------------------------------------------
+- Bitload -d . fixed
+- Added README.clsimint README.clsim_registers for PCI DV CLS (camera
+  simulator board)
+- aggregate engineering release changes since last release (4.1.4.3)
+
+----------------------------------------------
+V. 4.1.4.9 (eng)
+----------------------------------------------
+- fix in libpdv.c: pdv_is_simuator; now correctly detects PCIe simulator board
+- AND added pedvclsim.ncd bitfile to dist.
+- added support configs/bitfiles for TVI Xiimus 4096 including opto coupler
+  encoder inputs
+
+----------------------------------------------
+V. 4.1.4.7 (eng)
+----------------------------------------------
+- initial support for PCIe DV C-Link (PCI Express), inc. pciload and clink_tester
+- a few more Imperx configs, ES11000 single channel config
+
+----------------------------------------------
+V. 4.1.4.4 (eng)
+----------------------------------------------
+- added new Imperx VGA210 configs; mostly more single channel (for slow busses)
+
+==============================================
+V. 4.1.4.3 PRODUCTION RELEASE
+==============================================
+- encompassing aggregate engineering release changes
+
+----------------------------------------------
+V. 4.1.4.2 (release candidate)
+----------------------------------------------
+- fixed pciload verify problems in interim versions after 4.1.3.3
+- added pp (ping-pong) dvcl bitfiles, both for pdvcamlk2 and pdvamlk
+  (specialized)
+- new subroutine: pdv_cl_camera_connected, checks for active pixel clock,
+  depends on new std camera link bitfiles pdvcamlk & pdvcamlk2 (FPGA rev 34,
+  11/2/06 or later, also updated this pkg); that has new UTILITY reg bit
+  lets PIXELSPERLINE increment regardless of LV
+- dvinfo fixes  from 4.1.3.9 (eng) (cl_logic bitfile reload)
+- added cl_check_gap to linux & solaris distributions (also a dvinfo issue)
+
+----------------------------------------------
+V. 4.1.3.9 (eng)
+----------------------------------------------
+- added config for Imperx IPX-11M5-L mono 12 bit camera
+- new pdvcamlk2_3/5v.bit PCI FPGA file, for rev 52 and higher boards. combined
+  with rev 52+ HW ECO results in reduced clock ringing on certain cameras. rev
+  52+ boards can use older PCI xilinx bitfile but not vice versa
+- updated std pdvcamlk_ FPGA (to rev 33), to add CL_CFG_NORM RGB SWAP bit for
+  RGB CCDs, bit 0 renamed BGR; run pciload update & set both bits for RGB CCDs 
+- several updates and fixes to dvinfo & countbits for much improved diagnostic
+  output
+- added internanlly generated external trig and strobe output functionality on
+  PCI DV FOX / RCX C-Link, with config and dvfox bitfile for same w/imperx
+  vga210 (special but could apply to other cams)
+- added Imperx VGA210-L and -LC CC triggered config files, & updated other IPX
+  configs' serial init to make sure trigger state gets set as expected on init
+- simplest_take.c open comment in arg check; fixed
+- added pclock_speed to Redlake ES1100 configs, to reduce excessive timeout
+  waits in the event of data loss
+- removed edt_p->edt_p pointer, effectively end-of-lifing the SDV (sbus digital
+  video) backwards compatability
+
+Software/Driver version 4.1.3.4 (production release update for solaris/linux)
+- 4.1.3.3 critical install (solaris) and serial (solaris and linux) bugs fixed
+- bayer 8 and 10 bit generic camera link configs added -- see generic*bcl.cfg
+
+Software/Driver version 4.1.3.3 (product release for windows)
+- fixed uncommanded stop of streaming video bug in pdvshow  that showed up
+  sometime after last production release (4.1.2.4)
+- fixed file save dialog, which had lost its file format options and automatic
+  file extensions somewhere along the way
+- added some extra error checking to initcam and pdv_initcam (bad pointers,
+  invalid critical config values) and warnings for same
+- pciload verify now skips the rest of verify if PROM/File ids differ
+
+Software/Driver version 4.1.3.1 (eng)
+- reshuffled pdvplus C++ to bring pdvshow (Microsoft MFC) and pdv_flshow
+  (FLTK toolkit) display programs more in line.  - removed wintake for windows,
+  jshow and pdvj for Linux. The pdv_flshow will be the default display program
+  for Linux now.
+- libpdv.c: added assert to ensure correct behavior of edt_get_msg, and fixed
+  small memory leak
+- pdv.c: fixed bug where memory out of bounds was being accessed
+- pdvterm.c: compiler warning fixes
+- extbdid now ignores all but lower 4 bits of value from id register
+- updates to edt_net_msg, edtlog (now uses pthreads), edtmsg 
+- generate_image now can do images with depth = 2 or 3 (-d 2 or -d 3)
+- added 2x2 binned config for redlake es11000
+
+Software/Driver version 4.1.2.9 (ENG)
+- ping-pong/variable functionality added (specialty)
+- pdv_enable_roi() fixed for camera link (disable didn't work, now does)
+- pdvcamlk bitfile updated from v4.1.2.1 version to conform to std. naming
+  convention for pciload and clsim
+- Fixed pid and dma pointers on ctrl-c for linux -- effected for dual
+  simultaneous camera ops on DVCL/DVFOX
+- RCI/FOI support put back in
+- changed debug trace to all be on channel 0
+- Numerous changes/updates to subroutine comments in library files (libpdv.c,
+  libedt.c, etc) to add Doxygen integration for in-place Documentation. 
+
+Software/Driver version 4.1.2.9 (ENG)
+- Updated all es11000 configs to match actual full size of 4008x2072
+- added 3x3 binned es11000 config
+- added dalsa D4 1044 sensor configs
+- added Imperx CL adapter for Dalsa 1m15p config file (not sure if it works
+  so far)
+
+Software/Driver version 4.1.2.4 (production release)
+- production release
+
+Software/Driver version 4.1.2.2 (ENG)
+- missing mlock in linux driver causing intermittent crashes, fixed
+- misc fixes to redlake es11000 config files
+- initcam serial_init functionality modified to take multiple/agregate
+  serial_init directives and backslash-escaped '\:' (for pulinx accupixel cmds);
+  some pulnix config files modified accordingly
+- preliminary driver support for PCIe (dvcl and dvfox)
+- RCX C-Link firmware/blink codes updated (see Updating the Firmware, above)
+- new PCI DV C-Link firmware (non-critical -- minor change to accomodate RCX
+  module FW updates via std. C-link boards not just DVFOX)
+- rcxmake lib dependencies removed (edt internal only)
+
+Software/Driver version 4.1.2.1 (production release)
+- new subroutine pdv_timeout_restart added to library and simple_take rewritten
+  to show example use; improves multi-chan. operations & resets on C-Link & FOX,
+  WILL ONLY WORK ON DVFOX IF FW IS UPDATED (see next item)
+- new FIFO reset code on PCI DV FOX (dvtlk4 bitfile); improves multi-ch.
+  operation and resets
+- pdv_setup_continuous_channel, pdv_flush_channel_fifo obsolete
+- serial_init config directive can now use a backslash to escape a colon (':')
+  which will otherwise used as a command separator, for cameras that use colons
+  in their commands, e.g.  serial_init: "CMD\:ARG1:CMD2\:ARG2"
+- rcxload updated to fix problems running on Intel (Windows & Linux) systems
+- support for master/slave triggering of mutliple channels, including new
+  config directive slaved_trigger
+- 4.1.1.8-9 pkgs were still shipping w/4.1.1.2 driver; not a major issue
+   but still... fixed  
+
+Software/Driver version 4.1.1.9 (interim release)
+- v4.1.1.8 still shipping with v4.1.1.4 WinXP driver, fixed
+- pdv_get_exposure didn't always return correct value if MCL, fixed
+- pdvk firmware special rev added to flash for kla
+- rcxload and RCX firmware update files added
+- simplest_take made simpler yet
+- Redlake ES11000 color configs added (RGB and Bayer)
+
+Software/Driver version 4.1.1.8 (production release)
+- New Atmel Aviiva SM2 linescan configs (added 1 line, 8-bit and pw)
+- Field interlace RGB deinterleave method added
+- tested for production release
+
+Software/Driver version 4.1.1.7
+- testing aggregate 4.1.1.2-4.1.1.6 for production release
+
+Software/Driver version 4.1.1.6
+- Backed out timeout_cleanup on overruns in take/simple_take, not always
+  applicable
+- Fixed take.c output error when 24 bit images; compares bytesread w/dmasize
+  not imagesize
+- Fixed 4.1.1.5 devlink.tab error that caused no-attaches on solaris 
+- Added pcidv cls id to attach list/devlink.tab files for solaris
+- Support for 2.6.14 linux kernel
+
+Software/Driver version 4.1.1.5
+- Added workaround for Linux 2.6 kernel crash bug on Intel EM64T
+- Added 8-bit versions of config files for Illunis XMV 4020
+
+Software/Driver version 4.1.1.4
+- too many config files problem in solaris camconfig, fixed
+- camera support: drs nytech u6000 infrared
+
+Software/Driver version 4.1.1.2
+- dvinfo expanded output
+- take and simple_takes now do check for overruns
+
+Software/Driver version 4.1.1.1
+- Fixed problem under linux causing occasional DMA lockup
+- Illunis single channel config files
+- Problem with browser access to manuals on cdrom, fixed
+- Changes for Microsoft certification (preliminary)
+- Production release 
+
+Software/Driver version 4.0.1.0 (eng)
+- Support for memory > 4GB w/64 bit Linux
+- Bad cl data path set of #channels in v4.0.0.3-4.0.0.5, fixed
+
+Software/Driver version 4.0.0.5 (beta) (inc. changes in non-prod v4.0.0.3 & .4)
+- Multi-channel FIFO flushing issues fixed, to improve reliability when 2
+  base cameras on one PCI DV C-Link, and multiple cameras on FOX/F2-4 
+- Illunis XMV 4020 color and triggered configs added
+- ext. trigger pins for PCI DV FOX B/D channels were swapped, fixed in
+  PCI flash PROM -- RECOMMEND PCI DV FOX customers run 'pciload dvtlk4' to
+  update the board's flash PROM
+- Bigmem (>4MB) support for Linux added
+- Multi-channel capability for PCI DV FOX/RCX LVDS/RS422 versions
+- -O option added to initcam (redirects console output to a file)
+- pdv_serial_prefix (lib) and serial_prefix (config) added
+- serial_aperture obsoleted (config directive and pdv_ lib subroutine)
+- pulnix 6740 support
+- fixed intermittent serial initialization problem on DV FOX when no explicit
+  serial_baud in config file
+
+Software/Driver version 4.0.0.2
+- Imperx LYNX model camera configs added
+- PCI DV FOX full 2-4 channel functionality added, including -B (no bitload)
+  for initcam, initcam bitload for channel 0 only, name munge for aiag(cl)1/4.
+  RECOMMEND PCI DV FOX owners run 'pciload dvtlk4' to update the board's flash
+  PROM
+- END-OF-LIFE for PCI FOI/RCI products, no longer supported this version fwd
+  (replaced by PCI DV FOX/RCX)
+- Library changes to support Linux Fedora core 4
+
+Software/Driver version 4.0.0.0
+- sysinfo renamed to edt_sysinfo
+- Incorporated/tested all ER changes in 3.3.4.3 and later for prod. release
+
+Software/Driver version 3.3.5.9 (ENG)
+- Re-fixed linux events
+- Added simplest_take -- stone simple application starting point, no piplining
+
+Software/Driver version 3.3.5.8 (ENG)
+- Increased max buffer size in Windows driver from 64Mb to 1GB.
+- Added frame count functionality to PCI DV FOX FPGAs
+
+Software/Driver version 3.3.5.8 (ENG)
+- pdv_serial_binary_command_flagged/PCI DV-FOI (sends ct not t) fixed
+- event function broadcast bug fixed for linux (might miss some, linux only)
+
+Software/Driver version 3.3.5.7 (ENG)
+- PDV-CL2 simulator integrated to readcfg for windows only
+
+Software/Driver version 3.3.5.5 (ENG)
+- cameralink framecount register/logic CHANGED -- now 2 bytes, reset 
+  is bottom bit; pdv_cl_get_fv_counter/pdv_cl_reset_fv_counter all done
+
+Software/Driver version 3.3.5.4 (ENG)
+- Preliminary support for pdv cl2 simulator board
+- fix for occasional problem when region of intrest was same as camera w/h
+- frame counter added on PCI DV C-Link
+
+Software/Driver version 3.3.5.2 (ENG)
+- initcam bug fixed -- would not recognize labels properly (briefly, in
+  ENG releases 3.3.5.0 and 3.3.5.1 only)
+- Support for Solaris 10 added (issue was contiguous memory alloc, resulting
+  in BIGMEM error)
+
+Software/Driver version 3.3.5.0-3.3.5.1 (ENG)
+- Byte packing option added for RCX/FOX dual channel (mode16)
+- Minor adjustments to Pulnix TM-1400cl configs (serial init, hgt FOX packing) 
+- intro text added to pdv utils command window 
+- READMEs now legible in Notepad
+
+Software/Driver version 3.3.4.3-3.3.4.9 (ENG)
+- changes to lib affecting reset 
+- new diagnostic app dvinfo -- run dvinfo -h for help
+- Pulnix TM-1400cl config added 
+- edtinfo (replacement for edtdiag) added to pkg
+- updated dv and dvk aiag.bit and aig_async.bit, fixed earlier ROI problem
+  when hactv == width
+- clseredt.dll now not clser_edt.dll, goes into windows\system32 for cam apps
+- documentation updates (most)
+- Integration support for PCI DV FOX / RCX C-Link, including updates to lib
+  and init apps, fox/cl bitfiles, and cameralink .cfg files
+- Various improvements to serial_cmd app (output formatting buffer allocation)
+- Enhanced support for Dalsa Piranha II (configs for more sizes/models)
+- Support for Imperx IPX-2M30
+- Support for Hamamatsu 9312SK xray panel
+- Removed 256 byte limit for serial, should now be okay up to 65535 bytes.
+- new diagnostic application, cl_speed (check bandwidth on camera link)
+- new diagnostic application, cl_logic (camera link camera logic analyzer)
+- Beta support for 64-bit Linux and Solaris
+- silicon imaging 480m support added
+- internal driver struct mods that WILL CRASH THE DRIVER if apps are run that
+  were compiled under 3.3.4.2 or earlier
+
+Software/Driver version 3.3.4.2
+- Tested, customer release
+
+Software/Driver version 3.3.4.1 (ENG)
+- Piranha 8-bit and 10-bit new/updated configs for various configurations
+  (2 tap, 4 tap, 10 bit, 2k, 8k)
+- DPC updates
+- Solaris X/86 now compiled under Solaris 2.8; may or may not be bkwd compat
+  with earlier versions of Solaris
+
+Software/Driver version 3.3.4.0
+- Atmel M4 linescan camera support added
+- Piranha 8-bit 4 channel sw and hw deinterleave fixed for Piranha and Atmel
+  M4 2k
+- Duncantech 30-bit stuck bit bug fixed (pdvamlk_pir firmware)
+- Initcam modified to set MODE_CNTL_NORM to reasonable value if not set expl-
+  icitly, based on method_camera_shutter_timing.
+- Initcam modified to set shutter_speed_min/max to default values if not set
+  explicitly and board shutter method_camera_shutter_timing used (e.g. AIA_MCL
+  or AIA_MCL_100US)
+- Added some new shutter timing methods for Adimec, Sensors Unlimited and some
+  Pulnix cameras, added directives to match in appropriate camera config files
+- Cameralink interrupt on fv variable size images bug fixed (linescan)
+- Pantera support (config files) added
+
+Software/Driver version 3.3.3.6
+- clser_edt.dll fix for multiple channels, now works as advertised. that is,
+  unit * 2 + channel. manual to be updated shortly
+- Problem using multiple boards in system dating back to 3.3.3.3 (or
+  earlier?) fixed
+
+Software/Driver version 3.3.3.5
+- Atmel Aviiva M2 line scan support added
+- Linux updated for latest os revs
+- Linux check for sources added
+- Production release 
+
+Software/Driver version 3.3.3.3
+- Redlake ES11000 8-but configs added, level trigger min/max fix for
+  pdvshow exposure sliders
+
+Software/Driver version 3.3.3.2
+- Adimec 1600m support added
+- Hanvision HVDUO3 24-bit support added
+- Bitload long filename support
+- Addressed bitload stack overflow problem on vxworks
+- Redlake ES4.0CL 8-bit support added
+
+Software/Driver version 3.3.2.1
+- aiag.bit upgraded to include triggered mode fixes
+- Hamamatsu c7942 xray detector support added
+
+Software/Driver version 3.3.2.0
+- Redlake ES11000 support enhanced to include triggered & level modes 
+- LHS strobe functionality added for c-link including ES11000
+
+Software/Driver version 3.3.1.8
+- Duncantech MS2150 config files added
+- Redlake ES11000 config file added
+
+Software/Driver version 3.3.1.7
+- Hanvision hvduo2-10m updated support
+- embedded interface fpga field added, edt_parts.xpn xref for pciload and
+  bitload; smarts added to sort bitload match to top
+
+Software/Driver version 3.3.1.6
+- (Missing a few entries for changes from 3.3.1.2 to 3.3.1.5 -- mostly minor
+  updates for specific cameras...)
+- Added preliminary Hanvision HVDUO2-10M support on PCI DVa
+- initcam string directives (e.g. serial_term) now can take hex with <> delims
+- Finalized support for embedded code (no filesystem) vxworks -- specifically
+- added fnal embedded code for initcam, pciload and bitload (applies only to
+  embedded (no file system) vxworks implementations
+
+Software/Driver version 3.3.1.1
+- Check for serial_waitc added to serial_cmd, serial_waitc functionality enhanced
+  (new lib call pdv_get_waitc(), new cfg directive serial_waitbyte for hex
+- Fixed bad pdvshow memory/cpu leak introduced in 3.3.0.9 (engineering release)
+- Added pci dva/rs232-specific kodak xhf config files
+- Changed HSS to FOX (mostly internal naming issue) 
+
+Software/Driver version 3.3.1.0
+(including changes from 3.3.0.5-3.3.0.9)
+- Removed unneeded multiple status register reads from device driver which
+  caused some performance degradation (mainly on marginal platforms)
+- Added Redlake/Kodak ES 1.0 10-bit continuous mode config files
+- Added autonnumber option to file save (option under File menu)
+- Fixed pdvshow file save .bmp from 10+bit cameras that got broken sometime
+- Pulnix TM4000 camera support added
+- Replaced cameratype directives w/ new style info/model in several config files
+- Expanded comments to generic config files
+- Found/fixed PCI flash update bus number detection bug, which made it
+  necessary to run pcioad in slow mode on some multi-bus systems
+
+Software/Driver version 3.3.0.4
+- Duncantech MS4000 config files added
+
+Software/Driver version 3.3.0.3
+- Duncantech DT1100 camera support added
+- Update PCI DVa to support 2-channel mode with aiag_2ch.bit (temporary
+  until 1 and 2ch are both combined into aiag.bit)
+
+Software/Driver version 3.3.0.2
+- Pulnix 1010 pulse-width mode cfg file fixes
+- Just a few other minor mods/fixes
+
+Software/Driver version 3.3.0.0
+ Agregate updates from 3.1.9.10-3.2.9.22, including
+- Reworked installshield script; no longer requires a reboot, and Manuals
+  (option) added to std install
+- Camera init fix for Duncantech -- at initcam time, would only send some
+  of the init commands
+- Misc. Duncantech 2100 config file fixes
+- Added pciload -F option, saves esn info in file (primarily for manuf)
+- Dalsa 6m3p config file updates
+- Updated linux README
+- Enhanced Dalsa 1m15 support 
+- Updates to Basler init support
+- Improvements to wintake (windows gui sample program)
+- Added "check for overrun" menu item in pdvshow (better recovery from
+  timeouts with large format cameras)
+- Tested for production release
+
+Software/Driver version 3.2.9.9
+- Sensors Unlimited SU320M-1.7RT camera support added (pdva only)
+- Dalstar 1m30p various fixes to configs
+- DuncanTech DT4000 support
+- Fixes to Linux install on other than RH8 systems, and more robust install
+  failure recovery
+
+Software/Driver version 3.2.9.8
+- Sensors Unlimited SU320M-1.7RT camera support added (pdva only)
+- Dalstar 1m30p various fixes to configs
+
+Software/Driver version 3.2.9.5
+- Dalstar 1m15P blacklevel lib support (pdv_set_blacklevel, dv30, pdvshow)
+- serial_binit, serial_format directives modified and standardized, now use
+  pdv_init, pdv_init_hex, pdv_init_baslerf or pdv_init_duncanf; Duncan and
+  Basler and config files using binary hex init modified to use the new methods
+- Kodak 1.6i 8-bit mode config added and 4.2i 8-bit mode config file fixed
+  (auto shift was wrong leading to offset data)
+- Pciload now has '-S' in usage, and suggests its use on failure to load
+- Added pcifoi pci firmware bitfiles
+- Pciload embedded info (-i option) data input bug fixed
+
+Software/Driver version 3.2.9.3
+- Dalstar 1M15P support
+- Toshiba IK-SX1 support
+- Pulnix 1040 support was deficient, fixed for 10-bit and 8-bit
+- New config file directive: serial_binit for simpler binary init
+- Dalstar config files updated to use serial_binit instead of serial_init
+- Region of Interest auto-set override bug fixed
+
+Software/Driver version 3.2.9.1
+- Duncantech config fixes, "triggered" mode intended to be "integrate/dump,
+  independendent" now really is, also 3100 data valid related problems fixed
+- pciload serial number string length problem fixed (caused intermittent load
+  failures)
+  
+Software/Driver version 3.2.8.6
+- Duncantech 3100 configs/support added, initcam to Dunctan 30-bit mode bug
+  fixed
+- Configs for Duncantech 2100 and 4100 series now sets camera to 24 or 30
+  bits mode
+- Fix for ROI bug introduced in v3.2.8.1 (initcam left ROI regs corrupted),
+  fixed
+- Frame rate counter setting bug introduced in v3.2.8.1, fixed
+- Camera Link generic example configs added
+
+Software/Driver version 3.2.8.4
+- Serial communication problems in PCI DVa version of aiag.bit, fixed
+- pciload 'update' and 'verify' shortcut options added
+
+Software/Driver version 3.2.8.2
+- Duncantech MS4100 configs added
+- Duncantech 30-bit bit-order bug fixed
+- Indigo Phoenix config added
+- New product: PCI DVa, support added
+
+Software/Driver version 3.2.7.9
+- DVC 1312M-CL config added
+- Basler L301kc RGB config added
+- Pulnix TM-1040 confifg added
+- Scimeasure Lil-Joe config added
+- Dalsa Pirahna 2 6K config added, firmware files updated
+- Illunis MV2000 camera descriptions updated in config files
+- Redlake ES 4.0 CameraLink config added
+- PCI RCI Model/CameraLink (PCI RCI C-Link System) support added 
+- Linux Redhat 8 driver support added
+- Filename autosequence bug fixed in take
+- Firmware for new rev (3v) PCI RCI added to pkg
+- PCI DVA support added (prelim)
+
+Software/Driver version 3.2.7.3
+- deinterleave algorithm for Dalsa 2m30P added
+- kodak/redlake 10 bit single channel controlled config added
+- linux automatic driver loading added
+
+Software/Driver version 3.2.7.0
+- dv30 24-bit display bugs fixed
+- camconfig detects board type and shows only those camera entries that
+  are applicable to the board type installed
+- Trigger interrupt event added
+- Wintake (simple windows-based capture/display GUI  with source) added
+- xtest burst-enable bug from previous rev fixed
+- generic 14 and 16 bit sample config files added, generic8/10/12 cleaned up
+  a bit
+
+Software/Driver version 3.2.6.8
+- DuncanTech MS2100 support added
+- frame counter added to c-link
+
+Software/Driver version 3.2.6.7
+- added simple_sequence.c example program (acquires a sequence of images, then
+  optionally saves them as separate files)
+- Updated embedded EDT serial number code in pciload to production state,
+  and also fixed minor printf bug
+
+Software/Driver version 3.2.6.5
+- Fix to pdv_strobe_method (special LH strobe specific)
+
+Software/Driver version 3.2.6.4
+- Narragansett FFM 3020D non-strobe config file added/strobe version renamed
+- Spectral Instruments 561 support added (custom)
+- Basler A202K support added
+- Dalsa CA-D4-1024A support fix for non-binned mode (use Rev01 cable), new
+  sensor size (1024) mod, and added binned mode config file
+
+Software/Driver version 3.2.6.0
+- Hamamatsu pulse width and triggered mode config info modified to match
+  Hamamatsu's names (level trigger, edge trigger, etc.)
+- Narragansett FFM 3020D Multi support added
+- Board strobe triggering (2nd camera link channel) functionality
+  added (lhs pdv c-link special)
+
+Software/Driver version 3.2.5.9
+- Dual camera functionality modifications
+- pciload was reporting xc2s200 Xilinx as "Unknown" -- fixed
+
+Software/Driver version 3.2.5.6
+- Solaris: dv30 timeout cleanup bug fixed
+- Hamamatsu pulse width and triggered mode files, delay added for reliability
+- Uniq UP610 config file updated to new sensor size
+
+Software/Driver version 3.2.5.5
+- pciload embedded PROM info support added; cleaned up output some more
+- Dalsa d1 pulse width mode added, d1, d4 and d7 updated sensor sizes
+- pdv_send_break() bug fixed (applies to Spectral Inst. cameras only)
+- Hamamatsu 4742-95 controlled and triggered mode configs added
+- Dalsa Piranha support added (preliminary)
+- pdv_dependent struct added dummy space to 
+- added embedded version numbers to library and driver (see
+  edt_get_driver_version/edt_get_library_version in libedt.c)
+
+Software/Driver version 3.2.5.2
+- new camera support: Adimec 1000M
+- solaris dv30 user lookup table added (-U option)
+- minor pciload output format changes
+- dvc camera support bug fix in auto-shift for dv44 and dv/dvk
+- board firmware s/n read added to lib (all platforms)
+- Modified hc8484 config file to force startup in known operating mode
+- ICC MBC200 config files added (14-bit, and 12-bit display demo)
+- TI MC1001PF configuration for FOI added
+- Initcam auto-shift modified to accomodate new DVC->PCI DVK 12-bit cable
+- Updated Dalsa D7 config files for new sensor size, fix trigger problems
+- New Pulnix 6710-CL configurations
+
+Software/Driver version 3.2.4.8
+- board firmware s/n read added to lib (solaris only)
+
+Software/Driver version 3.2.4.4
+- byte deinterleave bug introduced in 3.2.4.1, fixed (affected non-MMX
+  systems [e.g. solaris] only)
+- new camera support -- Pulnix TM-1320-15CL
+- fix to Hamamatsu C8484 config -- serial gain syntax different from 4742-95
+
+Software/Driver version 3.2.4.3
+- New camera support -- Atmel Camelia 8M, Delta Design Delmed 2000, Adimec
+  1000m, Hamamatsu C8484, Infrared Components Corportation MBC 100
+- camconfig (Solaris/Linux) updated to properly sort and display the
+  configurations
+- Triggered mode bug introduced after 3.2.1.9, fixed
+- pciload firmware update program modified to now output info on protected
+  sectors as well as unprotected, and allow programming unprotected sector
+  after booting with strap on
+
+Software/Driver version 3.2.2.9
+- Firmware fix to work around Serverworks chipset problem -- see Firmware
+  Upgrade Instructions (above) or contact EDT for help on upgrading your
+  board's PCI firmware
+- pciload user entry bug introduced in last build (would always re-burn even
+  when only asked to verify), fixed
+- new pulnix-specific config flags added to fix pulnix pulse-width mode
+  functionality 
+
+Software/Driver version 3.2.2.6
+- TI MC-1001PF camera support added
+- config file "camera_info" directive added, can be used with camera_model
+  and camera_class in addition to, but preferably instead of, the cameratype
+  directive.  Application programmers should note that some cameratype
+  strings in the config files may have changed/may change in the future to
+  reflect this modification, and should modify any code that depends on
+  specific values of these strings, to accomodate this change. For more on
+  this, look at your likely config files and search for "cameratype" in
+  readcfg.c.
+
+Software/Driver version 3.2.2.5
+- Hamamatsu 4742-95 12-bit binned mode configs added
+- pdv_do_timeout fix: pdv_wait_image wouldn't return immediately under NT/2K
+- camera_model config file flag added and models for some cameras added
+  to config files, pdv_get_camera_model() added to lib,
+
+Software/Driver version 3.2.2.0
+- Updates/and enhancements to Illunis camera link functionality
+- Added support for Silicon Imaging SI3170 Camera Link Camera
+- Dalsa CA-D6 and CA-D8 camera support additions & enhancements
+- pdv_enable_external_trigger added to pdvlib (and option for it in take)
+- serial_cmd no longer traps 'h' for help, -r (read-only) flag added
+- Several compile time warnings fixed 
+- simple_bc now ignores bad (negative) reads
+- bitload program updated to work with new/future xilinx parts
+- pciload updated to handle newer/future xilinx parts, override of default
+  unit name (i.e. EDT unit other than pdvN) now works 
+- Several minor compile time warnings in libs, initcam, and bitload fixed
+
+Software/Driver version 3.2.1.8-3.2.1.9
+- Installation would fail on certain NT machines, fixed
+- Fixes/enhancements to Illunis camera link functionality
+
+Software/Driver version 3.2.1.6
+- Filled out camera link functionality (Illunis and pulnix 1020-cl)
+- fixed camconfig bug (solaris) -- >256 cfg files caused error
+- camconfig (solaris) also now sets redirect of output to pdvload.out and
+  prints only load and ok/fail to console
+- pciload source files added; make no longer fails under NT/2000
+- Dalsa Spyder 14-bit line scan support added
+- Camconfig/DV30 initialization failure bug introduced in 3.2.1.5, fixed 
+
+Software/Driver version 3.2.1.5
+- Incorporation/testing of all changes versions 3.2.0.1-3.2.1.4.
+
+Software/Driver version 3.2.1.4 (engineering release)
+- pciload fast mode core dump, fixed
+- Windows install now reminds user to reboot to complete the install
+
+Software/Driver version 3.2.1.3 (engineering release)
+- pciload without -u would only recognize unit 0 boards (broken in v3.2.1.2),
+  fixed
+
+Software/Driver version 3.2.1.6 
+- Camera link support added
+- filename auto numbering and auto extension added to take.c
+- pdv_reset_serial added to pdvlib for consistency (calls edt_reset_serial)
+- atmel query serial used !=4 which reset to defaults, now uses !=3
+  which doesn't
+- xtest skips looparound for FOI and C-Link
+
+Software/Driver version 3.2.1.2 (engineering release)
+- Non-MMX (pentium II) color interpolation problems, fixed 
+- Word deinterleave bug introduced in previous rev fixed
+- File save introduced in previous rev fixed
+- Pciload updated to run with newer (non-pdv) boards, faster by default
+
+Software/Driver version 3.2.1.1 (engineering release)
+- DVC config files modifed to use inverted pixel clock (improved reliability)
+  and use NRR mode (consistency/flexibility)
+- aiagi.bit file added for inverted pixel clock and optionally inverted
+  lv and fv; new directives added to pdv_initcam to set same
+- Fixed quadrant_deinterleave bug in 3.2.1.0
+- Fixed missing MMX lib problem in 3.2.1.0
+
+Software/Driver version 3.2.1.0 (engineering release)
+- Enhancements to pdvshow, including dynamic Region of Interest, dynamic
+  binning, skip-frame, default zoom command line flag, and camera-specific
+  dialogs for pulinx and dvc
+- Added quadrant deinterlave support (special camera)
+- Added support for new rev RCI
+- Support for DVC 1312
+- Enhanced support for Atmel-Grenoble cameras
+
+Software/Driver version 3.2.0.3
+- Added pdv_update_values_from_camera to pdvlib and GUIs (see manual)
+- Problems when running as non-adminstrator under Windows, fixed
+- Roper Megaplus ES 310 config files all had the same description, fixed
+- New config files added to reflect ownership changes: Kodak->Redlake,
+  SMD->Dalsa, Thomson->Atmel. Old config files remain and are unchanged; new
+  files are identical to the old except for "cameratype" and "camera_class".
+- Roper ES 310 turbo -- added byteswap to config files to correct display on
+  Solaris machines (Windows already correct and unaffected)
+
+Software/Driver version 3.2.0.0 (and 3.1.6o-3.1.9.5 engineering releases)
+- Windows 2000 model driver added
+- Driver fixes (blue/black screen) for bugs introduced in ER 3.1.6c (NT drv)
+- bitload optimized, runs much faster (>10x)
+- Pdvshow fixes and enhancements: cleaned up menus, added binary option for
+   serial programming, graceful exit if no board found, detects if already
+   running, bug fix in image redraw when scrolling or dragging larger
+- Software color decoding for DVC 1310C and UNIQ UC-1030 (NT/2000)
+- Xillix 1400 camera support fixed and updated 
+- Dalsa 1M30P support added
+- Santa Barbara Focalplane IR camera support
+- Library message callbacks for errors, warnings, progress, and debug messages
+   added to libraries -- see edt_error.c and edt_error.h
+- Initcam and bitload code moved to edt and pdv libraries, accessible from
+   user applications -- see edt_bitload.c and pdv_initcam.c
+- Pulnix TM1020 support added
+- Roper MEGAPLUS 320 Turbo support added
+- Dv30 now invokes camconfig on startup if not previously run
+
+Software/Driver version 3.1.6c (engineering release)
+- DVC 1310c support mod -- no longer need different config files for PCI DV
+  versus PCI DV44
+- DVC 1310c support enhancement: s/w color interpolation/display option
+
+Software/Driver version 3.1.6b (engineering release)
+- PCI DV44 support added
+- Linux driver fixes
+- DVC 1310c expanded support
+- New NT/2000 icon for pdv utilities
+
+Software/Driver version 3.1.5b (engineering release)
+- DVC 1310c support added
+
+Software/Driver version 3.1.5a (engineering release)
+- Pdvshow auto numbufs -- more buffers allocated by default, auto depending
+  on camera size (speeds things up especially continuous)
+- Buffer timestamp put back in
+
+Software/Driver version 3.1.4
+- Customer release of 3.1.3e changes and other minor changes
+
+Software/Driver version 3.1.3e (engineering release)
+- Support for Thomson Camelia 4M (monochrome mode) added
+- Frame valid interrupt added (see edt_set_event_func(EDT_PDV_EVENT_FVAL))
+- simple_fv.c frame valid interrupt example program added (see above)
+- Abort code bugs fixed (better recovery from timeouts/errors/cancels)
+- Bad last frame bug using ROI with hardware continuous mode fixed
+- Added edt_done_count() and edt_get_todo(), to help with recovering
+   from timeouts or errors. See take.c, simple_take.c and simplest_take.c
+   for example
+- More enhancements to edtdiag (diagnostic dump program) (ongoing)
+- Type/class string changes for Kodak 24 bit RGB (was Toucan)
+- Update RCI and FOI flash for CE and AIA9 (see section 1, above)
+
+Software/Driver version 3.1.0
+- Spectral instruments support added
+- Pulnix TM-6710 support added
+- ES 4.0 12 bit fix, and ES 4.0 8 bit support added
+- Top end continuous mode optimizations for high speed cameras
+- edt_set_event_funct(EODMA) bug fixed
+- Multiple PCI RCI bug fixes and optimizations
+- fixed user_timeout in config file -- now persistent through open()s
+- Roper (Kodak) hardware 30fps bayer color upgrade added (PCI DV-RGB)
+- dv (xview/openwin based GUI) retired -- use dv30
+
+Software/Driver version 3.0.9
+- Added controlled mode config files for ES 1.0SC and ES 4.0, plus cleanups
+  and minor fixes to existing ones
+- Enhancements to edtdiag program (introduced in 3.0.8a)
+- SMD BT25 modifications (init with automatic frame rate slaved to exposure)
+- ES 1.0 10 bit fixes -- swapped lines and/or columns
+- Dalsa CA-D4-A auto deinterleave added
+- Camera class parameter added to config files and programming struct
+- Fix for rev 30 PCI DV boards w/Hitachi cameras, to eliminate occasional
+  timeouts
+
+Software/Driver version 3.0.8a
+- SMD BT25 support added
+- serial_read bug fixed (no data if trying to read 1, 2 or 4 bytes)
+- New instructions for new version of pciload (see UPGRADING THE FIRMWARE,
+  below)
+- Xillix 1400 support added for PCI DV rev 21 and rev 30 boards
+- edtdiag diagnostic dump program added
+
+Software/Driver version 3.0.4
+- Production support for 4013xla versions of the PCI DV and DVK
+- New PCI Xilinx firmware is included in this release.  The new firmware
+  includes a PCI bridge fix that caused problems in some situations when
+  installing more than one EDT PCI device in a system.  Follow the
+  instructions below to upgrade your card's firmware.
+- Hitachi KP-F100 "frame on demand" (computer controlled shutter) support
+- Hamamatsu 4880-8x fixes
+- Pulnix 1010 support (RCI only)
+- Continuous mode fixes/optimization 
+- Cincinatti electronics xilinx files updated
+- bug fix: take.c program file save of images greater than 8 bits/pixel
+
+Software/Driver version 2.97
+- Kodak ES 4.0 functionality added
+
+Software/Driver version 2.96
+- Pulnix TM-1300 and TM-9701 support added.
+- 155200 baud rate added
+- "byteswap: 0" added to Kodak ES 1.0 dual channel cfg file, to handle byte
+  interleave problems (swapped lines) on some platforms. 
+- Added query of Kodak exposure, gain, blacklevel, so these values will
+  be correct in library and GUI apps on start-up.
+- Includes v2.95 PCI Firmware update (see below).
+- Alpha support for 4013XLA XILINX chips on new rev (22) Boards
+- Added EG&G strobe trigger capability (special purpose -- contact EDT for details)
+- fixed Solaris 2.7 64 bit driver installation bug
+- Kodak ES 1.0 10 bit mode bug fix
+
+Software/Driver version 2.95
+- Updated PCI Firmware. If you have a board purchased before February 19,
+  1999, you should upgrade to the new firmware per the instructions in
+  "UPGRADING THE FIRMWARE" below.  If your PCI DV is running smoothly then
+  this is not strictly necessary, but it's a good idea nonetheless as the
+  new firmware contains a fix for a problem that that in some circumstances
+  would cause data overrun problems.
+- Added region of interest capability -- see updated user's guide for details
+- Filled out edt_set_event_func capability -- see updated user's guide for
+  details
+- Added strobe capability (special purpose -- contact EDT for details)
+- Bug fix -- pdv_image, start_image, wait_image didn't work unless
+  pdv_multibuf was called first.
+
+Software/Driver version 2.93a
+- Fixed driver serial overflow bug (got errors after 2048 bytes)
+
+Software/Driver version 2.93
+- Minor bug fix to auto timeout code -- now timeout changes by user will
+  override from then on (until the next initcam or make unload/load)
+
+Software/Driver version 2.92
+- Fixed serial initialization problems with Kodak support that cropped up
+  as a result of SMD changes in previous version (2.91)
+Software/Driver version 2.91
+- Added SMD 4M4 camera support
+
+Software/Driver version 2.89
+- serial_cmd output bug fixed (would overwrite output on screen if camera
+  put out only CR but no LF like Hamamatsu).
+- Added -i (interactive) mode to serial_cmd
+- serial_baud 19200 added for irris cameras
+
+Software/Driver version 2.86
+- Device driver burst mode optimization added for improved top-end speed
+  and reliability
+- Hamamatsu 4742-95 config file changes
+- Fixes to Photonic Science camera gain and exposure functionality
+
+Software/Driver version 2.84
+- Fixed file save bug in dv30 and take
+- New generic AIA bit file aiag.bit -- see application note 008-00983-xx
+  for details.
+
+Software/Driver version 2.82
+- beta 64-bit OS support added
+
+Software/Driver version 2.81
+- Added support for Photonics 12 bit, expanded support for Cincinatti
+  Electronics Irris 160
+
+- Kodak 4.2i config file name change fix
+
+- Minor changes to dv and example programs
+
+Software/Driver version 2.8 9/16/1998
+- Major rewrite using optimized, streamlined code, scatter/gather device
+  driver and many other changes.  IOCTL interface changed; if you are using
+  direct IOCTL calls in your code they will likely still work, but a few
+  may not. Either way, the 'C' library interface is strongly recommended
+  over direct IOCTL calls. If you are upgrading and don't have a new manual,
+  then there will probably be some new routines that aren't in your manual.
+  You can download a new manual from the EDT web site or just peruse the
+  library files (libpdv.c, libedt.c) and example programs (mainly take.c).
+
+- pdv_open function prototype modified to accept just "pdv", NULL or
+  INTERFACE (a #define in the header file) as first arg, unit number as
+  second arg, e.g. "pdv_open(NULL, 0)". Old way will still works however
+  ("/dev/pdvN"). PDV_LOCKDEV arg no longer applies, and will be ignored if
+  specified.
+
+- Several cameras added, including Hitachi KP-F100 and Kodak MEGAPLUS ES310.
+

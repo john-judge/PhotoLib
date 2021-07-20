@@ -1,0 +1,137 @@
+;/*++
+;
+;Copyright (c) Microsoft Corporation.  All rights reserved.
+;
+;   THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
+;   KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+;   IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR
+;   PURPOSE.
+;
+;Module Name:
+;
+;    pdvwdf.INF
+;
+;Abstract:
+;    INF file for a generic PCI device.
+;
+;--*/
+
+[Version]
+Signature      = "$WINDOWS NT$"
+Class          = Edt
+ClassGuid      = {D9A3E4B1-DA21-4c51-804B-5947E48EA81C}
+Provider       = %EDT%
+DriverVer=11/04/2020,5.5.10.0
+CatalogFile=pdvwdf.cat
+
+[DestinationDirs]
+DefaultDestDir  = 12
+pdvwdf.CopyFiles = 12
+CoInstaller_CopyFiles = 11
+
+;-------------------------------------------------------------------------
+; Class Section
+;-------------------------------------------------------------------------
+[ClassInstall32]
+Addreg         = EdtPdvClassReg
+
+[EdtPdvClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-5
+HKR,,DeviceCharacteristics,0x10001,0x100     ;Use same security checks on relative opens
+
+;-------------------------------------------------------------------------
+; Device Install Section
+;-------------------------------------------------------------------------
+[ControlFlags]
+ExcludeFromSelect = *
+
+[Manufacturer]
+%EDT%=EDT,NTAMD64
+
+[SourceDisksFiles]
+pdvwdf.sys     = 1
+WdfCoinstaller01009.dll = 1 ; make sure the number matches with SourceDisksNames
+
+[SourceDisksNames]
+1=%DISK_NAME%,
+
+; For XP and later
+[EDT.NTAMD64]
+; DisplayName            Section           DeviceId
+; -----------            -------           --------
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0010
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0014
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0015
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0016
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0024
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0030
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0034
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0038
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0039
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0048
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0049
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_004A
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_004C
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0090
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0091
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0092
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0093
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0094
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_0095
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_009B
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_009D
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_009E
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_009F
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_00A3
+%pdvwdf.DRVDESC%=pdvwdf_Inst, PCI\VEN_123D&DEV_00A9
+
+[pdvwdf_Inst.NT]
+CopyFiles      = pdvwdf.CopyFiles
+
+
+[pdvwdf.CopyFiles]
+pdvwdf.sys
+
+
+[pdvwdf_Inst.NT.Services]
+AddService     = pdvwdf,0x00000002,pdvwdf_Service
+
+[pdvwdf_Service]
+DisplayName    = %pdvwdf.SVCDESC%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\pdvwdf.sys
+
+;-------------------------------------------------------------------------
+; WDF Coinstaller installation
+;-------------------------------------------------------------------------
+
+[pdvwdf_Inst.NT.CoInstallers]
+AddReg         = CoInstaller_AddReg
+CopyFiles      = CoInstaller_CopyFiles
+
+[CoInstaller_CopyFiles]
+WdfCoinstaller01009.dll
+
+[CoInstaller_AddReg]
+HKR,,CoInstallers32,0x00010000, "WdfCoinstaller01009.dll,WdfCoInstaller"
+
+[pdvwdf_Inst.NT.Wdf]
+KmdfService    = pdvwdf, pdvwdf_wdfsect
+
+[pdvwdf_wdfsect]
+KmdfLibraryVersion = 1.9
+
+;------------------------------------------------------------------------------
+;  String Definitions
+;------------------------------------------------------------------------------
+
+[Strings]
+EDT           = "EDT"
+ClassName      = "PCI Device"
+pdvwdf.SVCDESC = "WDF PCI Driver Service for Edt PCI DV Cards"
+pdvwdf.DRVDESC = "WDF PCI Driver for Edt PCI DV Cards"
+DISK_NAME      = "PCI DV Install Disk"
+

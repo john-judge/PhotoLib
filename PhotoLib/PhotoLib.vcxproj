@@ -75,6 +75,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)Include\EDT\pdv;$ (IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)Lib;$(LibraryPath);$(ProjectDir)Include\EDT\pdv;$(ProjectDir)Source</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -107,11 +109,14 @@
       <PreprocessorDefinitions>_DEBUG;PHOTOLIB_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>./Include;%(AdditionalIncludeDirectories);$(ProjectDir)Include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <AdditionalLibraryDirectories>$(ProjectDir)Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>clseredt.lib;edtimage.lib;pdvlib.lib;pdvplus.lib;NIDAQmx.lib;nisyscfg.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -155,12 +160,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Channel.h" />
+    <ClInclude Include="Controller.h" />
+    <ClInclude Include="Data.h" />
+    <ClInclude Include="DataArray.h" />
+    <ClInclude Include="Definitions.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="Channel.cpp" />
+    <ClCompile Include="Controller.cpp" />
+    <ClCompile Include="Data.cpp" />
+    <ClCompile Include="DataArray.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="lib.cpp" />
     <ClCompile Include="pch.cpp">

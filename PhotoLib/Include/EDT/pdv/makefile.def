@@ -1,0 +1,114 @@
+
+#set basic defines for windows makefiles under pdv
+
+EDTDEV=pdv
+
+!IFNDEF ARCH
+
+!IFDEF PROGRAMW6432
+
+ARCH=amd64
+
+!else
+
+ARCH=x86
+
+!ENDIF
+
+!ENDIF
+
+!IFNDEF PDVHOME
+PDVHOME = .
+!ENDIF
+
+TIFFDIR=$(PDVHOME)\tiff\libtiff
+JPEGDIR=$(PDVHOME)\jpeg-6b
+
+HEADER_DIR =$(PDVHOME)
+
+INCLUDEFLAGS=-I$(HEADER_DIR) -I$(TIFFDIR) -I$(JPEGDIR)
+
+INCLUDES = $(HEADER_DIR)/edtinc.h \
+        $(HEADER_DIR)/libedt.h \
+        $(HEADER_DIR)/libpdv.h \
+        $(HEADER_DIR)/libdvu.h \
+        $(HEADER_DIR)/edtreg.h \
+        $(HEADER_DIR)/edt_bitload.h \
+        $(HEADER_DIR)/edt_error.h \
+        $(HEADER_DIR)/initcam.h \
+        $(HEADER_DIR)/clsim_lib.h \
+        $(HEADER_DIR)/edt_utils.h \
+        $(HEADER_DIR)/pdv_dependent.h \
+        $(HEADER_DIR)/edt_os_nt.h
+
+CFG=Release
+
+CC = cl
+
+VS2005DEFINES = -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE
+
+!IF "$(CFG)" == "Release"
+
+OPTIM = -O2 -MD -W1 -D"NDEBUG" $(VS2005DEFINES) -DWINVER="0x0600"
+CCOPTIM = -O2 -W1 -D"NDEBUG" $(VS2005DEFINES) -DWINVER="0x0600"
+
+!ELSE
+
+OPTIM = -MDd -W3 -Zi  $(VS2005DEFINES)
+CCOPTIM = -W3 -Zi $(VS2005DEFINES)
+
+!ENDIF
+
+!IFDEF BUILD_ID
+
+BUILDFLAGS= -DBUILD=\"$(BUILD_ID)\"
+
+BINDIR=$(PDVHOME)\bin\$(ARCH)
+
+LIBDIR=$(PDVHOME)\lib\$(ARCH)
+
+
+!ELSE
+
+BUILDFLAGS= 
+
+BINDIR=$(PDVHOME)
+
+LIBDIR=$(PDVHOME)
+
+!ENDIF
+
+#call with ARCH set to x86 or amd64
+
+CFGNAME=$(CFG)$(ARCH)
+
+!IF "$(ARCH)" == "x86"
+
+#MMX_FLAG=-DUSE_MMX
+#MMX_LIB=edt_mmx.lib
+
+!ELSE
+
+MMX_FLAG=
+MMX_LIB=
+
+!ENDIF
+
+
+
+CFLAGS = $(OPTIM) -nologo $(INCLUDEFLAGS) $(MMX_FLAG) $(PSN_FLAG) $(BUILDFLAGS) -DWIN32 
+CCFLAGS = $(CCOPTIM) -nologo $(INCLUDEFLAGS) $(BUILDFLAGS) -DWIN32 
+
+LIB32 = link -lib
+LIBFLAGS = 
+
+LINK32 = link
+
+LDFLAGS = /LIBPATH:$(LIBDIR)
+
+DLLFLAGS = $(LDFLAGS) /dll /nologo 
+
+LIBS = $(LIBDIR)/pdvlib.lib $(LIBDIR)/libtiff.lib $(LIBDIR)/edtimage.lib $(LIBDIR)/pdvplus.lib $(LIBDIR)/imgfiles.lib
+
+# Windows libraries required by some programs (e.g. win_sysinfo).
+WINLIBS = Advapi32.lib user32.lib gdi32.lib
