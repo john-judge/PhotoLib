@@ -49,6 +49,10 @@ Controller::Controller()
 	numPts = 2000;
 	intPts = 1000.0 / (double)Camera::FREQ[program];
 
+	// Default RLI settings
+	darkPts = 200;
+	lightPts = 280;
+
 	// Flags
 	stopFlag = 0;
 	scheduleFlag = 0;
@@ -129,8 +133,6 @@ float Controller::getAcquiDuration()
 void Controller::setCameraProgram(int p)
 {
 	program = p;
-	intPts = 1000.0 / (float)Camera::FREQ[program];
-	//	int Frequency = Camera::FREQ[program];
 }
 
 //=============================================================================
@@ -156,8 +158,10 @@ double Controller::getIntPts()
 //=============================================================================
 // Acquisition
 //=============================================================================
-int Controller::acqui(unsigned short *memory, Camera &cam)
+int Controller::acqui(unsigned short *memory)
 {
+	Camera cam;
+
 	short *buf = new short[4 * numPts]; // There are 4 FP analog inputs for Lil Dave
 
 	// Start Acquisition
@@ -375,27 +379,23 @@ void Controller::fillPDOut(uint8_t *outputs, char realFlag)
 
 }
 
-//=============================================================================
-void Controller::setStopFlag(char p)
-{
-	stopFlag = p;
-}
+int Controller::takeRli(unsigned short *memory) {
 
-//=============================================================================
-char Controller::getStopFlag()
-{
-	return stopFlag;
-}
+	Camera cam;
 
-//=============================================================================
-int Controller::takeRli(unsigned short *memory, Camera &cam, int rliPts)
-{
-	int halfwayPts = 200;
+	cam.setCamProgram(getCameraProgram());
+	cam.init_cam();
 
-	if (rliPts < halfwayPts) {
-		cout << "Controller::takeRli - Can't take less than " << halfwayPts << " RLI points \n";
-		return 1;
-	}
+	int array_diodes = cam.width() * cam.height(); 
+	int rliPts = darkPts + lightPts;
+
+	//-------------------------------------------
+	// validate image quadrant size match expected
+	if (!cam.isValidPlannedState(array_diodes)) return 1;
+
+	//-------------------------------------------
+	// Allocate image memory 
+	memory = cam.allocateImageMemory(array_diodes, rliPts + 1);
 
 	int32       error = 0;
 	TaskHandle  taskHandle = 0;
@@ -431,11 +431,11 @@ int Controller::takeRli(unsigned short *memory, Camera &cam, int rliPts)
 	DAQmxWriteDigitalLines(taskHandleRLI, 348, true, 0, DAQmx_Val_GroupByChannel, samplesForRLI, successfulSamples, NULL);
 
 	omp_set_num_threads(NUM_PDV_CHANNELS);
-	// acquire halfwayPts (200) dark frames with LED off	
-#pragma omp parallel for	
+	// acquire dark frames with LED off	
+	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 
-		int loops = halfwayPts / superframe_factor; // superframing 
+		int loops = darkPts / superframe_factor; // superframing 
 
 		// Start all images
 		cam.start_images(ipdv, loops);
@@ -460,12 +460,12 @@ int Controller::takeRli(unsigned short *memory, Camera &cam, int rliPts)
 #pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 
-		int loops = (rliPts - halfwayPts) / superframe_factor; // superframing 
+		int loops = lightPts / superframe_factor; // superframing 
 
 		cam.start_images(ipdv, loops);
 
 		unsigned short* privateMem = memory + (ipdv * quadrantSize * rliPts) // pointer to this thread's section of MEMORY	
-			+ (quadrantSize * halfwayPts); // offset of where we left off	
+			+ (quadrantSize * darkPts); // offset of where we left off	
 
 		for (int i = 0; i < loops; i++) 		// acquire rest of frames with LED on	
 		{
@@ -538,18 +538,8 @@ int Controller::getIntPulses(int ch) {
 }
 
 //=============================================================================
-void Controller::setScheduleFlag(char p) {
-	scheduleFlag = p;
-}
-
-//=============================================================================
 void Controller::setScheduleRliFlag(char p) {
 	scheduleRliFlag = p;
-}
-
-//=============================================================================
-char Controller::getScheduleFlag() {
-	return scheduleFlag;
 }
 
 //=============================================================================
@@ -605,6 +595,22 @@ void Controller::releaseDAPs()
 	DAQmxClearTask(taskHandleAcquiAI);
 	DAQmxClearTask(taskHandleAcquiDO);
 	DAQmxClearTask(taskHandleRLI);
+}
+
+void Controller::setNumDarkRLI(int dark) {
+	darkPts = dark;
+}
+
+int Controller::getNumDarkRLI() {
+	return darkPts;
+}
+
+void Controller::setNumLightRLI(int light) {
+	lightPts = light;
+}
+
+int Controller::getNumLightRLI() {
+	return lightPts;
 }
 
 //=============================================================================

@@ -33,12 +33,17 @@ private:
 	float duration;
 	int program;
 
+	// RLI
+	int darkPts;
+	int lightPts;
+
 	// Ch1
 	int numPulses1;
 	int intPulses1;
 
 	int numBursts1;
 	int intBursts1;
+
 
 	// Ch1
 	int numPulses2;
@@ -69,14 +74,8 @@ public:
 	int NI_openShutter(uInt8);
 	void releaseDAPs();
 
-
 	// Flags
-	void setStopFlag(char);
-	char getStopFlag();
-
-	void setScheduleFlag(char);
 	void setScheduleRliFlag(char);
-	char getScheduleFlag();
 	char getScheduleRliFlag();
 
 	// Buffers for digital output
@@ -84,7 +83,11 @@ public:
 	//uint8_t *pseudoOutputs;
 
 	// RLI
-	int takeRli(unsigned short*, Camera&, int);
+	int takeRli(unsigned short*);
+	void setNumDarkRLI(int);
+	int getNumDarkRLI();
+	void setNumLightRLI(int);
+	int getNumLightRLI();
 
 	// Create DAP File for Acquisition
 	void createAcquiDapFile();
@@ -92,7 +95,7 @@ public:
 
 	// Acquisition Control
 	int sendFile2Dap(const char*);
-	int acqui(unsigned short*, Camera&);
+	int acqui(unsigned short*);
 	int stop();
 	void resetDAPs();
 	void resetCamera();
@@ -105,8 +108,9 @@ public:
 	void setNumPts(int);
 	int getNumPts();
 
-	void setCameraProgram(int);
 	int getCameraProgram();
+	void setCameraProgram(int p);
+
 	void setIntPts(double);
 	double getIntPts();
 

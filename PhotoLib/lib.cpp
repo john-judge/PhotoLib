@@ -1,19 +1,161 @@
 #include "pch.h"
 #include "Camera.h"
+#include "Controller.h"
 
 
 
 extern "C"
 {
-	__declspec(dllexport) Camera* createCamera(int array_size)
+
+	__declspec(dllexport) Controller* createController()
 	{
-		return new Camera();
+		return new Controller();
 	}
 
-	__declspec(dllexport) void destroyCamera(Camera* camera)
+	__declspec(dllexport) void destroyController(Controller* controller)
 	{
-		delete camera;
+		delete controller;
 	}
 
+	__declspec(dllexport) void takeRli(Controller* controller, unsigned short* images, int rliPts)
+	{
+		controller->takeRli(images);
+	}
+
+	__declspec(dllexport) void setCameraProgram(Controller* controller, int program)
+	{
+		controller->setCameraProgram(program);
+	}
+
+	__declspec(dllexport) int getCameraProgram(Controller* controller)
+	{
+		return controller->getCameraProgram();
+	}
+
+
+	__declspec(dllexport) void acqui(Controller* controller, unsigned short* images)
+	{
+		controller->acqui(images);
+	}
+
+	__declspec(dllexport) void setNumPts(Controller* controller,  int numPts)
+	{
+		controller->setNumPts(numPts);
+	}
+
+	__declspec(dllexport) int getNumPts(Controller* controller)
+	{
+		return controller->getNumPts();
+	}
+
+	__declspec(dllexport) void setIntPts(Controller* controller, int interv)
+	{
+		controller->setIntPts(interv);
+	}
+
+	__declspec(dllexport) int getIntPts(Controller* controller)
+	{
+		return controller->getIntPts();
+	}
+
+	__declspec(dllexport) void setNumPulses(Controller* controller, int channel, int pulses)
+	{
+		controller->setNumPulses(channel, pulses);
+	}
+
+	__declspec(dllexport) int getNumPulses(Controller* controller, int channel)
+	{
+		return controller->getNumPulses(channel);
+	}
+
+	__declspec(dllexport) void setNumBursts(Controller* controller, int channel, int bursts)
+	{
+		controller->setNumBursts(channel, bursts);
+	}
+
+	__declspec(dllexport) int getNumBursts(Controller* controller, int channel)
+	{
+		return controller->getNumBursts(channel);
+	}
+
+	__declspec(dllexport) void setIntPulses(Controller* controller, int channel, int interv)
+	{
+		controller->setIntPulses(channel, interv);
+	}
+
+	__declspec(dllexport) int getIntPulses(Controller* controller, int channel)
+	{
+		return controller->getIntPulses(channel);
+	}
+
+	__declspec(dllexport) void setIntBursts(Controller* controller, int channel, int interv)
+	{
+		controller->setIntBursts(channel, interv);
+	}
+
+	__declspec(dllexport) int getIntBursts(Controller* controller, int channel)
+	{
+		return controller->getIntBursts(channel);
+	}
+
+	__declspec(dllexport) void setScheduleRliFlag(Controller* controller, char v)
+	{
+		controller->setScheduleRliFlag(v);
+	}
+
+	__declspec(dllexport) int getScheduleRliFlag(Controller* controller)
+	{
+		return controller->getScheduleRliFlag();
+	}
+
+	__declspec(dllexport) void setDuration(Controller* controller)
+	{
+		controller->setDuration();
+	}
+
+	__declspec(dllexport) int getDuration(Controller* controller)
+	{
+		return controller->getDuration();
+	}
+
+	__declspec(dllexport) void setAcquiOnset(Controller* controller, float onset)
+	{
+		controller->setAcquiOnset(onset);
+	}
+
+	__declspec(dllexport) int getAcquiOnset(Controller* controller)
+	{
+		return controller->getAcquiOnset();
+	}
+
+	__declspec(dllexport) int getAcquiDuration(Controller* controller)
+	{
+		return controller->getAcquiDuration();
+	}
+
+	__declspec(dllexport) void NiErrorDump(Controller* controller)
+	{
+		controller->NiErrorDump();
+	}
+
+	__declspec(dllexport) void setNumDarkRLI(Controller* controller, int dark)
+	{
+		controller->setNumDarkRLI(dark);
+	}
+
+	__declspec(dllexport) int getNumDarkRLI(Controller* controller)
+	{
+		return controller->getNumDarkRLI();
+	}
+
+	__declspec(dllexport) void setNumLightRLI(Controller* controller, int light)
+	{
+		controller->setNumLightRLI(light);
+	}
+
+	__declspec(dllexport) int getNumLightRLI(Controller* controller)
+	{
+		return controller->getNumLightRLI();
+	}
 
 };
