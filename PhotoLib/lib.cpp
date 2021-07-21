@@ -17,7 +17,7 @@ extern "C"
 		delete controller;
 	}
 
-	__declspec(dllexport) void takeRli(Controller* controller, unsigned short* images, int rliPts)
+	__declspec(dllexport) void takeRli(Controller* controller, unsigned short* images)
 	{
 		controller->takeRli(images);
 	}

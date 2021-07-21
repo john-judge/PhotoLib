@@ -6,7 +6,7 @@ import numpy as np
 
 class PhotoLibDriver:
     
-    def __init__(self, dll_path='./x64/Debug/'):
+    def __init__(self, dll_path='./x64/Release/'):
         dll_path = os.path.abspath(dll_path)
 
         self.lib = None
@@ -27,17 +27,23 @@ class PhotoLibDriver:
             print(os.path.dirname(os.path.abspath('./PhotoLib')))
             self.lib = ctypes.CDLL(dll_path + os.path.sep + "PhotoLib.dll")
         else:
-            self.lib = ctypes.CDLL('./x64/Debug/PhotoLib.dll')
+            os.environ['PATH'] = os.path.dirname(dll_path + os.path.sep + "PhotoLib.dll") + ';'\
+                                 + os.path.dirname(os.path.abspath('./PhotoLib/Include/EDT')) + ';' \
+                                 + os.path.dirname(os.path.abspath('./PhotoLib/Include')) + ';' \
+                                 + os.path.dirname(os.path.abspath('./PhotoLib')) + ';' \
+                                 + os.environ['PATH']
+            print(os.environ['PATH'])
+            self.lib = ctypes.cdll.LoadLibrary('./x64/Release/PhotoLib.dll')
 
         controller_handle = ctypes.POINTER(ctypes.c_char)
-        c_uint_array = np.ctypesself.lib.ndpointer(dtype=np.uint16, ndim=1, flags='C_CONTIGUOUS')
+        c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16, ndim=1, flags='C_CONTIGUOUS')
         
         self.lib.createController.argtypes = [ctypes.c_int]  # argument types
         self.lib.createController.restype = controller_handle  # return type
         
         self.lib.destroyController.argtypes = [controller_handle]
         
-        self.lib.takeRli.argtypes = [controller_handle, c_uint_array, ctypes.c_int]
+        self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
         
         self.lib.acqui.argtypes = [controller_handle, c_uint_array]
         
