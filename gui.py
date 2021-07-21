@@ -7,11 +7,12 @@ import os.path
 
 class GUI:
 
-    def __init__(self, data, hardware):
+    def __init__(self, data, hardware, file):
         matplotlib.use("TkAgg")
         sg.theme('DarkAmber')
         self.data = data
         self.hardware = hardware
+        self.file = file
         self.title = "Photo21"
         self.introduction()
         self.main_workflow()
@@ -76,8 +77,6 @@ class GUI:
             ]
         ]
 
-
-
         window = sg.Window(self.title,
                            layout,
                            finalize=True,
@@ -92,7 +91,6 @@ class GUI:
         window.close()
 
     def main_workflow_loop(self, window, history=False):
-
         event_mapping = {
             'Record': {
                 'function': self.hardware.record,
@@ -102,9 +100,11 @@ class GUI:
                 'function': self.hardware.take_rli,
                 'args': {'images': self.data.get_rli_images()}
             },
-            'Save': None, # FileController.save_file...
+            'Save': {
+                'function': self.file.save_to_file,
+                'args': {'images': self.data.get_acqui_images()}
+            },
         }
-
         events = ''
         while True:
             event, values = window.read()

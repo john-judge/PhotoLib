@@ -108,11 +108,6 @@ extern "C"
 		return controller->getScheduleRliFlag();
 	}
 
-	__declspec(dllexport) void setDuration(Controller* controller)
-	{
-		controller->setDuration();
-	}
-
 	__declspec(dllexport) int getDuration(Controller* controller)
 	{
 		return controller->getDuration();
@@ -156,6 +151,16 @@ extern "C"
 	__declspec(dllexport) int getNumLightRLI(Controller* controller)
 	{
 		return controller->getNumLightRLI();
+	}
+
+	__declspec(dllexport) int getDisplayWidth(Controller* controller)
+	{
+		return controller->getDisplayWidth();
+	}
+
+	__declspec(dllexport) int getDisplayHeight(Controller* controller)
+	{
+		return controller->getDisplayHeight();
 	}
 
 };

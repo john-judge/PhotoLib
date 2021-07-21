@@ -89,6 +89,9 @@ public:
 	void setNumLightRLI(int);
 	int getNumLightRLI();
 
+	int getDisplayWidth();
+	int getDisplayHeight();
+
 	// Create DAP File for Acquisition
 	void createAcquiDapFile();
 	void fillPDOut(uint8_t *outputs, char realFlag);

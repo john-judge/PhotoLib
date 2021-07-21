@@ -323,6 +323,7 @@ void Controller::setDuration()
 }
 
 float Controller::getDuration() {
+	setDuration();
 	return duration;
 }
 
@@ -612,6 +613,15 @@ void Controller::setNumLightRLI(int light) {
 int Controller::getNumLightRLI() {
 	return lightPts;
 }
+
+int Controller::getDisplayWidth() {
+	return Camera::DISPLAY_WIDTH[getCameraProgram()];
+}
+
+int Controller::getDisplayHeight() {
+	return Camera::DISPLAY_HEIGHT[getCameraProgram()];
+}
+
 
 //=============================================================================
 

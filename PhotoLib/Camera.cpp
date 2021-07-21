@@ -22,7 +22,7 @@ const char* Camera::LABEL[] = {
 	"7500 Hz  256x40" };  // = 10240 px
 
 // The final widths to display
-const int Camera::DISPLAY_WIDTH[] = { 2048, 2048, 1024, 1024, 512, 512, 256, 256 };
+const int Camera::DISPLAY_WIDTH[] = { 2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024 };
 const int Camera::DISPLAY_HEIGHT[] = { 1024, 100,  320,  160,  160, 80,  60,  40 };
 
 // The internal quadrant widths based on .cfg files
