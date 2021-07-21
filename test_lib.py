@@ -1,4 +1,4 @@
-from wrapper import PhotoLibDriver
+from hardware import PhotoLibDriver
 import numpy as np
 
 # Demo

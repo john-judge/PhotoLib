@@ -1,3 +1,7 @@
 from gui import GUI
+from hardware import Hardware
+from data import Data
 
-gui = GUI()
+hardware = Hardware()
+data = Data(hardware)
+gui = GUI(data, hardware)
