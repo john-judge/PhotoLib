@@ -11,23 +11,6 @@
 #include "Controller.h"
 using namespace std;
 
-#ifdef LILJOE
-const char* Camera::LABEL[] = {
-	"1000 Hz  80x80",
-	"500 Hz   80x80",
-	"125 Hz   80x80",
-	"40 Hz    80x80",
-	"10000 Hz 80x12",
-	"3000 Hz  40x40",
-	"5000 Hz  26x26",
-	"2000 Hz  80x80"
-};
-const int Camera::WIDTH[] = { 80,	80,		80,		80,		80,		40,		26,		80 };
-const int Camera::HEIGHT[] = { 80,	80,		80,		80,		12,		40,		26,		80 };
-const int Camera::FREQ[] = { 1000,	500,	125,	40,		10000,	3000,	5000,	2000 };
-#endif // LILJOE
-
-#ifdef LILDAVE
 const char* Camera::LABEL[] = {
 	"200 Hz   2048x1024", // = 2097152 px
 	"2000 Hz  2048x100",  // = 204800 px
@@ -72,7 +55,6 @@ const double Camera::sm_integration_increments[] = { 0.5, 0.5, 0.5, 0.5, 0.5, 0.
 const int Camera::ccd_lib_bin[] = { 1, 1, 2, 2, 4, 4, 8, 8 };
 const int Camera::start_line_lib[] = { 576, 1038, 766, 926, 766, 926, 846, 926 };
 
-
 const int Camera::config_load_lib[] = { 1, 1, 1, 1, 1, 1, 1, 1 };
 const int Camera::cds_lib[] = { 1, 1, 1, 1, 1, 1, 1, 0 };
 const int Camera::ndr_lib[] = { 0, 0, 0, 0, 0, 0, 0, 1 };
@@ -103,7 +85,6 @@ const int Camera::channelOrders[16] = { 2, 3, 1, 0,
 										1, 0, 2, 3,
 										2, 3, 1, 0,
 										1, 0, 2, 3, };
-#endif // LILDAVE
 
 Camera::Camera() {
 	edt_devname[0] = '\0';
@@ -472,11 +453,6 @@ void Camera::reassembleImages(unsigned short* images, int nImages) {
 
 	// NOTE: cam.height and cam.width are the RAW QUADRANT sizes
 	// i.e. the size of a quadrant BEFORE CDS subtraction
-
-	int channelOrders[16] = { 2, 3, 1, 0,
-							  1, 0, 2, 3,
-							  2, 3, 1, 0,
-							  1, 0, 2, 3, };
 
 	// CDS subtraction for entire image (halves total memory needed for images)
 	subtractCDS(images, nImages, height(), width());
