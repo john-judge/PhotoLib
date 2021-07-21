@@ -17,9 +17,19 @@ Builds a camera/electrode management DLL to expose to Python applications.
 
 ## Build From Source
 This project is built with Visual Studio Code 2017 or 2019 with the Dynamic Loaded Library (DLL) project template.
+- Target x64-Release
+- Enable [/MT compiler option](https://docs.microsoft.com/en-us/cpp/build/reference/md-mt-ld-use-run-time-library?view=msvc-160)
+- Copy Include Paths from [PhotoZ](https://github.com/john-judge/PhotoZ_upgrades.git) VS setup as needed
 - Press F7 to compile and build the DLL
-- Use the DLL as a library in any application needed. API guide below.
+- Use the DLL as a library in any application needed. 
 - Python: A Python wrapper module using the built-in `ctypes` library is included.
+
+## Troubleshooting
+- [Microsoft DUMPBIN tool](https://docs.microsoft.com/en-us/cpp/build/reference/dependents?view=msvc-160) – A tool to find DLL dependents.
+From VS Terminal (Developer Powershell) run:
+```
+dumpbin /DEPENDENTS .\x64\Debug\PhotoLib.dll
+```
 
 ## Related Projects and Applications
 - [PhotoZ](https://github.com/john-judge/PhotoZ_upgrades.git) for data acquisition and analysis with GUI entirely in C++
