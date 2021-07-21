@@ -21,6 +21,9 @@ This project is built with Visual Studio Code 2017 or 2019 with the Dynamic Load
 - Use the DLL as a library in any application needed. API guide below.
 - Python: A Python wrapper module using the built-in `ctypes` library is included.
 
+## Troubleshooting
+- [Microsoft DUMPBIN tool](https://docs.microsoft.com/en-us/cpp/build/reference/dependents?view=msvc-160) – A tool to find DLL dependents.
+
 ## Related Projects and Applications
 - [PhotoZ](https://github.com/john-judge/PhotoZ_upgrades.git) for data acquisition and analysis with GUI entirely in C++
 - [ZDA_Explorer](https://github.com/john-judge/ZDA_Explorer.git) for flexible data analysis scripting with PhotoZ raw data
