@@ -13,7 +13,7 @@ Builds a camera/electrode management DLL to expose to Python applications.
 ## Instructions
 
 - Clone repository. 
-- Follow the build from source guide below, or simply use the most recent stable release of `PhotoLib.dll`
+- Follow the build from source guide below. Or, when/if I've released a stable, standalone version of `PhotoLib.dll`, use that directly (dependencies should come with this repository).
 
 ## Build From Source
 This project is built with Visual Studio Code 2017 or 2019 with the Dynamic Loaded Library (DLL) project template.
