@@ -16,7 +16,6 @@
 
 #include "NIDAQmx.h"
 #include "Controller.h"
-//#include "UserInterface.h"
 #include "Channel.h"
 #include "Camera.h"
 #include "DataArray.h"
@@ -162,11 +161,65 @@ int Controller::acqui(unsigned short *memory)
 {
 	Camera cam;
 
-	short *buf = new short[4 * numPts]; // There are 4 FP analog inputs for Lil Dave
+	short *buf = new short[4 * getNumPts()]; // There are 4 FP analog inputs for Lil Dave
+	// TO DO: capture FP analog input into buf
+	// TO DO: administer stimulation from PD out
 
-	// Start Acquisition
-	//joe->dave; might need to change it for dave cam
-	//cam.serial_write("@SEQ 0\@SEQ 1\r@TXC 1\r");
+	cam.setCamProgram(getCameraProgram());
+	cam.init_cam();
+
+	int array_diodes = cam.width() * cam.height();
+
+	//-------------------------------------------
+	// validate image quadrant size match expected
+	if (!cam.isValidPlannedState(array_diodes)) return 1;
+
+	//-------------------------------------------
+	// Allocate image memory 
+	memory = cam.allocateImageMemory(array_diodes, getNumPts() + 1);
+
+	//-------------------------------------------
+	// Initialize NI tasks
+	int32       error = 0;
+	TaskHandle  taskHandle = 0;
+	uInt8       data[4] = { 0,1,0,0 };
+	char        errBuff[2048] = { '\0' };
+
+	uInt8 data0[4] = { 0,0,0,0 };
+	int32 defaultSuccess = -1; int32* successfulSamples = &defaultSuccess;
+
+	//-------------------------------------------
+	// Variables for camera
+	unsigned char *image;
+	int width = cam.width();
+	int height = cam.height();
+	int quadrantSize = width * height;
+
+	int superframe_factor = cam.get_superframe_factor();
+
+	//-------------------------------------------
+	// Acquisition loops
+	omp_set_num_threads(NUM_PDV_CHANNELS);
+	#pragma omp parallel for	
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+
+		int loops = getNumPts() / superframe_factor; // superframing 
+
+		// Start all images
+		cam.start_images(ipdv, loops);
+
+		unsigned short* privateMem = memory + (ipdv * quadrantSize *  getNumPts()); // pointer to this thread's section of MEMORY	
+		for (int i = 0; i < loops; i++)
+		{
+			// acquire data for this image from the IPDVth channel	
+			image = cam.wait_image(ipdv);
+
+			// Save the image(s) to process later	
+			memcpy(privateMem, image, quadrantSize * sizeof(short) * superframe_factor);
+			privateMem += quadrantSize * superframe_factor; // stride to the next destination for this channel's memory	
+		}
+	}
+
 
 
 	/* NI-DAQmx errors were causing the slow image acquisition apparently!!
@@ -190,32 +243,13 @@ int Controller::acqui(unsigned short *memory)
 
 
 	*/
-	// Parallel acquistion
-	//cam.acquireImages(memory, numPts, true, false);
 
-	// Acquisition done, so efficiency doesn't matter. Camera-specific image processing (slow)
-	cout << "Images acquired. Reassembling images...\n";
 	cam.reassembleImages(memory, numPts);
-	cout << "Reassembly completed.\n";
-
-	// TO DO: capture FP analog input into buf
 
 	free(buf);
 	free(outputs);
 	return 0;
 }
-
-//=============================================================================
-// No longer needed now that numSkippedTrials is disabled
-/*
-void Controller::pseudoAcqui()
-{
-	int32 defaultSuccess = -1; int32* successfulSamples = &defaultSuccess;
-	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandleAcquiDO, duration + 10, true, 0, DAQmx_Val_GroupByChannel, pseudoOutputs, successfulSamples, NULL));
-	//wait till complete
-	DAQmxErrChk(DAQmxWaitUntilTaskDone(taskHandleAcquiDO, 30));
-
-}*/
 
 //=============================================================================
 void Controller::resetDAPs()
@@ -284,9 +318,6 @@ void Controller::createAcquiDapFile()//set outputs samples array here//configure
 	  // "" should drive both from Onboard Clock (internal)
 	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandleAcquiAI, "", Camera::FREQ[program], DAQmx_Val_RisingSlope, DAQmx_Val_FiniteSamps, (uint8_t)duration + 10));
 	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandleAcquiDO, "", Camera::FREQ[program], DAQmx_Val_RisingSlope, DAQmx_Val_FiniteSamps, (uint8_t)duration + 10));
-
-	// No longer needed now that numSkippedTrials is disabled
-	//fillPDOut(pseudoOutputs, 1);
 }
 
 //=============================================================================
@@ -458,7 +489,7 @@ int Controller::takeRli(unsigned short *memory) {
 	Sleep(100);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	// parallel acquisition resumes now that light is on	
-#pragma omp parallel for	
+	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 
 		int loops = lightPts / superframe_factor; // superframing 

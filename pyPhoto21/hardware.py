@@ -223,5 +223,5 @@ class Hardware:
                                  + os.path.dirname(os.path.abspath('./PhotoLib/Include')) + ';' \
                                  + os.path.dirname(os.path.abspath('./PhotoLib')) + ';' \
                                  + os.environ['PATH']
-            self.lib = ctypes.cdll.LoadLibrary('./x64/Release/PhotoLib.dll')
+            self.lib = ctypes.cdll.LoadLibrary(dll_path + 'PhotoLib.dll')
 
