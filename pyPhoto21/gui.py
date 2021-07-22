@@ -6,8 +6,14 @@ from matplotlib.widgets import RectangleSelector
 import matplotlib.figure as figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import matplotlib.pyplot as plt
+
+from mpl_interactions import image_segmenter
 import os.path
 
+global_state = {
+    'redraw': {'frame_canvas': True,
+               'trace_canvas': True}
+}
 
 class GUI:
 
@@ -20,8 +26,6 @@ class GUI:
 
         # general state/settings
         self.title = "Photo21"
-        self.redraw = {'frame_canvas': True,
-                       'trace_canvas': True}
 
         # kickoff workflow
         self.introduction()
@@ -131,6 +135,7 @@ class GUI:
         window.close()
 
     def main_workflow_loop(self, window, history=False):
+        global global_state
         event_mapping = {
             'Record': {
                 'function': self.hardware.record,
@@ -152,9 +157,10 @@ class GUI:
                 events += str(event) + '\n'
             if event == "Exit" or event == sg.WIN_CLOSED:
                 break
-            if self.redraw['frame_canvas']:
+            if global_state['redraw']['frame_canvas']:
                 self.plot_update(window, 'frame_canvas')
-            if self.redraw['trace_canvas']:
+            if global_state['redraw']['trace_canvas']:
+                print("Redraw Trace cv!")
                 self.plot_update(window, 'trace_canvas')
             elif event not in event_mapping or event_mapping[event] is None:
                 print("Not Implemented:", event)
@@ -180,8 +186,16 @@ class GUI:
         fig = figure.Figure()
         ax = fig.add_subplot(111)
 
-        t = np.arange(0, 3, .01)
-        fig.add_subplot(111).plot(t, 2 * np.sin(2 * np.pi * t))
+        if name == 'trace_canvas':
+            t = np.arange(0, 3, .01)
+            fig.add_subplot(111).plot(t, 2 * np.sin(2 * np.pi * t))
+        elif name == 'frame_canvas':
+            # Image selection / segmentation widget with mpl
+            image = self.get_display_frame()
+            # https://mpl-interactions.readthedocs.io/en/stable/examples/image-segmentation.html
+            segmenter = image_segmenter(image, mask_colors="red", mask_alpha=0.76, figsize=(7, 7))
+            plt.imshow(segmenter)
+            return
 
         dpi = fig.get_dpi()
         fig.set_size_inches(505 * 2 / float(dpi), 707 / float(dpi))
@@ -194,6 +208,14 @@ class GUI:
             x1, y1 = eclick.xdata, eclick.ydata
             x2, y2 = erelease.xdata, erelease.ydata
 
+            global global_state
+            print("...")
+            # clicking on plot should also update trace viewer
+            if name == 'frame_canvas':
+                global_state['redraw']['trace_canvas'] = True
+                global_state['redraw']['trace_canvas']['click'] = [x1, y1]
+                global_state['redraw']['trace_canvas']['release'] = [x2, y2]
+
             rect = plt.Rectangle((min(x1, x2), min(y1, y2)), np.abs(x1 - x2), np.abs(y1 - y2))
             ax.add_patch(rect)
             fig.canvas.draw()
@@ -205,17 +227,25 @@ class GUI:
         self.draw_figure_w_toolbar(window[name].TKCanvas,
                                    fig,
                                    window[name+'_controls'].TKCanvas)
-        self.redraw[name] = False
+        global_state['redraw'][name] = False
 
+    # update system state so that frame is redrawn in event loop
     def redraw_frame(self):
-        self.redraw['frame_canvas'] = True
+        global_state['redraw']['frame_canvas'] = True
         # .. choose frame: select, average, retrieve from self.data ...
         raise NotImplementedError
 
-    def redraw_trace(self):
-        self.redraw['trace_canvas'] = True
-        # ... find traces to draw
-        raise NotImplementedError
+    # Based on system state, create/get the frame that should be displayed.
+    def get_display_frame(self):
+        # Temporary. Enhancements to come.
+        return np.average(self.data.get_rli_images(), axis=0)
+
+    # update system state so that traces are redrawn in event loop
+    def redraw_trace(self, x_click, y_click, x_release, y_release):
+        global_state['redraw']['trace_canvas'] = True
+        print("Redraw Trace:", x_click, y_click, x_release, y_release)
+        # ... find traces to draw by looking at system state
+        print("NotImplementedError -- trace")
 
     # include a matplotlib figure in a Tkinter canvas
     @staticmethod

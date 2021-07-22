@@ -1,7 +1,7 @@
-from gui import GUI
-from hardware import Hardware
-from data import Data
-from file import File
+from pyPhoto21.gui import GUI
+from pyPhoto21.hardware import Hardware
+from pyPhoto21.data import Data
+from pyPhoto21.file import File
 
 file = File()
 hardware = Hardware()
