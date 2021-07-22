@@ -204,6 +204,7 @@ class Hardware:
     def load_dll(self, dll_path='./x64/Release/'):
         dll_path = os.path.abspath(dll_path)
         if hasattr(os, 'add_dll_directory'):
+            os.add_dll_directory(os.getcwd())
             os.add_dll_directory(os.path.dirname(dll_path + os.path.sep + "PhotoLib.dll"))
             os.add_dll_directory(os.path.dirname(os.path.abspath('./PhotoLib/Include/EDT')))
             os.add_dll_directory(os.path.dirname(os.path.abspath('./PhotoLib/Include')))
@@ -215,8 +216,8 @@ class Hardware:
                     print('added DLL dependency path:', path)
                 except:
                     print('Failed to add DLL dependency path:', path)
-
-            self.lib = ctypes.CDLL(dll_path + os.path.sep + "PhotoLib.dll")
+            self.lib = ctypes.cdll.LoadLibrary(dll_path + os.path.sep  + 'PhotoLib.dll')
+            #self.lib = ctypes.CDLL(dll_path + os.path.sep + "PhotoLib.dll")
         else:
             os.environ['PATH'] = os.path.dirname(dll_path + os.path.sep + "PhotoLib.dll") + ';'\
                                  + os.path.dirname(os.path.abspath('./PhotoLib/Include/EDT')) + ';' \
