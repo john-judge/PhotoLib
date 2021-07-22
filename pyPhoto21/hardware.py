@@ -20,16 +20,27 @@ class Hardware:
             pass
 
     def record(self, **kwargs):
-        orig_shape = kwargs['images'].shape
-        kwargs['images'] = kwargs['images'].reshape(-1)  # requires 1-D array
-        self.lib.acqui(self.controller, kwargs['images'])
-        kwargs['images'] = kwargs['images'].reshape(orig_shape)
+        imgs = kwargs['images']
+        controller_handle = ctypes.POINTER(ctypes.c_char)
+        c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16,
+                                              ndim=3,
+                                              shape=imgs.shape,
+                                              flags='C_CONTIGUOUS')
+
+        self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
+        self.lib.acqui(self.controller, imgs)
 
     def take_rli(self, **kwargs):
-        orig_shape = kwargs['images'].shape
-        kwargs['images'] = kwargs['images'].reshape(-1)  # requires 1-D array
-        self.lib.takeRli(self.controller, kwargs['images'])
-        kwargs['images'] = kwargs['images'].reshape(orig_shape)
+        imgs = kwargs['images']
+        controller_handle = ctypes.POINTER(ctypes.c_char)
+        c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16,
+                                              ndim=3,
+                                              shape=imgs.shape,
+                                              flags='C_CONTIGUOUS')
+
+        self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
+        self.lib.takeRli(self.controller, imgs)
+        print(imgs)
 
     # choose programs 0-7 (inclusive)
     def set_camera_program(self, **kwargs):
@@ -124,7 +135,7 @@ class Hardware:
     def define_c_types(self):
         controller_handle = ctypes.POINTER(ctypes.c_char)
         c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16, ndim=1, flags='C_CONTIGUOUS')
-        
+
         self.lib.createController.argtypes = []  # argument types
         self.lib.createController.restype = controller_handle  # return type
         
@@ -201,7 +212,7 @@ class Hardware:
         self.lib.getDisplayHeight.restype = ctypes.c_int
 
 
-    def load_dll(self, dll_path='./x64/Release/'):
+    def load_dll(self, dll_path='./x64/Release/', verbose=False):
         dll_path = os.path.abspath(dll_path)
         if hasattr(os, 'add_dll_directory'):
             os.add_dll_directory(os.getcwd())
@@ -213,9 +224,11 @@ class Hardware:
             for path in env_paths:
                 try:
                     os.add_dll_directory(path)
-                    print('added DLL dependency path:', path)
+                    if verbose:
+                        print('added DLL dependency path:', path)
                 except:
-                    print('Failed to add DLL dependency path:', path)
+                    if verbose:
+                        print('Failed to add DLL dependency path:', path)
             self.lib = ctypes.cdll.LoadLibrary(dll_path + os.path.sep  + 'PhotoLib.dll')
             #self.lib = ctypes.CDLL(dll_path + os.path.sep + "PhotoLib.dll")
         else:

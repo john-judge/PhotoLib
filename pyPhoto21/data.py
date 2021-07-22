@@ -56,12 +56,13 @@ class Data:
         self.hardware.set_num_dark_rli(dark_rli=self.dark_rli)
         self.hardware.set_num_light_rli(light_rli=self.light_rli)
 
+    # We allocate twice the memory since C++ needs room for CDS subtraction
     def allocate_image_memory(self):
-        self.rli_images = np.zeros((self.light_rli + self.dark_rli,
+        self.rli_images = np.zeros(((self.light_rli + self.dark_rli + 1) * 2,
                                     self.width,
                                     self.height),
                                    dtype=np.uint16)
-        self.acqui_images = np.zeros((self.num_pts,
+        self.acqui_images = np.zeros(((self.num_pts + 1) * 2,
                                       self.width,
                                       self.height),
                                      dtype=np.uint16)
@@ -76,14 +77,61 @@ class Data:
         self.width = self.get_display_width()
         self.height = self.get_display_height()
         if self.rli_images is not None and self.acqui_images is not None:
-            np.resize(self.rli_images, (self.light_rli + self.dark_rli,
+            np.resize(self.rli_images, ((self.light_rli + self.dark_rli + 1) * 2,
                                         self.width,
                                         self.height))
-            np.resize(self.acqui_images, (self.num_pts,
+            np.resize(self.acqui_images, ((self.num_pts + 1) * 2,
                                           self.width,
                                           self.height))
         else:
             self.allocate_image_memory()
+
+    def process_acqui_images(self):
+        images = self.get_acqui_images()
+        for i in range(images.shape[0]):
+            self.remap_quadrants(images[i, :, :])
+
+    def process_rli_images(self):
+        images = self.get_rli_images()
+        for i in range(images.shape[0]):
+            self.remap_quadrants(images[i, :, :])
+
+    def remap_quadrants(self, img):
+        # Place second half to the right of the first half
+        h, w = img.shape
+
+        q0 = img[:h // 4, :]
+        q1 = img[h // 4:h // 2, :]
+        q2 = img[h // 2:3 * h // 4, :]
+        q3 = img[3 * h // 4:, :]
+        img = np.zeros((h // 2, w * 2))
+        img[:h // 4, :w] = q0  # upper left
+        img[h // 4:, :w] = q1  # upper right
+        img[:h // 4, w:] = q2  # lower left
+        img[h // 4:, w:] = q3  # lower right
+        return img
+
+    # def normalize_quadrants(self, img):
+    #     h, w = img.shape
+    #     img[:h // 2, :w // 2] = (img[:h // 2, :w // 2] - np.min(img[:h // 2, :w // 2])) / np.max(img[:h // 2, :w // 2])
+    #     img[:h // 2, w // 2:] = (img[:h // 2, w // 2:] - np.min(img[:h // 2, w // 2:])) / np.max(img[:h // 2, w // 2:])
+    #     img[h // 2:, :w // 2] = (img[h // 2:, :w // 2] - np.min(img[h // 2:, :w // 2])) / np.max(img[h // 2:, :w // 2])
+    #     img[h // 2:, w // 2:] = (img[h // 2:, w // 2:] - np.min(img[h // 2:, w // 2:])) / np.max(img[h // 2:, w // 2:])
+    #     return img
+
+    # Based on system state, create/get the frame that should be displayed.
+    # index can be an integer or a list of [start:end] over which to average
+    def get_display_frame(self, index=None, get_rli=False):
+        images = self.get_acqui_images()
+        if get_rli:
+            images = self.get_rli_images()
+
+        if type(index) == int and (index < images.shape[0]) and index >= 0:
+            return images[index, :, :]
+        elif type(index) == list and len(index) == 2:
+            return np.average(images[index[0]:index[1], :, :], axis=0)
+        else:
+            return np.average(images, axis=0)
 
     # This pointer will not change even when we resize array
     def get_acqui_images(self):
@@ -130,7 +178,10 @@ class Data:
         return self.hardware.get_duration()
 
     def get_acqui_duration(self):
-        return  self.hardware.get_acqui_duration()
+        return self.hardware.get_acqui_duration()
+
+    def get_num_pts(self):
+        return self.hardware.get_num_pts()
 
 
 
