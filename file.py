@@ -27,11 +27,11 @@ class File:
         return s
 
     def get_filename(self, extension='.zda'):
-        return self.pad_zero(self.current_slice) + \
-               self.pad_zero(self.current_location) + \
-               self.pad_zero(self.current_run) + \
-                extension
+        return self.pad_zero(self.current_slice) + '-' + \
+               self.pad_zero(self.current_location) + '-' + \
+               self.pad_zero(self.current_run) + extension
 
-    def save_to_file(self):
+    def save_to_file(self, images):
         fn = self.get_filename()
+        print("Saving to file " + fn + "...")
         # TO DO: use ZDA format.
