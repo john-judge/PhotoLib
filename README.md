@@ -1,5 +1,5 @@
 # PhotoLib
-Builds a camera/electrode management DLL to expose to Python applications. 
+Builds a camera/electrode management DLL to expose to (Python) applications. Includes a GUI application for acquisition and analysis, written in Python.
 
 ## Hardware Requirements
 - DLL targets 64-bit machines
@@ -41,8 +41,18 @@ conda env export > environment.yml
 - [Microsoft DUMPBIN tool](https://docs.microsoft.com/en-us/cpp/build/reference/dependents?view=msvc-160) – A tool to find DLL dependents.
 From VS Terminal (Developer Powershell) run:
 ```
-dumpbin /DEPENDENTS .\x64\Debug\PhotoLib.dll
+dumpbin /DEPENDENTS .\x64\Release\PhotoLib.dll
 ```
+Typically:
+```
+  Image has the following dependencies:
+
+    clseredt.dll
+    nicaiu.dll
+    KERNEL32.dll
+    VCOMP140.DLL
+```
+Find these dependencies and make sure their directories are included in your system environment's PATH variable or add them to one of the DLL search paths.
 
 ## Related Projects and Applications
 - [PhotoZ](https://github.com/john-judge/PhotoZ_upgrades.git) for data acquisition and analysis with GUI entirely in C++
