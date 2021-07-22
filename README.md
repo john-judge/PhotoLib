@@ -24,6 +24,19 @@ This project is built with Visual Studio Code 2017 or 2019 with the Dynamic Load
 - Use the DLL as a library in any application needed. 
 - Python: A Python wrapper module using the built-in `ctypes` library is included.
 
+## Python GUI
+Install the conda environment from `environment.yml`:
+```
+conda env create -f environment.yml
+```
+Then run `python driver.py`
+
+Development: if additional conda dependencies are added to the environment, update the  `environment.yml` with:
+```
+conda env export > environment.yml
+```
+
+
 ## Troubleshooting
 - [Microsoft DUMPBIN tool](https://docs.microsoft.com/en-us/cpp/build/reference/dependents?view=msvc-160) – A tool to find DLL dependents.
 From VS Terminal (Developer Powershell) run:
