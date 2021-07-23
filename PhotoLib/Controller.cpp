@@ -157,13 +157,11 @@ double Controller::getIntPts()
 //=============================================================================
 // Acquisition
 //=============================================================================
-int Controller::acqui(unsigned short *memory)
+int Controller::acqui(unsigned short *memory, short *fp_memory)
 {
 	Camera cam;
 
-	short *buf = new short[4 * getNumPts()]; // There are 4 FP analog inputs for Lil Dave
-	// TO DO: capture FP analog input into buf
-	// TO DO: administer stimulation from PD out
+	//unsigned short * fp_memory = new short[4 * getNumPts()]; // There are 4 FP analog inputs for Lil Dave
 
 	cam.setCamProgram(getCameraProgram());
 	cam.init_cam();
@@ -184,9 +182,6 @@ int Controller::acqui(unsigned short *memory)
 	TaskHandle  taskHandle = 0;
 	uInt8       data[4] = { 0,1,0,0 };
 	char        errBuff[2048] = { '\0' };
-
-	uInt8 data0[4] = { 0,0,0,0 };
-	int32 defaultSuccess = -1; int32* successfulSamples = &defaultSuccess;
 
 	//-------------------------------------------
 	// Variables for camera
@@ -221,11 +216,7 @@ int Controller::acqui(unsigned short *memory)
 	}
 
 
-
-	/* NI-DAQmx errors were causing the slow image acquisition apparently!!
-	*  We will need to reinstate the following commented out section for NI:
-	*
-  //DapLinePut(dap820Put,"START Send_Pipe_Output,Start_Output,Define_Input,Send_Data");
+   //DapLinePut(dap820Put,"START Send_Pipe_Output,Start_Output,Define_Input,Send_Data");
 	//	int32 DAQmxWriteDigitalLines (TaskHandle taskHandle, int32 numSampsPerChan, bool32 autoStart, float64 timeout, bool32 dataLayout, uInt8 writeArray[], int32 *sampsPerChanWritten, bool32 *reserved);
 	//http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxwritedigitallines/
 	int32 defaultSuccess = -1;
@@ -238,15 +229,11 @@ int Controller::acqui(unsigned short *memory)
 	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandleAcquiDO, duration + 10, false, 0, DAQmx_Val_GroupByChannel, outputs, successfulSamples, NULL));
 	int start_offset = (int)((double)(CAM_INPUT_OFFSET + acquiOnset) / intPts);
 	//int32 DAQmxReadBinaryI16 (TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved);
-	DAQmxErrChk(DAQmxReadBinaryI16(taskHandleAcquiAI, (numPts + 7 + start_offset), 0, DAQmx_Val_GroupByScanNumber, buf, 4 * numPts, successfulSamplesIn, NULL));
+	DAQmxErrChk(DAQmxReadBinaryI16(taskHandleAcquiAI, (numPts + 7 + start_offset), 0, DAQmx_Val_GroupByScanNumber, fp_memory, 4 * numPts, successfulSamplesIn, NULL));
 	DAQmxErrChk(DAQmxStartTask(taskHandleAcquiDO));
-
-
-	*/
 
 	cam.reassembleImages(memory, numPts);
 
-	free(buf);
 	free(outputs);
 	return 0;
 }
@@ -448,7 +435,6 @@ int Controller::takeRli(unsigned short *memory) {
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-	uInt8 data0[4] = { 0,0,0,0 };
 	int32 defaultSuccess = -1; int32* successfulSamples = &defaultSuccess;
 
 	unsigned char *image;
@@ -519,7 +505,7 @@ int Controller::takeRli(unsigned short *memory) {
 	cam.reassembleImages(memory, rliPts); // deinterleaves, CDS subtracts, and arranges quadrants	
 
 	// Debug: print reassembled images out
-	
+	/*
 	unsigned short* img = (unsigned short*)(memory);
 	img += 355 * quadrantSize * NUM_PDV_CHANNELS / 2; // stride to the full image (now 1/2 size due to CDS subtract)
 
@@ -528,7 +514,7 @@ int Controller::takeRli(unsigned short *memory) {
 	cam.printFinishedImage(img, filename.c_str(), true);
 	cout << "\t This full image was located in MEMORY at offset " <<
 		(img - (unsigned short*)memory) / quadrantSize << " quadrant-sizes\n";
-	
+	*/
 
 	return 0;
 }

@@ -12,7 +12,7 @@ import tkinter as Tk
 from pyPhoto21.frame import FrameViewer
 from pyPhoto21.trace import TraceViewer
 
-#from mpl_interactions import image_segmenter, hyperslicer
+from mpl_interactions import image_segmenter
 from matplotlib.widgets import Slider
 #import io
 #import requests
@@ -30,7 +30,6 @@ global_state = {
         'traces': [],
         'cid': None,  # matplotlib connection
     },
-    'show_rli': True,
     'camera_programs': ["200 Hz   2048x1024",
                         "2000 Hz  2048x100",
                         "1000 Hz  1024x320",
@@ -218,13 +217,13 @@ class GUI:
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
 
         figure_canvas_agg.get_tk_widget().pack(fill="both", expand=True)
-        figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll)
-        figure_canvas_agg.mpl_connect('button_release_event', self.fv.contrast)  # add this for contrast change
+        #figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll) # currently scroll not used.
+        figure_canvas_agg.mpl_connect('button_release_event', self.fv.change_frame)
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onclick)
         toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
         toolbar.update()
         figure_canvas_agg.draw()
-        s_max.on_changed(self.fv.contrast)
+        s_max.on_changed(self.fv.change_frame)
 
     # update system state so that frame is redrawn in event loop
     def redraw_frame(self):
@@ -254,17 +253,14 @@ class GUI:
         toolbar.update()
         figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=False)
 
-    def launch_hyperslicer(self):
-        print("NotImplemented")
-
     def record(self, **kwargs):
-        self.hardware.record(images=self.data.get_acqui_memory())
+        self.hardware.record(images=self.data.get_acqui_memory(), fp_data=self.data.get_fp_data())
         self.fv.update_new_image_size()
 
     def take_rli(self, **kwargs):
         self.hardware.take_rli(images=self.data.get_rli_memory())
-        if global_state['show_rli']:
-            self.fv.update_new_image_size(rli=True)
+        if self.fv.get_show_rli_flag():
+            self.fv.update_new_image_size()
 
     def set_camera_program(self, **kwargs):
         prog_name = kwargs['values']
@@ -273,6 +269,9 @@ class GUI:
 
     def save_to_file(self):
         self.file.save_to_file(self.get_acqui_images(), self.get_rli_images())
+
+    def launch_hyperslicer(self):
+        self.fv.launch_hyperslicer()
 
     def define_event_mapping(self):
         if self.event_mapping is None:

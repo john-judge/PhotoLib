@@ -20,26 +20,16 @@ class Hardware:
             pass
 
     def record(self, **kwargs):
+        orig_shape = kwargs['images'].shape
+        fp_data = kwargs['fp_data']
         imgs = kwargs['images'].reshape(-1)
-        controller_handle = ctypes.POINTER(ctypes.c_char)
-        c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16,
-                                              ndim=1,
-                                              #shape=imgs.shape,
-                                              flags='C_CONTIGUOUS')
-
-        self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
-        self.lib.acqui(self.controller, imgs)
+        self.lib.acqui(self.controller, imgs, fp_data)
+        imgs = imgs.reshape(orig_shape)
 
     def take_rli(self, **kwargs):
         orig_shape = kwargs['images'].shape
         imgs = kwargs['images'].reshape(-1)
-        controller_handle = ctypes.POINTER(ctypes.c_char)
-        c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16,
-                                              ndim=1,
-                                              #shape=imgs.shape,
-                                              flags='C_CONTIGUOUS')
 
-        self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
         self.lib.takeRli(self.controller, imgs)
         imgs = imgs.reshape(orig_shape)
 
@@ -142,6 +132,7 @@ class Hardware:
     def define_c_types(self):
         controller_handle = ctypes.POINTER(ctypes.c_char)
         c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16, ndim=1, flags='C_CONTIGUOUS')
+        c_int_array = np.ctypeslib.ndpointer(dtype=np.int16, ndim=1, flags='C_CONTIGUOUS')
 
         self.lib.createController.argtypes = []  # argument types
         self.lib.createController.restype = controller_handle  # return type
@@ -150,7 +141,7 @@ class Hardware:
         
         self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
         
-        self.lib.acqui.argtypes = [controller_handle, c_uint_array]
+        self.lib.acqui.argtypes = [controller_handle, c_uint_array, c_int_array]
         
         self.lib.setCameraProgram.argtypes = [controller_handle, ctypes.c_int]
         

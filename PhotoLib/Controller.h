@@ -80,7 +80,6 @@ public:
 
 	// Buffers for digital output
 	uint8_t *outputs;
-	//uint8_t *pseudoOutputs;
 
 	// RLI
 	int takeRli(unsigned short*);
@@ -98,7 +97,7 @@ public:
 
 	// Acquisition Control
 	int sendFile2Dap(const char*);
-	int acqui(unsigned short*);
+	int acqui(unsigned short*, short*);
 	int stop();
 	void resetDAPs();
 	void resetCamera();

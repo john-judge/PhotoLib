@@ -20,8 +20,11 @@ class Data:
         self.display_heights = [1024, 100, 320, 160, 160, 80, 60, 40]
 
         self.schedule_rli_flag = True
+
+        # Memory
         self.rli_images = None
         self.acqui_images = None
+        self.fp_data = None
 
         # synchronize defaults into hardware
         self.set_camera_program(self.program,
@@ -127,6 +130,9 @@ class Data:
     def get_rli_memory(self):
         return self.rli_images
 
+    def get_fp_data(self):
+        return self.fp_data
+
     # This pointer will not change even when we resize array
     def get_acqui_images(self):
         return self.acqui_images[0, :, :, :]
@@ -190,5 +196,7 @@ class Data:
     def get_num_pts(self):
         return self.hardware.get_num_pts()
 
+    def get_num_rli_pts(self):
+        return self.hardware.get_num_dark_rli() + self.hardware.get_num_light_rli()
 
 

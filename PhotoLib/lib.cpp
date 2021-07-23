@@ -33,9 +33,9 @@ extern "C"
 	}
 
 
-	__declspec(dllexport) void acqui(Controller* controller, unsigned short* images)
+	__declspec(dllexport) void acqui(Controller* controller, unsigned short* images, short* fp_data)
 	{
-		controller->acqui(images);
+		controller->acqui(images, fp_data);
 	}
 
 	__declspec(dllexport) void setNumPts(Controller* controller,  int numPts)
