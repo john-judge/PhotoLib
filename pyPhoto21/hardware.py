@@ -20,30 +20,37 @@ class Hardware:
             pass
 
     def record(self, **kwargs):
-        imgs = kwargs['images']
+        imgs = kwargs['images'].reshape(-1)
         controller_handle = ctypes.POINTER(ctypes.c_char)
         c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16,
-                                              ndim=3,
-                                              shape=imgs.shape,
+                                              ndim=1,
+                                              #shape=imgs.shape,
                                               flags='C_CONTIGUOUS')
 
         self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
         self.lib.acqui(self.controller, imgs)
 
     def take_rli(self, **kwargs):
-        imgs = kwargs['images']
+        orig_shape = kwargs['images'].shape
+        imgs = kwargs['images'].reshape(-1)
         controller_handle = ctypes.POINTER(ctypes.c_char)
         c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16,
-                                              ndim=3,
-                                              shape=imgs.shape,
+                                              ndim=1,
+                                              #shape=imgs.shape,
                                               flags='C_CONTIGUOUS')
 
         self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
         self.lib.takeRli(self.controller, imgs)
-        print(imgs)
+        imgs = imgs.reshape(orig_shape)
 
     # choose programs 0-7 (inclusive)
     def set_camera_program(self, **kwargs):
+        if 'program' not in kwargs:
+            return
+        p = kwargs['program']
+        if type(p) != int or p < 0 or p > 7:
+            return
+        print('setting hardware to camera program', kwargs['program'])
         self.lib.setCameraProgram(self.controller, kwargs['program'])
 
     def get_camera_program(self):

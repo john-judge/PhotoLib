@@ -31,6 +31,14 @@ global_state = {
         'cid': None,  # matplotlib connection
     },
     'show_rli': True,
+    'camera_programs': ["200 Hz   2048x1024",
+                        "2000 Hz  2048x100",
+                        "1000 Hz  1024x320",
+                        "2000 Hz  1024x160",
+                        "2000 Hz  1024x160",
+                        "4000 Hz  1024x80",
+                        "5000 Hz  1024x60",
+	                    "7500 Hz  1024x40" ]
 }
 
 class GUI:
@@ -87,7 +95,12 @@ class GUI:
              sg.Button("Record", button_color=('black', 'red'))],
             [sg.Button("Save Processed Data", button_color=('black', 'green')),
              sg.Button("Save", button_color=('black', 'green'))],
+            [sg.Combo(global_state['camera_programs'],
+                        enable_events=True,
+                        default_value=global_state['camera_programs'][self.hardware.get_camera_program()],
+                        key="-CAMERA PROGRAM-")]
         ]
+
         analysis_layout = [[
             sg.Button("Launch Hyperslicer", button_color=('gray', 'blue')),
             sg.Button("Record", button_color=('gray', 'red')),
@@ -139,13 +152,10 @@ class GUI:
         right_col = self.create_right_column()
         left_col = self.create_left_column()
 
-        layout = [
-            [
+        layout = [[
                 sg.Column(left_col),
                 sg.VSeperator(),
-                sg.Column(right_col),
-            ]
-        ]
+                sg.Column(right_col)]]
 
         self.window = sg.Window(self.title,
                            layout,
@@ -174,12 +184,14 @@ class GUI:
             elif event not in self.event_mapping or self.event_mapping[event] is None:
                 print("Not Implemented:", event)
             else:
-                try:
-                    ev = self.event_mapping[event]
-                    ev['function'](**ev['args'])
-                except Exception as e:
-                    print("exception while calling", self.event_mapping[event])
-                    print(str(e))
+                #try:
+                ev = self.event_mapping[event]
+                if event in values:
+                    ev['args']['values'] = values[event]
+                ev['function'](**ev['args'])
+                #except Exception as e:
+                #    print("exception while calling", self.event_mapping[event])
+               #     print(str(e))
 
         if history:
             print(events)
@@ -197,13 +209,10 @@ class GUI:
 
     def plot_frame(self):
 
-        fig = figure.Figure()
-        ax = fig.add_subplot(111)
-
-        axmax = fig.add_axes([0.25, 0.01, 0.65, 0.03])
-        smax = Slider(axmax, 'Max', 0, np.max(self.data.get_num_pts()), valinit=50)
-        self.fv = FrameViewer(self.data, ax)
-        #canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
+        self.fv = FrameViewer(self.data)
+        fig = self.fv.get_fig()
+        s_max = self.fv.get_slider_max()
+        canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
         canvas = self.window['frame_canvas'].TKCanvas
 
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
@@ -212,8 +221,10 @@ class GUI:
         figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll)
         figure_canvas_agg.mpl_connect('button_release_event', self.fv.contrast)  # add this for contrast change
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onclick)
+        toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
+        toolbar.update()
         figure_canvas_agg.draw()
-        smax.on_changed(self.fv.contrast)
+        s_max.on_changed(self.fv.contrast)
 
     # update system state so that frame is redrawn in event loop
     def redraw_frame(self):
@@ -247,15 +258,21 @@ class GUI:
         print("NotImplemented")
 
     def record(self, **kwargs):
-        self.hardware.record(images=self.data.get_acqui_images())
-        self.data.process_acqui_images()
-        self.fv.update()
+        self.hardware.record(images=self.data.get_acqui_memory())
+        self.fv.update_new_image_size()
 
     def take_rli(self, **kwargs):
-        self.hardware.take_rli(images=self.data.get_rli_images())
-        self.data.process_rli_images()
+        self.hardware.take_rli(images=self.data.get_rli_memory())
         if global_state['show_rli']:
-            self.fv.update(rli=True)
+            self.fv.update_new_image_size(rli=True)
+
+    def set_camera_program(self, **kwargs):
+        prog_name = kwargs['values']
+        i_prog = global_state['camera_programs'].index(prog_name)
+        self.data.set_camera_program(i_prog)
+
+    def save_to_file(self):
+        self.file.save_to_file(self.get_acqui_images(), self.get_rli_images())
 
     def define_event_mapping(self):
         if self.event_mapping is None:
@@ -269,13 +286,17 @@ class GUI:
                     'args': {}
                 },
                 'Save': {
-                    'function': self.file.save_to_file,
-                    'args': {'images': self.data.get_acqui_images()}
+                    'function': self.save_to_file,
+                    'args': {}
                 },
                 'Launch Hyperslicer': {
                     'function': self.launch_hyperslicer,
                     'args': {},
-                }
+                },
+                "-CAMERA PROGRAM-": {
+                    'function': self.set_camera_program,
+                    'args': {},
+                 },
             }
 
 

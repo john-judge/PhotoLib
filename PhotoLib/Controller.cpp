@@ -172,11 +172,11 @@ int Controller::acqui(unsigned short *memory)
 
 	//-------------------------------------------
 	// validate image quadrant size match expected
-	if (!cam.isValidPlannedState(array_diodes)) return 1;
+	//if (!cam.isValidPlannedState(array_diodes)) return 1;
 
 	//-------------------------------------------
 	// Allocate image memory 
-	memory = cam.allocateImageMemory(array_diodes, getNumPts() + 1);
+	//memory = cam.allocateImageMemory(array_diodes, getNumPts() + 1);
 
 	//-------------------------------------------
 	// Initialize NI tasks
@@ -423,7 +423,7 @@ int Controller::takeRli(unsigned short *memory) {
 
 	//-------------------------------------------
 	// validate image quadrant size match expected
-	if (!cam.isValidPlannedState(array_diodes)) return 1;
+	//if (!cam.isValidPlannedState(array_diodes)) return 1;
 
 	//-------------------------------------------
 	// Allocate image memory -- remove, it is done by Python
@@ -519,7 +519,7 @@ int Controller::takeRli(unsigned short *memory) {
 	cam.reassembleImages(memory, rliPts); // deinterleaves, CDS subtracts, and arranges quadrants	
 
 	// Debug: print reassembled images out
-	/*
+	
 	unsigned short* img = (unsigned short*)(memory);
 	img += 355 * quadrantSize * NUM_PDV_CHANNELS / 2; // stride to the full image (now 1/2 size due to CDS subtract)
 
@@ -528,7 +528,7 @@ int Controller::takeRli(unsigned short *memory) {
 	cam.printFinishedImage(img, filename.c_str(), true);
 	cout << "\t This full image was located in MEMORY at offset " <<
 		(img - (unsigned short*)memory) / quadrantSize << " quadrant-sizes\n";
-	*/
+	
 
 	return 0;
 }

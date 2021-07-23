@@ -607,7 +607,7 @@ void Camera::remapQuadrantsOneImage(unsigned short* srcBuf, unsigned short* dstB
 
 
 // Utilities for debugging
-/*
+
 void Camera::printFinishedImage(unsigned short* image, const char* filename, bool CDS_done) {
 	int full_img_size = NUM_PDV_CHANNELS * width() * height();
 	if (CDS_done) full_img_size /= 2; // Divide by 2 if you need to account for CDS subtraction
@@ -619,7 +619,7 @@ void Camera::printFinishedImage(unsigned short* image, const char* filename, boo
 	outFile.close();
 	cout << "\nWrote full image's raw data to PhotoZ/" << filename << "\n";
 }
-
+/*
 void Camera::printQuadrant(unsigned short* image, const char* filename) {
 	int quadrantSize = width() * height(); // pre-CDS subtracted size
 	std::ofstream outFile;

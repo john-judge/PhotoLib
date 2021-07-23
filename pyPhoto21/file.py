@@ -31,7 +31,7 @@ class File:
                self.pad_zero(self.current_location) + '-' + \
                self.pad_zero(self.current_run) + extension
 
-    def save_to_file(self, images):
+    def save_to_file(self, acqui_images, rli_images):
         fn = self.get_filename()
         print("Saving to file " + fn + "...")
         # TO DO: use ZDA format.
