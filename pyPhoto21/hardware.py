@@ -20,11 +20,14 @@ class Hardware:
             pass
 
     def record(self, **kwargs):
-        orig_shape = kwargs['images'].shape
-        fp_data = kwargs['fp_data']
+        imgs_orig_shape = kwargs['images'].shape
+        fp_orig_shape = kwargs['fp_data'].shape
         imgs = kwargs['images'].reshape(-1)
+        fp_data = kwargs['fp_data'].reshape(-1)
+
         self.lib.acqui(self.controller, imgs, fp_data)
-        imgs = imgs.reshape(orig_shape)
+        imgs = imgs.reshape(imgs_orig_shape)
+        fp_data = fp_data.reshape(fp_orig_shape)
 
     def take_rli(self, **kwargs):
         orig_shape = kwargs['images'].shape

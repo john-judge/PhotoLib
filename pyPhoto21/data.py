@@ -61,21 +61,22 @@ class Data:
         self.hardware.set_schedule_rli_flag(schedule_rli_flag=self.schedule_rli_flag)
         self.hardware.set_acqui_onset(acqui_onset=self.acqui_onset)
 
-
     # We allocate twice the memory since C++ needs room for CDS subtraction
     def allocate_image_memory(self):
         w = self.get_display_width()
         h = self.get_display_height()
         self.rli_images = np.zeros((2,
-                                    (self.light_rli + self.dark_rli + 1),
+                                    self.get_num_rli_pts(),
                                     h,
                                     w,),
                                    dtype=np.uint16)
         self.acqui_images = np.zeros((2,
-                                      (self.num_pts + 1) ,
+                                      self.get_num_pts(),
                                       h,
                                       w),
                                      dtype=np.uint16)
+        self.fp_data = np.zeros((self.get_num_pts(), self.get_num_fp()),
+                                 dtype=np.int16)
 
     def set_camera_program(self, program, force_resize=False):
         if force_resize or self.program != program:
@@ -99,11 +100,8 @@ class Data:
                                           (self.num_pts + 1),
                                           h,
                                           w))
-            print("new memory shapes of program",
-                  self.program,
-                  "\n\t",
-                  self.rli_images.shape,
-                  self.acqui_images.shape)
+            self.fp_data = np.resize(self.fp_data,
+                                     (self.get_num_pts(), self.get_num_fp()))
 
         else:
             self.allocate_image_memory()
@@ -151,6 +149,8 @@ class Data:
                                           self.num_pts,
                                           w,
                                           h))
+            self.fp_data = np.resize(self.fp_data,
+                                     (self.get_num_pts(), self.get_num_fp()))
             self.hardware.set_num_pts(num_pts=num_pts)
 
     def set_num_dark_rli(self, dark_rli, force_resize=False):
@@ -199,4 +199,8 @@ class Data:
     def get_num_rli_pts(self):
         return self.hardware.get_num_dark_rli() + self.hardware.get_num_light_rli()
 
+    # Fixed at 4 field potential measurements with NI-USB
+    @staticmethod
+    def get_num_fp():
+        return 4
 

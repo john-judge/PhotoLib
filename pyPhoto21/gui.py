@@ -88,6 +88,7 @@ class GUI:
 
     def create_left_column(self):
         acquisition_layout = [
+            [sg.Checkbox('Show RLI', default=True, enable_events=True, key="Show RLI")],
             [sg.Button("STOP!", button_color=('black', 'yellow')),
              sg.Button("Take RLI", button_color=('brown', 'gray'))],
             [sg.Button("Live Feed", button_color=('black', 'gray')),
@@ -225,19 +226,6 @@ class GUI:
         figure_canvas_agg.draw()
         s_max.on_changed(self.fv.change_frame)
 
-    # update system state so that frame is redrawn in event loop
-    def redraw_frame(self):
-        global_state['redraw']['frame_canvas'] = True
-        # .. choose frame: select, average, retrieve from self.data ...
-        raise NotImplementedError
-
-    # update system state so that traces are redrawn in event loop
-    def redraw_trace(self, x_click, y_click, x_release, y_release):
-        global_state['redraw']['trace_canvas'] = True
-        print("Redraw Trace:", x_click, y_click, x_release, y_release)
-        # ... find traces to draw by looking at system state
-        print("NotImplementedError -- trace")
-
     # include a matplotlib figure in a Tkinter canvas
     @staticmethod
     def draw_figure_w_toolbar(canvas, fig, canvas_toolbar):
@@ -255,12 +243,13 @@ class GUI:
 
     def record(self, **kwargs):
         self.hardware.record(images=self.data.get_acqui_memory(), fp_data=self.data.get_fp_data())
-        self.fv.update_new_image_size()
+        self.fv.update_new_image()
+        print(self.data.get_fp_data())
 
     def take_rli(self, **kwargs):
         self.hardware.take_rli(images=self.data.get_rli_memory())
         if self.fv.get_show_rli_flag():
-            self.fv.update_new_image_size()
+            self.fv.update_new_image()
 
     def set_camera_program(self, **kwargs):
         prog_name = kwargs['values']
@@ -272,6 +261,9 @@ class GUI:
 
     def launch_hyperslicer(self):
         self.fv.launch_hyperslicer()
+
+    def toggle_show_rli(self, **kwargs):
+        self.fv.set_show_rli_flag(kwargs['values'], update=True)
 
     def define_event_mapping(self):
         if self.event_mapping is None:
@@ -296,6 +288,10 @@ class GUI:
                     'function': self.set_camera_program,
                     'args': {},
                  },
+                "Show RLI": {
+                    'function': self.toggle_show_rli,
+                    'args': {},
+                },
             }
 
 
