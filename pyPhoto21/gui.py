@@ -2,15 +2,18 @@ import numpy as np
 import os.path
 import PySimpleGUI as sg
 import matplotlib
+import sys
 from matplotlib.widgets import RectangleSelector
 import matplotlib.figure as figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import matplotlib.pyplot as plt
 from tkinter import *
 import tkinter as Tk
+from webbrowser import open as open_browser
 
 from pyPhoto21.frame import FrameViewer
 from pyPhoto21.trace import TraceViewer
+from pyPhoto21.layouts import *
 
 from mpl_interactions import image_segmenter
 from matplotlib.widgets import Slider
@@ -28,6 +31,7 @@ class GUI:
         self.file = file
         self.fv = None  # FrameViewer object
         self.tv = None  # TraceViewer object
+        self.layouts = Layouts(data)
         self.window = None
 
         # general state/settings
@@ -58,83 +62,21 @@ class GUI:
             if event == "OK" or event == sg.WIN_CLOSED:
                 break
 
-    def create_left_column(self):
-        camera_programs = self.data.display_camera_programs
-        acquisition_layout = [
-            [sg.Checkbox('Show RLI', default=True, enable_events=True, key="Show RLI")],
-            [sg.Button("STOP!", button_color=('black', 'yellow')),
-             sg.Button("Take RLI", button_color=('brown', 'gray'))],
-            [sg.Button("Live Feed", button_color=('black', 'gray')),
-             sg.Button("Record", button_color=('black', 'red'))],
-            [sg.Button("Save Processed Data", button_color=('black', 'green')),
-             sg.Button("Save", button_color=('black', 'green'))],
-            [sg.Combo(camera_programs,
-                      enable_events=True,
-                      default_value=camera_programs[self.hardware.get_camera_program()],
-                      key="-CAMERA PROGRAM-")]
-        ]
-
-        analysis_layout = [[
-            sg.Button("Launch Hyperslicer", button_color=('gray', 'blue')),
-            sg.Button("Record", button_color=('gray', 'red')),
-            sg.Button("Save", button_color=('gray', 'green')),
-        ]]
-
-        tab_group = [[sg.TabGroup([[
-            sg.Tab('Acquisition', acquisition_layout),
-            sg.Tab('Analysis', analysis_layout),
-        ]])]]
-
-        frame_viewer_layout = [
-            [sg.Canvas(key='frame_canvas_controls')],
-            [sg.Column(
-                layout=[
-                    [sg.Canvas(key='frame_canvas',
-                               size=(600, 600)
-                               )]
-                ],
-                background_color='#DAE0E6',
-                pad=(0, 0))]]
-
-        return frame_viewer_layout + tab_group
-
-    @staticmethod
-    def create_right_column():
-        file_list_layout = [[
-            sg.Listbox(
-                values=[],
-                enable_events=True,
-                size=(20, 10),
-                key="-FILE LIST-"
-            ),
-            sg.In(size=(25, 1), enable_events=True, key="-FOLDER-"),
-            sg.FolderBrowse(),
-        ]]
-        trace_viewer_layout = [
-            [sg.Canvas(key='trace_canvas_controls')],
-            [sg.Column(
-                layout=[
-                    [sg.Canvas(key='trace_canvas',
-                               size=(600, 600)
-                               )]
-                ],
-                background_color='#DAE0E6',
-                pad=(0, 0))]]
-        return trace_viewer_layout  # + file_list_layout
-
     def main_workflow(self):
-        right_col = self.create_right_column()
-        left_col = self.create_left_column()
+        right_col = self.layouts.create_right_column()
+        left_col = self.layouts.create_left_column()
+        toolbar_menu = self.layouts.create_menu()
 
-        layout = [[
-            sg.Column(left_col),
-            sg.VSeperator(),
-            sg.Column(right_col)]]
+        layout = [[toolbar_menu],
+                  [sg.Column(left_col),
+                   sg.VSeperator(),
+                   sg.Column(right_col)]]
 
         self.window = sg.Window(self.title,
                                 layout,
                                 finalize=True,
                                 element_justification='center',
+                                resizable=True,
                                 font='Helvetica 18')
         self.plot_frame()
         self.plot_trace()
@@ -202,12 +144,18 @@ class GUI:
         figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=False)
 
     def record(self, **kwargs):
+        if self.data.get_is_loaded_from_file():
+            self.data.resize_image_memory()
+        # TO DO: loop over trials similar to MainController::acqui
         self.hardware.record(images=self.data.get_acqui_memory(), fp_data=self.data.get_fp_data())
         self.fv.update_new_image()
-        print(self.data.get_fp_data())
+        self.data.set_is_loaded_from_file(False)
 
     def take_rli(self, **kwargs):
+        if self.data.get_is_loaded_from_file():
+            self.data.resize_image_memory()
         self.hardware.take_rli(images=self.data.get_rli_memory())
+        self.data.set_is_loaded_from_file(False)
         if self.fv.get_show_rli_flag():
             self.fv.update_new_image()
 
@@ -217,13 +165,40 @@ class GUI:
         self.data.set_camera_program(program_index)
 
     def save_to_file(self):
-        self.file.save_to_file(self.get_acqui_images(), self.get_rli_images())
+        self.file.save_to_file(self.data.get_acqui_images(), self.data.get_rli_images())
 
     def launch_hyperslicer(self):
         self.fv.launch_hyperslicer()
 
     def toggle_show_rli(self, **kwargs):
         self.fv.set_show_rli_flag(kwargs['values'], update=True)
+
+    def load_zda_file(self):
+        file_window = sg.Window('File Browser',
+                                self.layouts.create_file_browser(),
+                                finalize=True,
+                                element_justification='center',
+                                resizable=True,
+                                font='Helvetica 18')
+        file = None
+        # file browser event loop
+        while True:
+            event, values = file_window.read()
+            if event == sg.WIN_CLOSED or event == "Exit":
+                break
+            elif event == "file_window.open":
+                file = values["file_window.browse"]
+                break
+        file_window.close()
+        self.data.clear_data_memory()
+        print("Loading from file:", file)
+        self.file.load_from_file(file)
+        self.data.set_is_loaded_from_file(True)
+        self.fv.update_new_image()
+
+    @staticmethod
+    def launch_github_page():
+        open_browser('https://github.com/john-judge/PhotoLib', new=2)
 
     def define_event_mapping(self):
         if self.event_mapping is None:
@@ -250,6 +225,14 @@ class GUI:
                 },
                 "Show RLI": {
                     'function': self.toggle_show_rli,
+                    'args': {},
+                },
+                "Open (.zda)": {
+                    'function': self.load_zda_file,
+                    'args': {},
+                },
+                '-github-': {
+                    'function': self.launch_github_page,
                     'args': {},
                 },
             }

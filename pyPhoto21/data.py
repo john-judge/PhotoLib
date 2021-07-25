@@ -5,6 +5,7 @@ class Data:
 
     def __init__(self, hardware):
         self.hardware = hardware
+        self.num_trials = 1
         self.light_rli = 200
         self.dark_rli = 280
         self.num_pts = 2000
@@ -27,12 +28,14 @@ class Data:
                                         "5000 Hz  1024x60",
                                         "7500 Hz  1024x40"]
 
-        self.schedule_rli_flag = True
+        self.schedule_rli_flag = True  # include take RLI and division
+        self.auto_save_data = True
 
         # Memory
         self.rli_images = None
         self.acqui_images = None
         self.fp_data = None
+        self.is_loaded_from_file = False
 
         # synchronize defaults into hardware
         self.set_camera_program(self.program,
@@ -79,11 +82,14 @@ class Data:
                                     w,),
                                    dtype=np.uint16)
         self.acqui_images = np.zeros((2,
+                                      self.get_num_trials(),
                                       self.get_num_pts(),
                                       h,
                                       w),
                                      dtype=np.uint16)
-        self.fp_data = np.zeros((self.get_num_pts(), self.get_num_fp()),
+        self.fp_data = np.zeros((self.get_num_trials(),
+                                 self.get_num_pts(),
+                                 self.get_num_fp()),
                                  dtype=np.int16)
 
     def set_camera_program(self, program, force_resize=False):
@@ -105,6 +111,7 @@ class Data:
                                         h,
                                         w))
             self.acqui_images = np.resize(self.acqui_images, (2,
+                                          self.get_num_trials(),
                                           (self.num_pts + 1),
                                           h,
                                           w))
@@ -116,10 +123,16 @@ class Data:
 
     # Based on system state, create/get the frame that should be displayed.
     # index can be an integer or a list of [start:end] over which to average
-    def get_display_frame(self, index=None, get_rli=False):
+    def get_display_frame(self, index=None, trial=None, get_rli=False):
         images = self.get_acqui_images()
+
         if get_rli:
             images = self.get_rli_images()
+        else:
+            if trial is None:
+                images = np.average(images, axis=0)
+            else:
+                images = images[trial, :, :]
 
         if type(index) == int and (index < images.shape[0]) and index >= 0:
             return images[index, :, :]
@@ -139,13 +152,51 @@ class Data:
     def get_fp_data(self):
         return self.fp_data
 
-    # This pointer will not change even when we resize array
-    def get_acqui_images(self):
-        return self.acqui_images[0, :, :, :]
+    def get_acqui_images(self, trial=None):
+        if self.get_is_loaded_from_file():
+            if trial is None:
+                return self.acqui_images[:, :, :, :]
+            else:
+                return self.acqui_images[trial, :, :, :]
 
-    # This pointer will not change even when we resize array
+        if trial is None:
+            return self.acqui_images[0, :, :, :, :]
+        else:
+            return self.acqui_images[0, trial, :, :, :]
+
     def get_rli_images(self):
+        if self.get_is_loaded_from_file():
+            return self.rli_images[:, :, :]
         return self.rli_images[0, :, :, :]
+
+    def clear_data_memory(self):
+        # deleting the refs may trigger garbage collection (ideally)
+        del self.acqui_images
+        del self.rli_images
+        del self.fp_data
+        self.rli_images = None
+        self.acqui_images = None
+        self.fp_data = None
+
+    # trial is ignored if data is from file
+    def set_acqui_images(self, data, trial=None, from_file=False):
+        if from_file:
+            self.acqui_images = data
+            return
+        if trial is None:
+            self.acqui_images[0, :, :, :, :] = data[:, :, :, :]
+        else:
+            if len(data.shape) > 3:
+                self.acqui_images[0, trial, :, :, :] = data[trial, :, :, :]
+            else:
+                self.acqui_images[0, trial, :, :, :] = data[:, :, :]
+
+    # trial is ignored if data is from file
+    def set_rli_images(self, data, from_file=False):
+        if from_file:
+            self.rli_images = data
+        else:
+            self.rli_images[0, :, :, :] = data[:, :, :]
 
     def set_num_pts(self, num_pts, force_resize=False):
         tmp = self.num_pts
@@ -154,11 +205,14 @@ class Data:
             w = self.get_display_width()
             h = self.get_display_height()
             np.resize(self.acqui_images, (2,
-                                          self.num_pts,
+                                          self.get_num_trials(),
+                                          self.get_num_pts(),
                                           w,
                                           h))
             self.fp_data = np.resize(self.fp_data,
-                                     (self.get_num_pts(), self.get_num_fp()))
+                                     (self.get_num_trials(),
+                                      self.get_num_pts(),
+                                      self.get_num_fp()))
             self.hardware.set_num_pts(num_pts=num_pts)
 
     def set_num_dark_rli(self, dark_rli, force_resize=False):
@@ -211,4 +265,16 @@ class Data:
     @staticmethod
     def get_num_fp():
         return 4
+
+    def get_num_trials(self):
+        return self.num_trials
+
+    def set_num_trials(self, num_trials):
+        self.num_trials = num_trials
+
+    def get_is_loaded_from_file(self):
+        return self.is_loaded_from_file
+
+    def set_is_loaded_from_file(self, value):
+        self.is_loaded_from_file = value
 
