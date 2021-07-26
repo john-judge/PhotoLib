@@ -47,7 +47,7 @@ Controller::Controller()
 	// Number of points per trace
 	program = 7;
 	numPts = 2000;
-	intPts = 1000.0 / (double)Camera::FREQ[program];
+	intPts = (float)1000.0 / (float)Camera::FREQ[program];
 
 	// Default RLI settings
 	darkPts = 200;
@@ -192,9 +192,10 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//-------------------------------------------
 	// Initialize NI tasks
-	float64 samplingRate = 1000.0 / getIntPts(); // NI sampling rate is a function of cam frequency by default, but can be set.
-	NI_createChannels(samplingRate);
-	NI_setUpStimulationOutput(samplingRate);
+	float64 samplingRate = 1000.0 / getIntPts(); 
+	//NI_createChannels(samplingRate);
+	setDuration();
+	fillPDOut(1);
 
 	//-------------------------------------------
 	// Initialize variables for camera data management
@@ -210,14 +211,13 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 				// config clock channel M series don't have internal clock for output.
 	// clk frequency calculation: see SM's BNC_ratio, BNC_R_list, output_rate, and frame_interval
 	//			output_rate = BNC_ratio*1000.0 / frame_interval;
-
-	DAQmxErrChk(DAQmxCreateTask("", &taskHandle_clk));
+	DAQmxErrChk(DAQmxCreateTask("Clock", &taskHandle_clk));
 	DAQmxErrChk(DAQmxCreateCOPulseChanTime(taskHandle_clk, "Dev1/ctr0", "", 
 						DAQmx_Val_Seconds, DAQmx_Val_Low, 0.00, 0.50 / getIntPts(), 0.50 / getIntPts()));
 	DAQmxErrChk(DAQmxCfgImplicitTiming(taskHandle_clk, DAQmx_Val_ContSamps, get_digital_output_size()));
 
 	// Clock for synchronizing tasks
-	DAQmxErrChk(DAQmxCreateTask("", &taskHandle_out));
+	DAQmxErrChk(DAQmxCreateTask("Stimulator1", &taskHandle_out));
 	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0:2", "", DAQmx_Val_ChanForAllLines));
 	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI12", getIntPts(),
 						DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));		//P
@@ -227,7 +227,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//-------------------------------------------
 	// Configure NI inputs and trigger
-	DAQmxErrChk(DAQmxCreateTask("", &taskHandle_in));
+	DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
 	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
 	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", 1005.0 / getIntPts(), 
 				DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
@@ -256,8 +256,9 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
 	float64 *NI_ptr = fp_memory;
-	int32 CVICALLBACK DoneCallback(TaskHandle taskHandle, int32 status, void *callbackData);
-	DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
+	// Done callback from TurboSM probably not necessary:
+	//int32 CVICALLBACK DoneCallback(TaskHandle taskHandle, int32 status, void *callbackData);
+	//DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
 	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, get_digital_output_size(), 0, 10.0, 
 					DAQmx_Val_GroupByChannel, outputs, &total_written, NULL));
 
@@ -265,10 +266,11 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
 	DAQmxErrChk(DAQmxStartTask(taskHandle_clk));
-	cout << "Total written: " << total_written << "\n\t Number output: " << get_digital_output_size() << "\n";
+	cout << "Total written: " << total_written << "\n\t Size of output: " << get_digital_output_size() << "\n";
 
 	//-------------------------------------------
 	// Camera Acquisition loops
+	//NI_openShutter(1);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
@@ -301,7 +303,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 				total_read += read;
 			}
 		}
-
+		//NI_openShutter(0);
 	}
 
 	//-------------------------------------------
@@ -313,6 +315,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	cam.reassembleImages(memory, numPts);
 
 	free(outputs);
+	NI_clearTasks();
 	return 0;
 }
 
@@ -359,19 +362,6 @@ int Controller::stop()
 }
 
 //=============================================================================
-void Controller::NI_setUpStimulationOutput(int freq)//set outputs samples array here//configure tasks here
-{
-	fillPDOut(outputs, 1);
-
-	//Set timing for inputs
-	  //http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxcfgsampclktiming/
-	  // "" should drive both from Onboard Clock (internal)
-	//DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "", freq, DAQmx_Val_RisingSlope, DAQmx_Val_FiniteSamps, get_digital_output_size());
-	//DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "", freq, DAQmx_Val_RisingSlope, DAQmx_Val_FiniteSamps, get_digital_output_size());
-}
-
-
-//=============================================================================
 int Controller::NI_createChannels(float64 SamplingRate)
 {
 	DAQmxErrChk(DAQmxCreateTask("  ", &taskHandle_in));
@@ -400,7 +390,7 @@ size_t Controller::get_digital_output_size() {
 }
 
 //=============================================================================
-void Controller::fillPDOut(uInt32 *outputs, char realFlag)
+void Controller::fillPDOut(char realFlag)
 {
 	int i, j, k;
 	float start, end;
@@ -444,7 +434,7 @@ void Controller::fillPDOut(uInt32 *outputs, char realFlag)
 		}
 	}
 
-	// Dear future hackers/developers: Add new stimulators or stimulation features and patterns here
+	// Future developers (or hackers): Add new stimulators or stimulation features and patterns here
 
 }
 
@@ -615,6 +605,7 @@ float Controller::getAcquiDuration()
 void Controller::setCameraProgram(int p)
 {
 	program = p;
+	setIntPts((float)1000.0 / (float)Camera::FREQ[program]);
 }
 
 //=============================================================================
@@ -626,15 +617,15 @@ int Controller::getCameraProgram()
 //=============================================================================
 // Interval between Samples
 //=============================================================================
-void Controller::setIntPts(double p)
+void Controller::setIntPts(float p)
 {
 	intPts = p;
 }
 
 //=============================================================================
-double Controller::getIntPts()
+float Controller::getIntPts()
 {
-	return intPts;
+	return 1000.0 / (float)Camera::FREQ[program];
 }
 
 void Controller::setNumDarkRLI(int dark) {

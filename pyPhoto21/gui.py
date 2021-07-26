@@ -23,12 +23,13 @@ from matplotlib.widgets import Slider
 
 class GUI:
 
-    def __init__(self, data, hardware, file):
+    def __init__(self, data, hardware, file, production_mode=True):
         matplotlib.use("TkAgg")
         sg.theme('DarkBlue12')
         self.data = data
         self.hardware = hardware
         self.file = file
+        self.production_mode = production_mode
         self.fv = None  # FrameViewer object
         self.tv = None  # TraceViewer object
         self.layouts = Layouts(data)
@@ -39,7 +40,8 @@ class GUI:
         self.event_mapping = None
         self.define_event_mapping()  # event callbacks used in event loops
         # kickoff workflow
-        self.introduction()
+        if self.production_mode:
+            self.introduction()
         self.main_workflow()
 
     def introduction(self):

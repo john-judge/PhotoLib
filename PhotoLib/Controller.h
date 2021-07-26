@@ -27,7 +27,7 @@ private:
 	char errBuff[2048];
 
 	float acquiOnset;
-	double intPts;
+	float intPts;
 	float duration;
 	int program;
 
@@ -90,9 +90,8 @@ public:
 	int getDisplayWidth();
 	int getDisplayHeight();
 
-	// Create DAP File for Acquisition
-	void NI_setUpStimulationOutput(int);
-	void fillPDOut(uInt32 *outputs, char realFlag);
+	// NI Digital Output: create stimulation patterns
+	void fillPDOut(char realFlag);
 
 	// Acquisition Control
 	int acqui(unsigned short*, float64*);
@@ -111,8 +110,8 @@ public:
 	int getCameraProgram();
 	void setCameraProgram(int p);
 
-	void setIntPts(double);
-	double getIntPts();
+	void setIntPts(float);
+	float getIntPts();
 
 	// Duration of the whole Process
 	void setDuration();
