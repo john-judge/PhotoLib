@@ -16,10 +16,7 @@ class Camera;
 class Controller
 {
 private:
-	TaskHandle taskHandleGet = 0;
-	TaskHandle taskHandlePut = 0;
 
-	TaskHandle taskHandleRLI;
 	TaskHandle taskHandleAcquiDO;
 	TaskHandle taskHandleAcquiAI;
 
@@ -69,10 +66,11 @@ public:
 
 	void NiErrorDump();
 
-	// Set DAP and release DAP
-	int setDAPs(float64 SamplingRate = 2000);//setting default for testing purposes.
+	// NI-DAQmx
+	int NI_createChannels(float64 SamplingRate);
 	int NI_openShutter(uInt8);
-	void releaseDAPs();
+	void NI_stopTasks();
+	void NI_clearTasks();
 
 	// Flags
 	void setScheduleRliFlag(char);
@@ -92,14 +90,13 @@ public:
 	int getDisplayHeight();
 
 	// Create DAP File for Acquisition
-	void createAcquiDapFile();
+	void NI_setUpStimulationOutput(int);
 	void fillPDOut(uint8_t *outputs, char realFlag);
 
 	// Acquisition Control
 	int sendFile2Dap(const char*);
 	int acqui(unsigned short*, short*);
 	int stop();
-	void resetDAPs();
 	void resetCamera();
 
 	// Acquisition Duration

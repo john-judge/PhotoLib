@@ -28,6 +28,7 @@ class Hardware:
         self.lib.acqui(self.controller, imgs, fp_data)
         imgs = imgs.reshape(imgs_orig_shape)
         fp_data = fp_data.reshape(fp_orig_shape)
+        print(fp_data, np.average(fp_data))
 
     def take_rli(self, **kwargs):
         orig_shape = kwargs['images'].shape
