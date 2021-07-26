@@ -28,6 +28,7 @@ using namespace std;
  * was found
  */
 #define CAM_INPUT_OFFSET 10
+#define NUM_BNC_CHANNELS 4
 #define DAQmxErrChk(functionCall)  if( DAQmxFailed(error=(functionCall)) ) NiErrorDump(); else
 
  //=============================================================================
@@ -183,7 +184,7 @@ int Controller::takeRli(unsigned short* memory) {
 	return 0;
 }
 
-int Controller::acqui(unsigned short *memory, short *fp_memory)
+int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 {
 	Camera cam;
 	cam.setCamProgram(getCameraProgram());
@@ -191,9 +192,9 @@ int Controller::acqui(unsigned short *memory, short *fp_memory)
 
 	//-------------------------------------------
 	// Initialize NI tasks
-	int samplingRate = cam.freq(); // should NI sampling rate match cam frequency?
+	float64 samplingRate = 1000.0 / getIntPts(); // NI sampling rate is a function of cam frequency by default, but can be set.
 	NI_createChannels(samplingRate);
-	//NI_setUpStimulationOutput(samplingRate);
+	NI_setUpStimulationOutput(samplingRate);
 
 	//-------------------------------------------
 	// Initialize variables for camera data management
@@ -203,6 +204,68 @@ int Controller::acqui(unsigned short *memory, short *fp_memory)
 	int quadrantSize = width * height;
 
 	int superframe_factor = cam.get_superframe_factor();
+
+	//-------------------------------------------
+	// Configure NI outputs and trigger
+				// config clock channel M series don't have internal clock for output.
+	// clk frequency calculation: see SM's BNC_ratio, BNC_R_list, output_rate, and frame_interval
+	//			output_rate = BNC_ratio*1000.0 / frame_interval;
+
+	DAQmxErrChk(DAQmxCreateTask("", &taskHandle_clk));
+	DAQmxErrChk(DAQmxCreateCOPulseChanTime(taskHandle_clk, "Dev1/ctr0", "", 
+						DAQmx_Val_Seconds, DAQmx_Val_Low, 0.00, 0.50 / getIntPts(), 0.50 / getIntPts()));
+	DAQmxErrChk(DAQmxCfgImplicitTiming(taskHandle_clk, DAQmx_Val_ContSamps, get_digital_output_size()));
+
+	// Clock for synchronizing tasks
+	DAQmxErrChk(DAQmxCreateTask("", &taskHandle_out));
+	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0:2", "", DAQmx_Val_ChanForAllLines));
+	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI12", getIntPts(),
+						DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));		//P
+	
+	// External trigger:
+	DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_clk, "/Dev1/PFI1", DAQmx_Val_Rising));
+
+	//-------------------------------------------
+	// Configure NI inputs and trigger
+	DAQmxErrChk(DAQmxCreateTask("", &taskHandle_in));
+	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
+	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", 1005.0 / getIntPts(), 
+				DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
+
+
+	//	int32 DAQmxWriteDigitalLines (TaskHandle taskHandle, int32 numSampsPerChan, bool32 autoStart, 
+	//				float64 timeout, bool32 dataLayout, uInt8 writeArray[], int32 *sampsPerChanWritten, bool32 *reserved);
+	//http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxwritedigitallines/
+	/*
+	int32 defaultSuccess = -1;
+	int32* successfulSamples = &defaultSuccess;
+	int32 defaultReadSuccess = -1;
+	int32* successfulSamplesIn = &defaultReadSuccess;
+
+	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
+
+	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle_out, get_digital_output_size(), false, 0, 
+						DAQmx_Val_GroupByChannel, outputs, successfulSamples, NULL));
+	int start_offset = (int)((double)(CAM_INPUT_OFFSET + acquiOnset) / intPts);
+	//int32 DAQmxReadBinaryI16 (TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved);
+	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, (numPts + 7 + start_offset), 0, 
+						DAQmx_Val_GroupByScanNumber, fp_memory, 4 * numPts, successfulSamplesIn, NULL));
+	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
+	*/
+	//-------------------------------------------
+	// Start NI tasks
+	long total_written = 0, total_read = 0;
+	float64 *NI_ptr = fp_memory;
+	int32 CVICALLBACK DoneCallback(TaskHandle taskHandle, int32 status, void *callbackData);
+	DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
+	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, get_digital_output_size(), 0, 10.0, 
+					DAQmx_Val_GroupByChannel, outputs, &total_written, NULL));
+
+	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
+
+	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
+	DAQmxErrChk(DAQmxStartTask(taskHandle_clk));
+	cout << "Total written: " << total_written << "\n\t Number output: " << get_digital_output_size() << "\n";
 
 	//-------------------------------------------
 	// Camera Acquisition loops
@@ -224,27 +287,26 @@ int Controller::acqui(unsigned short *memory, short *fp_memory)
 			// Save the image(s) to process later	
 			memcpy(privateMem, image, quadrantSize * sizeof(short) * superframe_factor);
 			privateMem += quadrantSize * superframe_factor; // stride to the next destination for this channel's memory	
+
+			
+			if (ipdv == 0) {
+				long read;
+				if (i == loops - 1)
+					DAQmxReadAnalogF64(taskHandle_in, superframe_factor*(i + 1) - total_read, 5.0,
+						DAQmx_Val_GroupByScanNumber, NI_ptr, (superframe_factor*(i + 1) - total_read + 1)*NUM_BNC_CHANNELS, &read, NULL);
+				else
+					DAQmxReadAnalogF64(taskHandle_in, superframe_factor*(i + 1) - total_read, 0.0,
+						DAQmx_Val_GroupByScanNumber, NI_ptr, (superframe_factor*(i + 1) - total_read)*NUM_BNC_CHANNELS, &read, NULL);
+				NI_ptr += read * NUM_BNC_CHANNELS;
+				total_read += read;
+			}
 		}
+
 	}
 
 	//-------------------------------------------
 	// NI Acquisition
-
-
-	//	int32 DAQmxWriteDigitalLines (TaskHandle taskHandle, int32 numSampsPerChan, bool32 autoStart, float64 timeout, bool32 dataLayout, uInt8 writeArray[], int32 *sampsPerChanWritten, bool32 *reserved);
-	//http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxwritedigitallines/
-	int32 defaultSuccess = -1;
-	int32* successfulSamples = &defaultSuccess;
-	int32 defaultReadSuccess = -1;
-	int32* successfulSamplesIn = &defaultReadSuccess;
-
-	DAQmxErrChk(DAQmxStartTask(taskHandleAcquiAI));
-
-	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandleAcquiDO, duration + 10, false, 0, DAQmx_Val_GroupByChannel, outputs, successfulSamples, NULL));
-	int start_offset = (int)((double)(CAM_INPUT_OFFSET + acquiOnset) / intPts);
-	//int32 DAQmxReadBinaryI16 (TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved);
-	DAQmxErrChk(DAQmxReadBinaryI16(taskHandleAcquiAI, (numPts + 7 + start_offset), 0, DAQmx_Val_GroupByScanNumber, fp_memory, 4 * numPts, successfulSamplesIn, NULL));
-	DAQmxErrChk(DAQmxStartTask(taskHandleAcquiDO));
+	// DAQmxReadAnalogF64 on taskHandle input
 
 	//=============================================================================	
 	// Image reassembly	
@@ -283,8 +345,8 @@ Error:
 void Controller::NI_stopTasks()
 {
 	// just ensure stopped
-	DAQmxErrChk(DAQmxStopTask(taskHandleAcquiAI));
-	DAQmxErrChk(DAQmxStopTask(taskHandleAcquiDO));
+	DAQmxErrChk(DAQmxStopTask(taskHandle_in));
+	DAQmxErrChk(DAQmxStopTask(taskHandle_out));
 }
 
 
@@ -304,47 +366,51 @@ void Controller::NI_setUpStimulationOutput(int freq)//set outputs samples array 
 	//Set timing for inputs
 	  //http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxcfgsampclktiming/
 	  // "" should drive both from Onboard Clock (internal)
-	//DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandleAcquiAI, "", freq, DAQmx_Val_RisingSlope, DAQmx_Val_FiniteSamps, (size_t)duration + 10));
-	//DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandleAcquiDO, "", freq, DAQmx_Val_RisingSlope, DAQmx_Val_FiniteSamps, (size_t)duration + 10));
+	//DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "", freq, DAQmx_Val_RisingSlope, DAQmx_Val_FiniteSamps, get_digital_output_size());
+	//DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "", freq, DAQmx_Val_RisingSlope, DAQmx_Val_FiniteSamps, get_digital_output_size());
 }
 
 
 //=============================================================================
 int Controller::NI_createChannels(float64 SamplingRate)
 {
-	DAQmxErrChk(DAQmxCreateTask("  ", &taskHandleAcquiAI));
-	DAQmxErrChk(DAQmxCreateTask("  ", &taskHandleAcquiDO));
+	DAQmxErrChk(DAQmxCreateTask("  ", &taskHandle_in));
+	DAQmxErrChk(DAQmxCreateTask("  ", &taskHandle_out));
 	//int32 DAQmxCreateDOChan (TaskHandle taskHandle, const char lines[], const char nameToAssignToLines[], int32 lineGrouping);
 		//http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxcreatedochan/
 		//Channel names: http://zone.ni.com/reference/en-XX/help/370466AH-01/mxcncpts/physchannames/
-//	DAQmxErrChk(DAQmxCreateDOChan(taskHandleAcquiDO, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));	//			this one did not work and was changed to the line below
-	DAQmxErrChk(DAQmxCreateDOChan(taskHandleAcquiDO, "Dev1/port0/line1", "ledOutP0L0", DAQmx_Val_ChanForAllLines));
+//	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));	//			this one did not work and was changed to the line below
+	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line1", "ledOutP0L0", DAQmx_Val_ChanForAllLines));
 	//Set timing.
 	//int32 DAQmxCfgSampClkTiming (TaskHandle taskHandle, const char source[], float64 rate, int32 activeEdge, int32 sampleMode, uInt64 sampsPerChanToAcquire);
 		//http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxcfgsampclktiming/
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandleAcquiDO, NULL, SamplingRate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, 348));
+	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, NULL, SamplingRate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, 348));
 	return 0;
 }
 
 //=============================================================================
 void Controller::NI_clearTasks()
 {
-	DAQmxClearTask(taskHandleAcquiAI);
-	DAQmxClearTask(taskHandleAcquiDO);
+	DAQmxClearTask(taskHandle_in);
+	DAQmxClearTask(taskHandle_out);
+}
+
+size_t Controller::get_digital_output_size() {
+	return (size_t)duration + 10;
 }
 
 //=============================================================================
-void Controller::fillPDOut(uint8_t *outputs, char realFlag)
+void Controller::fillPDOut(uInt32 *outputs, char realFlag)
 {
 	int i, j, k;
 	float start, end;
-	outputs = new uint8_t[(size_t)duration + 10];
-	const uint8_t shutter_mask = (1);		// digital out 0 based on virtual channel
-	const uint8_t sti1_mask = (1 << 1);			// digital out 2
-	const uint8_t sti2_mask = (1 << 2);			// digital out 3
+	outputs = new uInt32[get_digital_output_size()];
+	const uInt32 shutter_mask = (1);		// digital out 0 based on virtual channel
+	const uInt32 sti1_mask = (1 << 1);			// digital out 2
+	const uInt32 sti2_mask = (1 << 2);			// digital out 3
 	//--------------------------------------------------------------
 	// Reset the array
-	memset(outputs, 0, sizeof(uint8_t) * ((size_t)duration + 10));
+	memset(outputs, 0, sizeof(uInt32) * get_digital_output_size());
 	//--------------------------------------------------------------
 	// Shutter
 	if (realFlag) {
@@ -377,6 +443,9 @@ void Controller::fillPDOut(uint8_t *outputs, char realFlag)
 				outputs[i] |= sti2_mask;
 		}
 	}
+
+	// Dear future hackers/developers: Add new stimulators or stimulation features and patterns here
+
 }
 
 void Controller::resetCamera()

@@ -90,7 +90,7 @@ class Data:
         self.fp_data = np.zeros((self.get_num_trials(),
                                  self.get_num_pts(),
                                  self.get_num_fp()),
-                                 dtype=np.int16)
+                                 dtype=np.float64)
 
     def set_camera_program(self, program, force_resize=False):
         if force_resize or self.program != program:

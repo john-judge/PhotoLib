@@ -17,8 +17,9 @@ class Controller
 {
 private:
 
-	TaskHandle taskHandleAcquiDO;
-	TaskHandle taskHandleAcquiAI;
+	TaskHandle taskHandle_out; // Digital Output
+	TaskHandle taskHandle_in; // Analog Input
+	TaskHandle taskHandle_clk; // Chun: "M series don't have internal clock for output." -- X series though?
 
 	int numPts;
 
@@ -77,7 +78,7 @@ public:
 	char getScheduleRliFlag();
 
 	// Buffers for digital output
-	uint8_t *outputs;
+	uInt32 *outputs;
 
 	// RLI
 	int takeRli(unsigned short*);
@@ -91,11 +92,10 @@ public:
 
 	// Create DAP File for Acquisition
 	void NI_setUpStimulationOutput(int);
-	void fillPDOut(uint8_t *outputs, char realFlag);
+	void fillPDOut(uInt32 *outputs, char realFlag);
 
 	// Acquisition Control
-	int sendFile2Dap(const char*);
-	int acqui(unsigned short*, short*);
+	int acqui(unsigned short*, float64*);
 	int stop();
 	void resetCamera();
 
@@ -103,6 +103,7 @@ public:
 	void setAcquiOnset(float);
 	float getAcquiOnset();
 	float getAcquiDuration();
+	size_t get_digital_output_size();
 
 	void setNumPts(int);
 	int getNumPts();

@@ -136,7 +136,7 @@ class Hardware:
     def define_c_types(self):
         controller_handle = ctypes.POINTER(ctypes.c_char)
         c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16, ndim=1, flags='C_CONTIGUOUS')
-        c_int_array = np.ctypeslib.ndpointer(dtype=np.int16, ndim=1, flags='C_CONTIGUOUS')
+        c_float_array = np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS')
 
         self.lib.createController.argtypes = []  # argument types
         self.lib.createController.restype = controller_handle  # return type
@@ -145,7 +145,7 @@ class Hardware:
         
         self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
         
-        self.lib.acqui.argtypes = [controller_handle, c_uint_array, c_int_array]
+        self.lib.acqui.argtypes = [controller_handle, c_uint_array, c_float_array]
         
         self.lib.setCameraProgram.argtypes = [controller_handle, ctypes.c_int]
         
