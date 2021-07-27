@@ -192,8 +192,8 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//-------------------------------------------
 	// Initialize NI tasks
+	float64* tmp_fp_memory = new(std::nothrow) float64[numPts * NUM_BNC_CHANNELS];
 	float64 samplingRate = 1000.0 / getIntPts(); 
-	//NI_createChannels(samplingRate);
 	setDuration();
 	fillPDOut(1);
 
@@ -235,7 +235,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	//-------------------------------------------
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
-	float64 *NI_ptr = fp_memory;
+	float64 *NI_ptr = tmp_fp_memory;
 	// Done callback from TurboSM probably not necessary:
 	//int32 CVICALLBACK DoneCallback(TaskHandle taskHandle, int32 status, void *callbackData);
 	//DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
@@ -291,12 +291,27 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	}
 
 	//=============================================================================	
+	// NI clean up
+	delete[] outputs;
+	
+	NI_stopTasks();
+	NI_clearTasks();
+
+	//=============================================================================	
 	// Image reassembly	
 	cam.reassembleImages(memory, numPts);
 
-	free(outputs);
-	NI_stopTasks();
-	NI_clearTasks();
+	//=============================================================================	
+	// FP reassembly
+	float64 *src_fp = tmp_fp_memory, *dst_fp = fp_memory;
+	for (int m = 0; m < total_read; m++) {
+		*dst_fp++ = *src_fp;
+		src_fp += NUM_BNC_CHANNELS;
+	}
+
+	delete[] tmp_fp_memory;
+
+
 	return 0;
 }
 
@@ -320,17 +335,6 @@ int Controller::NI_openShutter(uInt8 on)
 		DAQmxStopTask(taskHandle_led);
 		DAQmxClearTask(taskHandle_led);
 	}
-
-Error:
-	if (DAQmxFailed(error))
-		DAQmxGetExtendedErrorInfo(errBuff, 2048);
-	if (taskHandle_led != 0) {
-		DAQmxStopTask(taskHandle_led);
-		DAQmxClearTask(taskHandle_led);
-	}
-	if (DAQmxFailed(error))
-		printf("DAQmx Error: %s\n", errBuff);
-	return 0;
 }
 
 //=============================================================================
@@ -339,6 +343,7 @@ void Controller::NI_stopTasks()
 	DAQmxErrChk(DAQmxStopTask(taskHandle_in));
 	DAQmxErrChk(DAQmxStopTask(taskHandle_out));
 	DAQmxErrChk(DAQmxStopTask(taskHandle_clk));
+	DAQmxErrChk(DAQmxStopTask(taskHandle_led));
 }
 
 
@@ -357,6 +362,7 @@ void Controller::NI_clearTasks()
 	DAQmxClearTask(taskHandle_in);
 	DAQmxClearTask(taskHandle_out);
 	DAQmxClearTask(taskHandle_clk);
+	DAQmxClearTask(taskHandle_led);
 }
 
 size_t Controller::get_digital_output_size() {
