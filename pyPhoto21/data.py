@@ -116,7 +116,8 @@ class Data:
                                           h,
                                           w))
             self.fp_data = np.resize(self.fp_data,
-                                     (self.get_num_pts(), self.get_num_fp()))
+                                     (self.get_num_fp(),
+                                     self.get_num_pts()))
 
         else:
             self.allocate_image_memory()
@@ -149,8 +150,10 @@ class Data:
     def get_rli_memory(self):
         return self.rli_images
 
-    def get_fp_data(self):
-        return self.fp_data
+    def get_fp_data(self, trial=None):
+        if trial is None:
+            return self.fp_data
+        return self.fp_data[trial, :, :]
 
     def get_acqui_images(self, trial=None):
         if self.get_is_loaded_from_file():
@@ -211,8 +214,8 @@ class Data:
                                           h))
             self.fp_data = np.resize(self.fp_data,
                                      (self.get_num_trials(),
-                                      self.get_num_pts(),
-                                      self.get_num_fp()))
+                                      self.get_num_fp(),
+                                      self.get_num_pts()))
             self.hardware.set_num_pts(num_pts=num_pts)
 
     def set_num_dark_rli(self, dark_rli, force_resize=False):
@@ -260,6 +263,9 @@ class Data:
 
     def get_num_rli_pts(self):
         return self.hardware.get_num_dark_rli() + self.hardware.get_num_light_rli()
+
+    def get_int_pts(self):
+        return self.hardware.get_int_pts()
 
     # Fixed at 4 field potential measurements with NI-USB
     @staticmethod

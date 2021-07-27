@@ -111,7 +111,8 @@ class Layouts:
                 background_color='#DAE0E6',
                 pad=(0, 0))]]
 
-        return frame_viewer_layout + [tab_group_basic + tab_group_advanced]
+        return frame_viewer_layout + \
+               [tab_group_basic + tab_group_advanced]
 
 
     @staticmethod

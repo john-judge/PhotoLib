@@ -232,26 +232,6 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", 1005.0 / getIntPts(), 
 				DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
 
-
-	//	int32 DAQmxWriteDigitalLines (TaskHandle taskHandle, int32 numSampsPerChan, bool32 autoStart, 
-	//				float64 timeout, bool32 dataLayout, uInt8 writeArray[], int32 *sampsPerChanWritten, bool32 *reserved);
-	//http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxwritedigitallines/
-	/*
-	int32 defaultSuccess = -1;
-	int32* successfulSamples = &defaultSuccess;
-	int32 defaultReadSuccess = -1;
-	int32* successfulSamplesIn = &defaultReadSuccess;
-
-	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
-
-	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle_out, get_digital_output_size(), false, 0, 
-						DAQmx_Val_GroupByChannel, outputs, successfulSamples, NULL));
-	int start_offset = (int)((double)(CAM_INPUT_OFFSET + acquiOnset) / intPts);
-	//int32 DAQmxReadBinaryI16 (TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved);
-	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, (numPts + 7 + start_offset), 0, 
-						DAQmx_Val_GroupByScanNumber, fp_memory, 4 * numPts, successfulSamplesIn, NULL));
-	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
-	*/
 	//-------------------------------------------
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
@@ -270,7 +250,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//-------------------------------------------
 	// Camera Acquisition loops
-	//NI_openShutter(1);
+	NI_openShutter(1);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
@@ -303,12 +283,8 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 				total_read += read;
 			}
 		}
-		//NI_openShutter(0);
+		NI_openShutter(0);
 	}
-
-	//-------------------------------------------
-	// NI Acquisition
-	// DAQmxReadAnalogF64 on taskHandle input
 
 	//=============================================================================	
 	// Image reassembly	

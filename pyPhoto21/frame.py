@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.figure as figure
 from matplotlib.widgets import Slider
+import matplotlib.gridspec as gridspec
 
 from pyPhoto21.hyperslicer import HyperSlicer
 
@@ -11,12 +12,15 @@ class FrameViewer:
         self.hyperslicer = None
         self.num_frames = None
         self.ind = 0
+
+        self.trial_index = 0
         self.smax = None
         self.show_rli = None
         self.set_show_rli_flag(show_rli)
 
         self.fig = figure.Figure()
         self.ax = None
+        self.fp_axes = []
 
         self.current_frame = None
         self.im = None
@@ -24,8 +28,32 @@ class FrameViewer:
 
         self.update()
 
+    def set_trial_index(self, i):
+        self.trial_index = i
+        self.update_new_traces()
+
+    def get_trial_index(self):
+        return self.trial_index
+
     def populate_figure(self):
-        self.ax = self.fig.add_subplot(111)
+        # top row of Field Potential traces
+        num_fp = min(9, self.data.get_num_fp())
+        num_rows = 4
+        gs = self.fig.add_gridspec(num_rows, num_fp)
+        self.fp_axes = []
+
+
+        fp_data = self.data.get_fp_data(trial=self.get_trial_index())
+        t = [i * self.data.get_int_pts() for i in range(self.data.get_num_pts())]
+        for i in range(num_fp):
+            self.fp_axes.append(self.fig.add_subplot(gs[0, i]))
+            self.fp_axes[i].plot(fp_data[i, :], t)
+            self.fp_axes[i].set_title("FP " + str(i))
+            self.fp_axes[i].get_xaxis().set_visible(False)
+            #self.fp_axes[i].get_yaxis().set_visible(False)
+
+        # Rest of the plot is the image
+        self.ax = self.fig.add_subplot(gs[1:,:])
         axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
         self.smax = Slider(axmax, 'Frame Selector', 0, np.max(self.num_frames), valinit=self.ind)
 
@@ -44,10 +72,10 @@ class FrameViewer:
         return self.fig
 
     def change_frame(self, event):
-
-        self.ind = int(self.smax.val) % self.num_frames
-        print('Changing frame to ', self.ind)
-        self.update()
+        new_ind = int(self.smax.val) % self.num_frames
+        if new_ind != self.ind:
+            self.ind = new_ind
+            self.update()
 
     def onclick(self, event):
         print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
