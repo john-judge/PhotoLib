@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.figure as figure
 from matplotlib.widgets import Slider
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 
 from pyPhoto21.hyperslicer import HyperSlicer
 
@@ -18,7 +19,7 @@ class FrameViewer:
         self.show_rli = None
         self.set_show_rli_flag(show_rli)
 
-        self.fig = figure.Figure()
+        self.fig = figure.Figure(constrained_layout=True)
         self.ax = None
         self.fp_axes = []
 
@@ -44,12 +45,14 @@ class FrameViewer:
 
 
         fp_data = self.data.get_fp_data(trial=self.get_trial_index())
+        print(fp_data)
+        print(np.sum(fp_data != 0))
         t = [i * self.data.get_int_pts() for i in range(self.data.get_num_pts())]
         for i in range(num_fp):
             self.fp_axes.append(self.fig.add_subplot(gs[0, i]))
-            self.fp_axes[i].plot(fp_data[i, :], t)
+            self.fp_axes[i].plot(t, fp_data[i, :])
             self.fp_axes[i].set_title("FP " + str(i))
-            self.fp_axes[i].get_xaxis().set_visible(False)
+            #self.fp_axes[i].get_xaxis().set_visible(False)
             #self.fp_axes[i].get_yaxis().set_visible(False)
 
         # Rest of the plot is the image

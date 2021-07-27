@@ -47,8 +47,6 @@ class Data:
         self.set_num_light_rli(light_rli=self.light_rli,
                                force_resize=True)
 
-        self.hardware.set_int_pts(interval=self.interval_pts)
-
         self.hardware.set_num_pulses(num_pulses=self.num_pulses,
                                      channel=1)
         self.hardware.set_num_pulses(num_pulses=self.num_pulses,

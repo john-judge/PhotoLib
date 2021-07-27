@@ -28,7 +28,6 @@ class Hardware:
         self.lib.acqui(self.controller, imgs, fp_data)
         imgs = imgs.reshape(imgs_orig_shape)
         fp_data = fp_data.reshape(fp_orig_shape)
-        print(fp_data, np.average(fp_data))
 
     def take_rli(self, **kwargs):
         orig_shape = kwargs['images'].shape
@@ -160,7 +159,7 @@ class Hardware:
         self.lib.setIntPts.argtypes = [controller_handle, ctypes.c_double]
         
         self.lib.getIntPts.argtypes = [controller_handle]
-        self.lib.getIntPts.restype = ctypes.c_int
+        self.lib.getIntPts.restype = ctypes.c_float
         
         self.lib.setNumPulses.argtypes = [controller_handle, ctypes.c_int, ctypes.c_int]
         

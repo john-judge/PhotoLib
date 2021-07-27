@@ -84,7 +84,7 @@ Controller::~Controller()
 	delete shutter;
 	delete sti1;
 	delete sti2;
-	NI_clearTasks();
+	stop();
 }
 
 void Controller::NiErrorDump() {
@@ -136,7 +136,7 @@ int Controller::takeRli(unsigned short* memory) {
 	}
 
 	// parallel section pauses, threads sync and close	
-	NI_openShutter(1);
+	//NI_openShutter(1);
 	Sleep(100);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	// parallel acquisition resumes now that light is on	
@@ -163,7 +163,7 @@ int Controller::takeRli(unsigned short* memory) {
 		cam.end_images(ipdv);
 	}
 	Sleep(100);
-	NI_openShutter(0); // light off	
+	//NI_openShutter(0); // light off	
 
 	//=============================================================================	
 	// Image reassembly	
@@ -250,7 +250,8 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//-------------------------------------------
 	// Camera Acquisition loops
-	NI_openShutter(1);
+	//NI_openShutter(1);
+	Sleep(100);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
@@ -280,10 +281,13 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 					DAQmxReadAnalogF64(taskHandle_in, superframe_factor*(i + 1) - total_read, 0.0,
 						DAQmx_Val_GroupByScanNumber, NI_ptr, (superframe_factor*(i + 1) - total_read)*NUM_BNC_CHANNELS, &read, NULL);
 				NI_ptr += read * NUM_BNC_CHANNELS;
+				cout << "\tNumSampsPerChan in: " << (superframe_factor * (i + 1) - total_read) * NUM_BNC_CHANNELS << "\n";
 				total_read += read;
 			}
 		}
-		NI_openShutter(0);
+		cout << "Total read: " << total_read  << "\n";
+		Sleep(100);
+		//NI_openShutter(0);
 	}
 
 	//=============================================================================	
@@ -291,6 +295,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	cam.reassembleImages(memory, numPts);
 
 	free(outputs);
+	NI_stopTasks();
 	NI_clearTasks();
 	return 0;
 }
@@ -303,17 +308,25 @@ int Controller::NI_openShutter(uInt8 on)
 	uInt8       data[4] = { 0,on,0,0 };
 	char        errBuff[2048] = { '\0' };
 
-	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
-	DAQmxErrChk(DAQmxCreateDOChan(taskHandle, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));
-	DAQmxErrChk(DAQmxStartTask(taskHandle));
-	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle, 1, 1, 10.0, DAQmx_Val_GroupByChannel, data, NULL, NULL));
+	if (on) {
+		DAQmxErrChk(DAQmxCreateTask("LED", &taskHandle_led));
+		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_led, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));
+		DAQmxErrChk(DAQmxStartTask(taskHandle_led));
+	}
+
+	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle_led, 1, 1, 10.0, DAQmx_Val_GroupByChannel, data, NULL, NULL));
+
+	if (!on) {
+		DAQmxStopTask(taskHandle_led);
+		DAQmxClearTask(taskHandle_led);
+	}
 
 Error:
 	if (DAQmxFailed(error))
 		DAQmxGetExtendedErrorInfo(errBuff, 2048);
-	if (taskHandle != 0) {
-		DAQmxStopTask(taskHandle);
-		DAQmxClearTask(taskHandle);
+	if (taskHandle_led != 0) {
+		DAQmxStopTask(taskHandle_led);
+		DAQmxClearTask(taskHandle_led);
 	}
 	if (DAQmxFailed(error))
 		printf("DAQmx Error: %s\n", errBuff);
@@ -323,9 +336,9 @@ Error:
 //=============================================================================
 void Controller::NI_stopTasks()
 {
-	// just ensure stopped
 	DAQmxErrChk(DAQmxStopTask(taskHandle_in));
 	DAQmxErrChk(DAQmxStopTask(taskHandle_out));
+	DAQmxErrChk(DAQmxStopTask(taskHandle_clk));
 }
 
 
@@ -334,24 +347,8 @@ int Controller::stop()
 {
 	stopFlag = 1;
 	NI_stopTasks();
+	NI_clearTasks();
 	return  0;
-}
-
-//=============================================================================
-int Controller::NI_createChannels(float64 SamplingRate)
-{
-	DAQmxErrChk(DAQmxCreateTask("  ", &taskHandle_in));
-	DAQmxErrChk(DAQmxCreateTask("  ", &taskHandle_out));
-	//int32 DAQmxCreateDOChan (TaskHandle taskHandle, const char lines[], const char nameToAssignToLines[], int32 lineGrouping);
-		//http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxcreatedochan/
-		//Channel names: http://zone.ni.com/reference/en-XX/help/370466AH-01/mxcncpts/physchannames/
-//	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));	//			this one did not work and was changed to the line below
-	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line1", "ledOutP0L0", DAQmx_Val_ChanForAllLines));
-	//Set timing.
-	//int32 DAQmxCfgSampClkTiming (TaskHandle taskHandle, const char source[], float64 rate, int32 activeEdge, int32 sampleMode, uInt64 sampsPerChanToAcquire);
-		//http://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxcfgsampclktiming/
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, NULL, SamplingRate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, 348));
-	return 0;
 }
 
 //=============================================================================
@@ -359,6 +356,7 @@ void Controller::NI_clearTasks()
 {
 	DAQmxClearTask(taskHandle_in);
 	DAQmxClearTask(taskHandle_out);
+	DAQmxClearTask(taskHandle_clk);
 }
 
 size_t Controller::get_digital_output_size() {
