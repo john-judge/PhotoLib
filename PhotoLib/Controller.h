@@ -20,6 +20,7 @@ private:
 	TaskHandle taskHandle_out; // Digital Output
 	TaskHandle taskHandle_in; // Analog Input
 	TaskHandle taskHandle_clk; // Chun: "M series don't have internal clock for output." -- X series though?
+	TaskHandle taskHandle_led;
 
 	int numPts;
 
@@ -68,7 +69,6 @@ public:
 	void NiErrorDump();
 
 	// NI-DAQmx
-	int NI_createChannels(float64 SamplingRate);
 	int NI_openShutter(uInt8);
 	void NI_stopTasks();
 	void NI_clearTasks();
