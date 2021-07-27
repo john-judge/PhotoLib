@@ -193,6 +193,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	//-------------------------------------------
 	// Initialize NI tasks
 	float64* tmp_fp_memory = new(std::nothrow) float64[numPts * NUM_BNC_CHANNELS];
+	memset(tmp_fp_memory, 0, numPts * NUM_BNC_CHANNELS * sizeof(float64));
 	float64 samplingRate = 1000.0 / getIntPts(); 
 	setDuration();
 	fillPDOut(1);
@@ -274,21 +275,25 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 			
 			if (ipdv == 0) {
 				long read;
-				if (i == loops - 1)
-					DAQmxReadAnalogF64(taskHandle_in, superframe_factor*(i + 1) - total_read, 5.0,
-						DAQmx_Val_GroupByScanNumber, NI_ptr, (superframe_factor*(i + 1) - total_read + 1)*NUM_BNC_CHANNELS, &read, NULL);
-				else
-					DAQmxReadAnalogF64(taskHandle_in, superframe_factor*(i + 1) - total_read, 0.0,
-						DAQmx_Val_GroupByScanNumber, NI_ptr, (superframe_factor*(i + 1) - total_read)*NUM_BNC_CHANNELS, &read, NULL);
+				int samplesSoFar = superframe_factor * (i + 1);
+				if (i == loops - 1) {
+					DAQmxReadAnalogF64(taskHandle_in, superframe_factor * (i + 1) - total_read, 5.0,
+						DAQmx_Val_GroupByScanNumber, NI_ptr, (samplesSoFar - total_read + 1) * NUM_BNC_CHANNELS, &read, NULL);
+				}
+				else {
+					DAQmxReadAnalogF64(taskHandle_in, superframe_factor * (i + 1) - total_read, 0.0,
+						DAQmx_Val_GroupByScanNumber, NI_ptr, (samplesSoFar - total_read) * NUM_BNC_CHANNELS, &read, NULL);
+				}
 				NI_ptr += read * NUM_BNC_CHANNELS;
-				cout << "\tNumSampsPerChan in: " << (superframe_factor * (i + 1) - total_read) * NUM_BNC_CHANNELS << "\n";
+				
 				total_read += read;
 			}
 		}
-		cout << "Total read: " << total_read  << "\n";
 		Sleep(100);
 		//NI_openShutter(0);
 	}
+
+	cout << "Total read: " << total_read << "\n";
 
 	//=============================================================================	
 	// NI clean up
@@ -303,10 +308,14 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//=============================================================================	
 	// FP reassembly
-	float64 *src_fp = tmp_fp_memory, *dst_fp = fp_memory;
-	for (int m = 0; m < total_read; m++) {
-		*dst_fp++ = *src_fp;
-		src_fp += NUM_BNC_CHANNELS;
+	float64* dst_fp = fp_memory;
+	for (int i_bnc = 0; i_bnc < NUM_BNC_CHANNELS; i_bnc++) {
+		float64* src_fp = tmp_fp_memory + i_bnc;
+		for (int m = 0; m < total_read; m++) {
+			*dst_fp++ = *src_fp;
+			src_fp += NUM_BNC_CHANNELS;
+		}
+		dst_fp += numPts - (int)total_read; // skip to next FP trace start
 	}
 
 	delete[] tmp_fp_memory;
@@ -366,7 +375,8 @@ void Controller::NI_clearTasks()
 }
 
 size_t Controller::get_digital_output_size() {
-	return (size_t)duration + 10;
+	return numPts;
+	//return (size_t)duration + 10;
 }
 
 //=============================================================================
@@ -391,6 +401,9 @@ void Controller::fillPDOut(char realFlag)
 	}
 	//--------------------------------------------------------------
 	// Stimulator #1
+	cout << "\n\tNum bursts 1: " << numBursts1 << "\n\tNum Pulses 1: " << numPulses1 << "\n";
+	cout << "\n\tInt bursts 1: " << intBursts1 << "\n\tInt Pulses 1: " << intPulses1 << "\n";
+	cout << "\n\tOnset 1:" << sti1->getOnset() << "\n";
 	for (k = 0; k < numBursts1; k++)
 	{
 		for (j = 0; j < numPulses1; j++)
@@ -413,6 +426,9 @@ void Controller::fillPDOut(char realFlag)
 				outputs[i] |= sti2_mask;
 		}
 	}
+
+	// Debug
+	//for (i = 0; i < get_digital_output_size(); i++) cout << outputs[i] << "\n";
 
 	// Future developers (or hackers): Add new stimulators or stimulation features and patterns here
 

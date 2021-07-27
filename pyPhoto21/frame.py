@@ -39,7 +39,7 @@ class FrameViewer:
     def populate_figure(self):
         # top row of Field Potential traces
         num_fp = min(9, self.data.get_num_fp())
-        num_rows = 4
+        num_rows = 6
         gs = self.fig.add_gridspec(num_rows, num_fp)
         self.fp_axes = []
 
@@ -52,11 +52,9 @@ class FrameViewer:
             self.fp_axes.append(self.fig.add_subplot(gs[0, i]))
             self.fp_axes[i].plot(t, fp_data[i, :])
             self.fp_axes[i].set_title("FP " + str(i))
-            #self.fp_axes[i].get_xaxis().set_visible(False)
-            #self.fp_axes[i].get_yaxis().set_visible(False)
 
         # Rest of the plot is the image
-        self.ax = self.fig.add_subplot(gs[1:,:])
+        self.ax = self.fig.add_subplot(gs[1:-1,:]) # leaves last row blank -- for Slider
         axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
         self.smax = Slider(axmax, 'Frame Selector', 0, np.max(self.num_frames), valinit=self.ind)
 
@@ -66,7 +64,6 @@ class FrameViewer:
         self.im = self.ax.imshow(self.current_frame,
                                 aspect = 'auto',
                                 cmap='jet')
-
 
     def get_slider_max(self):
         return self.smax

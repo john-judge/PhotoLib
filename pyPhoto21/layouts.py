@@ -79,12 +79,12 @@ class Layouts:
             sg.Button("Launch Hyperslicer", button_color=('gray', 'blue')),
         ]]
 
-        array_tab_layout = [[
-            sg.Button("Trace", button_color=('gray', 'black')),
-            sg.Button("RLI Value", button_color=('gray', 'black')),
-            sg.Button("Diode No", button_color=('gray', 'black')),
-            sg.Button("Load Image", button_color=('gray', 'black')),
-        ]]
+        array_tab_layout = [
+            [sg.Button("Trace", button_color=('gray', 'black'))],
+            [sg.Button("RLI Value", button_color=('gray', 'black'))],
+            [sg.Button("Diode No", button_color=('gray', 'black'))],
+            [sg.Button("Load Image", button_color=('gray', 'black'))],
+        ]
 
         dsp_tab_layout = [[
             sg.Button("placeholder", button_color=('gray', 'black')),
@@ -120,12 +120,13 @@ class Layouts:
 
         trace_viewer_layout = [
             [sg.Canvas(key='trace_canvas_controls')],
-            [sg.Column(
-                layout=[
-                    [sg.Canvas(key='trace_canvas',
-                               size=(600, 600)
-                               )]
-                ],
-                background_color='#DAE0E6',
-                pad=(0, 0))]]
-        return trace_viewer_layout
+            [sg.Canvas(key='trace_canvas', size=(600, 600))]]
+
+        # plotting a small timeline of record/stim events
+        daq_layout = [[sg.Canvas(key='daq_canvas',size=(600, 600))]]
+
+        tab_group_right = [sg.TabGroup([[
+            sg.Tab('Trace Viewer', trace_viewer_layout),
+            sg.Tab('DAQ Config', daq_layout)
+        ]])]
+        return [tab_group_right]
