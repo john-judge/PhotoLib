@@ -122,7 +122,7 @@ class Data:
 
     # Based on system state, create/get the frame that should be displayed.
     # index can be an integer or a list of [start:end] over which to average
-    def get_display_frame(self, index=None, trial=None, get_rli=False):
+    def get_display_frame(self, index=None, trial=None, get_rli=False, binning=1):
         images = self.get_acqui_images()
 
         if get_rli:
@@ -133,12 +133,20 @@ class Data:
             else:
                 images = images[trial, :, :]
 
+        ret_frame = None
         if type(index) == int and (index < images.shape[0]) and index >= 0:
-            return images[index, :, :]
+            ret_frame = images[index, :, :]
         elif type(index) == list and len(index) == 2:
-            return np.average(images[index[0]:index[1], :, :], axis=0)
+            ret_frame = np.average(images[index[0]:index[1], :, :], axis=0)
         else:
-            return np.average(images, axis=0)
+            ret_frame = np.average(images, axis=0)
+
+        if binning == 1:
+            return ret_frame
+
+        h, w = ret_frame.shape
+        binned_shape = (h // binning, binning, w // binning, binning)
+        return np.average(np.average(ret_frame.reshape(binned_shape), axis=3), axis=1)
 
     # Returns the full (x2) memory for hardware to use
     def get_acqui_memory(self):

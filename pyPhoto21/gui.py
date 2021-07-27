@@ -202,6 +202,17 @@ class GUI:
     def launch_github_page():
         open_browser('https://github.com/john-judge/PhotoLib', new=2)
 
+    def set_digital_binning(self, **kwargs):
+        binning = kwargs['values']
+        if not binning.isnumeric():
+            self.window['Digital Binning'].update('')
+            return
+        elif len(binning) > 3:
+            binning = binning[:-1]
+            self.window['Digital Binning'].update(binning)
+        binning = int(binning)
+        self.fv.set_digital_binning(binning)
+
     def define_event_mapping(self):
         if self.event_mapping is None:
             self.event_mapping = {
@@ -237,6 +248,10 @@ class GUI:
                     'function': self.launch_github_page,
                     'args': {},
                 },
+                'Digital Binning': {
+                    'function': self.set_digital_binning,
+                    'args': {},
+                }
             }
 
 

@@ -54,36 +54,33 @@ class Layouts:
         return [[
             sg.In(size=(25, 1), enable_events=True, key="-FOLDER-"),
             sg.FileBrowse(key="file_window.browse",
-                         # file_types=("Raw Data Files", "*.zda")
-                         )],
+                          #file_types=(("Raw Data Files", "*.zda"))
+                          )],
             [sg.Button("Open", key='file_window.open')]]
 
-    def create_left_column(self):
-        camera_programs = self.data.display_camera_programs
+    @staticmethod
+    def create_left_column():
         button_size = (10, 1)
+        checkbox_size = (6, 1)
         acquisition_tab_layout = [
-            [sg.Checkbox('Show RLI', default=True, enable_events=True, key="Show RLI", size=button_size)],
-            [sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
+            [sg.Text("Auto:", size=(8, 1)),
+             sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
              sg.Button("Take RLI", button_color=('brown', 'gray'), size=button_size)],
-            [sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size),
+            [sg.Checkbox('RLI', default=True, enable_events=True, key="Auto RLI", size=checkbox_size),
+             sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size),
              sg.Button("Record", button_color=('black', 'red'), size=button_size)],
-            [sg.Button("Save Processed", button_color=('black', 'green'), size=button_size),
-             sg.Button("Save", button_color=('black', 'green'), size=button_size)],
-            [sg.Combo(camera_programs,
-                      enable_events=True,
-                      default_value=camera_programs[self.data.get_camera_program()],
-                      key="-CAMERA PROGRAM-")]
-        ]
+            [sg.Checkbox('Save', default=True, enable_events=True, key="Autosave", size=checkbox_size),
+             sg.Button("Save Processed", button_color=('black', 'green'), size=button_size),
+             sg.Button("Save", button_color=('black', 'green'), size=button_size)]]
 
         analysis_tab_layout = [[
             sg.Button("Launch Hyperslicer", button_color=('gray', 'blue')),
         ]]
 
         array_tab_layout = [
-            [sg.Button("Trace", button_color=('gray', 'black'))],
-            [sg.Button("RLI Value", button_color=('gray', 'black'))],
-            [sg.Button("Diode No", button_color=('gray', 'black'))],
+            [sg.Checkbox('Show RLI', default=True, enable_events=True, key="Show RLI", size=button_size)],
             [sg.Button("Load Image", button_color=('gray', 'black'))],
+            [sg.Text("Digital Binning:"), sg.InputText('1', key="Digital Binning", size=(5, 1), enable_events=True)]
         ]
 
         dsp_tab_layout = [[
@@ -114,16 +111,19 @@ class Layouts:
         return frame_viewer_layout + \
                [tab_group_basic + tab_group_advanced]
 
-
-    @staticmethod
-    def create_right_column():
+    def create_right_column(self):
+        camera_programs = self.data.display_camera_programs
 
         trace_viewer_layout = [
             [sg.Canvas(key='trace_canvas_controls')],
             [sg.Canvas(key='trace_canvas', size=(600, 600))]]
 
         # plotting a small timeline of record/stim events
-        daq_layout = [[sg.Canvas(key='daq_canvas',size=(600, 600))]]
+        daq_layout = [[sg.Canvas(key='daq_canvas',size=(600, 600))],
+                      [sg.Combo(camera_programs,
+                      enable_events=True,
+                      default_value=camera_programs[self.data.get_camera_program()],
+                      key="-CAMERA PROGRAM-")]]
 
         tab_group_right = [sg.TabGroup([[
             sg.Tab('Trace Viewer', trace_viewer_layout),

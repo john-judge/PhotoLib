@@ -13,6 +13,7 @@ class FrameViewer:
         self.hyperslicer = None
         self.num_frames = None
         self.ind = 0
+        self.binning = 1
 
         self.trial_index = 0
         self.smax = None
@@ -90,7 +91,8 @@ class FrameViewer:
     def update(self, update_hyperslicer=True):
         print('updating frame...')
         self.current_frame = self.data.get_display_frame(index=self.ind,
-                                                         get_rli=self.show_rli)
+                                                         get_rli=self.show_rli,
+                                                         binning=self.binning)
 
         self.im.set_data(self.current_frame)
         self.im.set_clim(vmin=np.min(self.current_frame),
@@ -124,6 +126,10 @@ class FrameViewer:
         if update:
             self.update_new_image()
 
+    def set_digital_binning(self, binning):
+        if binning != self.binning:
+            self.binning = binning
+            self.update_new_image()
 
     def launch_hyperslicer(self):
         self.hyperslicer = HyperSlicer(self.data, show_rli=self.show_rli)

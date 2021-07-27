@@ -24,16 +24,22 @@ class Hardware:
         fp_orig_shape = kwargs['fp_data'].shape
         imgs = kwargs['images'].reshape(-1)
         fp_data = kwargs['fp_data'].reshape(-1)
-
-        self.lib.acqui(self.controller, imgs, fp_data)
+        try:
+            self.lib.acqui(self.controller, imgs, fp_data)
+        except Exception as e:
+            print("Could not record. Are the camera and NI-USB connected?")
+            print(e)
         imgs = imgs.reshape(imgs_orig_shape)
         fp_data = fp_data.reshape(fp_orig_shape)
 
     def take_rli(self, **kwargs):
         orig_shape = kwargs['images'].shape
         imgs = kwargs['images'].reshape(-1)
-
-        self.lib.takeRli(self.controller, imgs)
+        try:
+            self.lib.takeRli(self.controller, imgs)
+        except Exception as e:
+            print("Could not take RLI. Are the camera and NI-USB connected?")
+            print(e)
         imgs = imgs.reshape(orig_shape)
 
     # choose programs 0-7 (inclusive)
