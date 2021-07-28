@@ -32,7 +32,7 @@ class FrameViewer:
 
     def set_trial_index(self, i):
         self.trial_index = i
-        self.update_new_traces()
+        self.update_new_image()
 
     def get_trial_index(self):
         return self.trial_index
@@ -44,15 +44,14 @@ class FrameViewer:
         gs = self.fig.add_gridspec(num_rows, num_fp)
         self.fp_axes = []
 
-
         fp_data = self.data.get_fp_data(trial=self.get_trial_index())
-        print(fp_data)
-        print(np.sum(fp_data != 0))
-        t = [i * self.data.get_int_pts() for i in range(self.data.get_num_pts())]
+        t = [i * self.data.get_int_pts() for i in range(fp_data.shape[1])]
         for i in range(num_fp):
             self.fp_axes.append(self.fig.add_subplot(gs[0, i]))
             self.fp_axes[i].plot(t, fp_data[i, :])
             self.fp_axes[i].set_title("FP " + str(i))
+            if num_fp > 4 and i > 0:
+                self.fp_axes[i].get_yaxis().set_visible(False)
 
         # Rest of the plot is the image
         self.ax = self.fig.add_subplot(gs[1:-1,:]) # leaves last row blank -- for Slider
@@ -85,6 +84,7 @@ class FrameViewer:
 
     def update_new_image(self):
         self.fig.clf()
+        self.redraw_slider()
         self.populate_figure()
         self.update()
 
@@ -106,9 +106,17 @@ class FrameViewer:
     def get_show_rli_flag(self):
         return self.show_rli
 
-    def set_show_rli_flag(self, value, update=False):
-        self.show_rli = value
+    def redraw_slider(self):
+        # Adjust the slider values to match the data dimensions
+        self.update_num_frames()
+        if self.smax is not None:
+            self.smax.valmax = self.num_frames
+            self.smax.val = self.ind
+            self.smax.ax.set_xlim(self.smax.valmin,
+                                  self.smax.valmax)
+            self.fig.canvas.draw_idle()
 
+    def update_num_frames(self):
         # choose correct data dimensions for viewer
         if self.show_rli:
             self.num_frames = self.data.get_num_rli_pts()
@@ -116,15 +124,12 @@ class FrameViewer:
             self.num_frames = self.data.get_num_pts()
         self.ind = self.num_frames // 2
 
-        # Adjust the slider values to match the data dimensions
-        if self.smax is not None:
-            self.smax.valmax = self.num_frames
-            self.smax.val = self.ind
-            self.smax.ax.set_xlim(self.smax.valmin,
-                                  self.smax.valmax)
-            self.fig.canvas.draw_idle()
+    def set_show_rli_flag(self, value, update=False):
+        self.show_rli = value
         if update:
             self.update_new_image()
+        else:
+            self.update_num_frames()
 
     def set_digital_binning(self, binning):
         if binning != self.binning:

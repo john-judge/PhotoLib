@@ -30,6 +30,8 @@ class GUI:
         self.hardware = hardware
         self.file = file
         self.production_mode = production_mode
+        self.auto_save_enabled = True
+        self.schedule_rli_enabled = True
         self.fv = None  # FrameViewer object
         self.tv = None  # TraceViewer object
         self.layouts = Layouts(data)
@@ -146,12 +148,17 @@ class GUI:
         figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=False)
 
     def record(self, **kwargs):
+        if self.get_is_schedule_rli_enabled():
+            self.take_rli()
         if self.data.get_is_loaded_from_file():
             self.data.resize_image_memory()
         # TO DO: loop over trials similar to MainController::acqui
         self.hardware.record(images=self.data.get_acqui_memory(), fp_data=self.data.get_fp_data())
         self.fv.update_new_image()
         self.data.set_is_loaded_from_file(False)
+        if self.get_is_auto_save_enabled():
+            self.file.save_to_file()
+            self.file.increment_run()
 
     def take_rli(self, **kwargs):
         if self.data.get_is_loaded_from_file():
@@ -193,9 +200,9 @@ class GUI:
                 break
         file_window.close()
         self.data.clear_data_memory()
-        print("Loading from file:", file)
+        print("Loading from file:", file, "\nThis will take a few seconds...")
         self.file.load_from_file(file)
-        self.data.set_is_loaded_from_file(True)
+        print("File Loaded.")
         self.fv.update_new_image()
 
     @staticmethod
@@ -212,6 +219,18 @@ class GUI:
             self.window['Digital Binning'].update(binning)
         binning = int(binning)
         self.fv.set_digital_binning(binning)
+
+    def get_is_auto_save_enabled(self):
+        return self.auto_save_enabled
+
+    def set_is_auto_save_enabled(self, value):
+        self.auto_save_enabled = value
+
+    def get_is_schedule_rli_enabled(self):
+        return self.schedule_rli_enabled
+
+    def set_is_schedule_rli_enabled(self, value):
+        self.schedule_rli_enabled = value
 
     def define_event_mapping(self):
         if self.event_mapping is None:

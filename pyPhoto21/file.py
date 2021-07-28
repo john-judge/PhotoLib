@@ -39,10 +39,13 @@ class File:
     def save_to_file(self, acqui_images, rli_images):
         fn = self.get_filename()
         print("Saving to file " + fn + "...")
+        version = 6  # Little Dave version
         # TO DO: use ZDA format.
 
     def load_from_file(self, filename):
         ds = Dataset(filename)
+        # Set meta data
+        meta = ds.get_meta()
 
         # Recording load
         images = ds.get_data()
@@ -57,8 +60,11 @@ class File:
         rli_images[2, :, :] = rli_dict['rli_max']
         self.data.set_rli_images(rli_images, from_file=True)
 
-        # Set meta data
-        meta = ds.get_meta()
+        # FP data load
+        fp_data = ds.get_fp_data()
+        self.data.set_fp_data(fp_data)
+        self.data.set_num_fp(meta['num_fp'])
+
         if meta is not None:
             self.current_slice = ds.slice_number
             self.current_location = ds.location_number
@@ -83,7 +89,7 @@ class Dataset:
         self.x_range = x_range
         self.y_range = y_range
         self.t_range = t_range
-        self.data, metadata, self.rli = self.read_zda_to_df(filename)
+        self.data, metadata, self.rli, self.fp_data = self.read_zda_to_df(filename)
         self.filename = filename
         self.meta = metadata
         if self.meta is not None:
@@ -120,6 +126,11 @@ class Dataset:
         self.x_range = x_range
         self.y_range = y_range
         self.t_range = t_range
+
+    def get_fp_data(self, trial=None):
+        if trial is None:
+            return self.fp_data
+        return self.fp_data[trial, :, :]
 
     def get_unclipped_data(self, trial=None):
         """ Returns unclipped data """
@@ -173,42 +184,46 @@ class Dataset:
         raise NotImplementedError
         return
 
-    @staticmethod
-    def read_zda_to_df(zda_file):
+    def read_zda_to_df(self, zda_file):
         """ Reads ZDA file to dataframe, and returns
         metadata as a dict.
         ZDA files are a custom PhotoZ binary format that must be interpreted byte-
         by-byte """
         file = open(zda_file, 'rb')
         # data type sizes in bytes
-        ch_size = 1
-        sh_size = 2
-        n_size = 4
-        t_size = 8
-        f_size = 4
+        chSize = 1
+        shSize = 2
+        nSize = 4
+        tSize = 8
+        fSize = 4
 
-        metadata = {'version': (file.read(ch_size)),
-                    'slice_number': (file.read(sh_size)),
-                    'location_number': (file.read(sh_size)),
-                    'record_number': (file.read(sh_size)),
-                    'camera_program': (file.read(n_size)),
-                    'number_of_trials': (file.read(ch_size)),
-                    'interval_between_trials': (file.read(ch_size)),
-                    'acquisition_gain': (file.read(sh_size)),
-                    'points_per_trace': (file.read(n_size)),
-                    'time_RecControl': (file.read(t_size)),
-                    'reset_onset': struct.unpack('f', (file.read(f_size)))[0],
-                    'reset_duration': struct.unpack('f', (file.read(f_size)))[0],
-                    'shutter_onset': struct.unpack('f', (file.read(f_size)))[0],
-                    'shutter_duration': struct.unpack('f', (file.read(f_size)))[0],
-                    'stimulation1_onset': struct.unpack('f', (file.read(f_size)))[0],
-                    'stimulation1_duration': struct.unpack('f', (file.read(f_size)))[0],
-                    'stimulation2_onset': struct.unpack('f', (file.read(f_size)))[0],
-                    'stimulation2_duration': struct.unpack('f', (file.read(f_size)))[0],
-                    'acquisition_onset': struct.unpack('f', (file.read(f_size)))[0],
-                    'interval_between_samples': struct.unpack('f', (file.read(f_size)))[0],
-                    'raw_width': (file.read(n_size)),
-                    'raw_height': (file.read(n_size))}
+        metadata = {}
+        metadata['version'] = (file.read(chSize))
+        metadata['slice_number'] = (file.read(shSize))
+        metadata['location_number'] = (file.read(shSize))
+        metadata['record_number'] = (file.read(shSize))
+        metadata['camera_program'] = (file.read(nSize))
+
+        metadata['number_of_trials'] = (file.read(chSize))
+        metadata['interval_between_trials'] = (file.read(chSize))
+        metadata['acquisition_gain'] = (file.read(shSize))
+        metadata['points_per_trace'] = (file.read(nSize))
+        metadata['time_RecControl'] = (file.read(tSize))
+
+        metadata['reset_onset'] = struct.unpack('f', (file.read(fSize)))[0]
+        metadata['reset_duration'] = struct.unpack('f', (file.read(fSize)))[0]
+        metadata['shutter_onset'] = struct.unpack('f', (file.read(fSize)))[0]
+        metadata['shutter_duration'] = struct.unpack('f', (file.read(fSize)))[0]
+
+        metadata['stimulation1_onset'] = struct.unpack('f', (file.read(fSize)))[0]
+        metadata['stimulation1_duration'] = struct.unpack('f', (file.read(fSize)))[0]
+        metadata['stimulation2_onset'] = struct.unpack('f', (file.read(fSize)))[0]
+        metadata['stimulation2_duration'] = struct.unpack('f', (file.read(fSize)))[0]
+
+        metadata['acquisition_onset'] = struct.unpack('f', (file.read(fSize)))[0]
+        metadata['interval_between_samples'] = struct.unpack('f', (file.read(fSize)))[0]
+        metadata['raw_width'] = (file.read(nSize))
+        metadata['raw_height'] = (file.read(nSize))
 
         # Bytes to Python data type
         for k in metadata:
@@ -219,38 +234,63 @@ class Dataset:
             else:
                 metadata[k] = int.from_bytes(metadata[k], "little")  # endianness
 
-        num_diodes = metadata['raw_width'] * metadata['raw_height']
+        metadata['num_fp'] = 4  # Little Dave
+        if metadata['version'] <= 5:
+            metadata['num_fp'] = 8  # Little Joe and legacy versions
+
+        print("ZDA Version:", metadata['version'], "=> inferring", metadata['num_fp'], "FPs.")
 
         file.seek(1024, 0)
         # RLI
-        rli = {'rli_low': np.array([int.from_bytes(file.read(sh_size), "little") for _ in range(num_diodes)]),
-               'rli_high': np.array([int.from_bytes(file.read(sh_size), "little") for _ in range(num_diodes)]),
-               'rli_max': np.array([int.from_bytes(file.read(sh_size), "little") for _ in range(num_diodes)])}
-
-        for key in rli:
-            rli[key] = rli[key].reshape((metadata['raw_height'],
-                                         metadata['raw_width']))
+        rli_shape = (metadata['raw_height'], metadata['raw_width'])
+        rli = {}
+        for key in ['rli_low', 'rli_high', 'rli_max']:
+            rli[key] = np.zeros(rli_shape)
+            if key != 'rli_low':  # rli_low appears to not have FP data?
+                for k in range(metadata['num_fp']):
+                    # discard FP data associated with RLI
+                    _ = int.from_bytes(file.read(shSize), "little")
+            for jh in range(metadata['raw_height']):
+                for jw in range(metadata['raw_width']):
+                    rli[key][jh, jw] = int.from_bytes(file.read(shSize), "little")
 
         raw_data = np.zeros((metadata['number_of_trials'],
                              metadata['points_per_trace'],
                              metadata['raw_height'],
                              metadata['raw_width'])).astype(int)
-
+        fp_data = np.zeros((metadata['number_of_trials'],
+                            metadata['points_per_trace'],
+                            metadata['num_fp'])).astype(int)
+        num_read = 0
         for i in range(metadata['number_of_trials']):
-            for jh in range(metadata['raw_width']):
-                for jw in range(metadata['raw_height']):
+            for x in range(metadata['num_fp']):
+                for k in range(metadata['points_per_trace']):
+                    if k != 0 and i != 0:  # skip the first num_fp
+                        pt = self.read_data(file, shSize, num_read)
+                        if pt is None:
+                            return raw_data, metadata, rli, fp_data
+                        fp_data[i, k, x] = int.from_bytes(pt, "little")
+                        num_read += 1
+            for jh in range(metadata['raw_height']):
+                for jw in range(metadata['raw_width']):
                     for k in range(metadata['points_per_trace']):
-
-                        pt = file.read(sh_size)
-                        if not pt:
-                            print("Ran out of points.", len(raw_data))
-                            file.close()
-                            return metadata
+                        pt = self.read_data(file, shSize, num_read)
+                        if pt is None:
+                            return raw_data, metadata, rli, fp_data
                         raw_data[i, k, jh, jw] = int.from_bytes(pt, "little")
+                        num_read += 1
 
         file.close()
-        return raw_data, metadata, rli
+        return raw_data, metadata, rli, fp_data
 
+    @staticmethod
+    def read_data(file, sz, num_read):
+        pt = file.read(sz)
+        if not pt:
+            print("Ran out of points. Read:", num_read)
+            file.close()
+            return None
+        return pt
 
 class DataLoader:
 

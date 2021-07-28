@@ -1,5 +1,6 @@
 import numpy as np
 
+from pyPhoto21.image import SignalProcessor
 
 class Data:
 
@@ -17,6 +18,7 @@ class Data:
         self.duration = 200
         self.acqui_onset = 50
         self.program = 7
+        self.num_fp_pts = 4
         self.display_widths = [2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024]
         self.display_heights = [1024, 100, 320, 160, 160, 80, 60, 40]
         self.display_camera_programs = ["200 Hz   2048x1024",
@@ -88,7 +90,7 @@ class Data:
         self.fp_data = np.zeros((self.get_num_trials(),
                                  self.get_num_pts(),
                                  self.get_num_fp()),
-                                 dtype=np.float64)
+                                dtype=np.float64)
 
     def set_camera_program(self, program, force_resize=False):
         if force_resize or self.program != program:
@@ -115,7 +117,7 @@ class Data:
                                           w))
             self.fp_data = np.resize(self.fp_data,
                                      (self.get_num_fp(),
-                                     self.get_num_pts()))
+                                      self.get_num_pts()))
 
         else:
             self.allocate_image_memory()
@@ -141,12 +143,13 @@ class Data:
         else:
             ret_frame = np.average(images, axis=0)
 
-        if binning == 1:
-            return ret_frame
+        # digital binning
+        ret_frame = SignalProcessor().create_binned_data(ret_frame,
+                                                         binning_factor=binning)
 
-        h, w = ret_frame.shape
-        binned_shape = (h // binning, binning, w // binning, binning)
-        return np.average(np.average(ret_frame.reshape(binned_shape), axis=3), axis=1)
+        # crop out 1px borders
+        ret_frame = ret_frame[1:-2, 1:-2]
+        return ret_frame
 
     # Returns the full (x2) memory for hardware to use
     def get_acqui_memory(self):
@@ -157,6 +160,11 @@ class Data:
         return self.rli_images
 
     def get_fp_data(self, trial=None):
+        if self.fp_data is None:
+            self.fp_data = np.zeros((self.get_num_trials(),
+                                     self.get_num_pts(),
+                                     self.get_num_fp()),
+                                    dtype=np.float64)
         if trial is None:
             return self.fp_data
         return self.fp_data[trial, :, :]
@@ -189,6 +197,7 @@ class Data:
 
     # trial is ignored if data is from file
     def set_acqui_images(self, data, trial=None, from_file=False):
+        self.set_is_loaded_from_file(from_file)
         if from_file:
             self.acqui_images = data
             return
@@ -202,10 +211,14 @@ class Data:
 
     # trial is ignored if data is from file
     def set_rli_images(self, data, from_file=False):
+        self.set_is_loaded_from_file(from_file)
         if from_file:
             self.rli_images = data
         else:
             self.rli_images[0, :, :, :] = data[:, :, :]
+
+    def set_fp_data(self, data):
+        self.fp_data = data
 
     def set_num_pts(self, num_pts, force_resize=False):
         tmp = self.num_pts
@@ -273,10 +286,13 @@ class Data:
     def get_int_pts(self):
         return self.hardware.get_int_pts()
 
-    # Fixed at 4 field potential measurements with NI-USB
-    @staticmethod
-    def get_num_fp():
-        return 4
+    def get_num_fp(self):
+        if self.get_is_loaded_from_file():
+            return self.num_fp_pts
+        return 4  # Little Dave: Fixed at 4 field potential measurements with NI-USB
+
+    def set_num_fp(self, value):
+        self.num_fp_pts = value
 
     def get_num_trials(self):
         return self.num_trials
