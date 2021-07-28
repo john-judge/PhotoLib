@@ -82,8 +82,10 @@ class GUI:
                                 element_justification='center',
                                 resizable=True,
                                 font='Helvetica 18')
-        self.plot_frame()
+        self.tv = TraceViewer(self.data)
+        self.fv = FrameViewer(self.data, self.tv)
         self.plot_trace()
+        self.plot_frame()
         self.main_workflow_loop()
         self.window.close()
 
@@ -106,7 +108,6 @@ class GUI:
             print("**** History of Events ****\n", events)
 
     def plot_trace(self):
-        self.tv = TraceViewer(self.data)
         fig = self.tv.get_fig()
 
         self.draw_figure_w_toolbar(self.window['trace_canvas'].TKCanvas,
@@ -114,8 +115,6 @@ class GUI:
                                    self.window['trace_canvas_controls'].TKCanvas)
 
     def plot_frame(self):
-
-        self.fv = FrameViewer(self.data)
         fig = self.fv.get_fig()
         s_max = self.fv.get_slider_max()
         canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
@@ -125,8 +124,9 @@ class GUI:
 
         figure_canvas_agg.get_tk_widget().pack(fill="both", expand=True)
         # figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll) # currently scroll not used.
-        figure_canvas_agg.mpl_connect('button_release_event', self.fv.change_frame)
-        figure_canvas_agg.mpl_connect('button_press_event', self.fv.onclick)
+        figure_canvas_agg.mpl_connect('button_release_event', self.fv.onrelease)
+        figure_canvas_agg.mpl_connect('button_press_event', self.fv.onpress)
+        figure_canvas_agg.mpl_connect('motion_notify_event', self.fv.onmove)
         toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
         toolbar.update()
         figure_canvas_agg.draw()

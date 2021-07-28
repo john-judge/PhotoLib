@@ -151,6 +151,24 @@ class Data:
         ret_frame = ret_frame[1:-2, 1:-2]
         return ret_frame
 
+    def get_display_trace(self, index=None, trial=None):
+        images = self.get_acqui_images()
+        if trial is None:
+            images = np.average(images, axis=0)
+        else:
+            images = images[trial, :, :]
+
+        ret_trace = None
+        if index is None:
+            return ret_trace
+        elif type(index[0]) == int:
+            ret_trace = images[:, index[0], index[1]]
+        elif type(index[0]) == list:
+            index = np.array(index)
+            ret_trace = images[:, index[:, 1], index[:, 0]]
+            ret_trace = np.average(ret_trace, axis=1)
+        return ret_trace
+
     # Returns the full (x2) memory for hardware to use
     def get_acqui_memory(self):
         return self.acqui_images

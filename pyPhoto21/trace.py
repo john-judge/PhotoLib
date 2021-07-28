@@ -10,14 +10,28 @@ class TraceViewer:
         self.axes = []
         self.add_trace()
 
+    def get_trial_no(self):
+        return 0  # replace with self.data data
+
     def get_fig(self):
         return self.fig
 
-    def add_trace(self):
-        i = self.num_traces_plotted + 1
-        self.axes.append(self.fig.add_subplot(i * 100 + 10 + i))
-        x = np.linspace(0, 2 * np.pi)
-        y = np.sin(x)
-        self.axes[-1].plot(x, y)
+    def add_trace(self, pixel_index=None):
+        trace = self.data.get_display_trace(index=pixel_index,
+                                            trial=self.get_trial_no())
+
+        print(trace)
+        if trace is not None:
+
+            i = self.num_traces_plotted + 1
+            self.axes.append(self.fig.add_subplot(i, 1, i))
+            n = self.data.get_num_pts()
+            t = np.linspace(0, n * self.data.get_int_pts(), num=n)
+            self.axes[-1].plot(t, trace)
+            self.fig.canvas.draw()
+
+    def clear_traces(self):
+        self.fig.clf()
+
 
 

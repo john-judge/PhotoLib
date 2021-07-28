@@ -4,16 +4,25 @@ from matplotlib.widgets import Slider
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
+from collections import defaultdict
+
 from pyPhoto21.hyperslicer import HyperSlicer
 
 
 class FrameViewer:
-    def __init__(self, data, show_rli=True):
+    def __init__(self, data, tv, show_rli=True):
         self.data = data
         self.hyperslicer = None
         self.num_frames = None
         self.ind = 0
         self.binning = 1
+        self.tv = tv  # TraceViewer
+
+        # Mouse event state
+        self.press = False
+        self.moving = False
+        self.draw_path = []
+        self.path_x_index = defaultdict(list)
 
         self.trial_index = 0
         self.smax = None
@@ -77,10 +86,55 @@ class FrameViewer:
             self.ind = new_ind
             self.update()
 
+    def onrelease(self, event):
+        if self.press and not self.moving:
+            self.change_frame(event)
+            self.onclick(event)
+        else:
+            self.ondrag(event)
+        self.press = False
+        self.moving = False
+
+    def onpress(self, event):
+        if not self.press:
+            self.clear_waypoints()
+            self.add_waypoint(event)
+            self.press = True
+
+    def onmove(self, event):
+        if self.press:
+            self.add_waypoint(event)
+            self.moving = True
+
     def onclick(self, event):
         print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
               ('double' if event.dblclick else 'single', event.button,
                event.x, event.y, event.xdata, event.ydata))
+        if event.button == 3:  # right click
+            self.tv.clear_traces()
+        elif event.button == 1:  # left click
+            pass
+
+    # Identified drag has completed
+    def ondrag(self, event):
+        self.tv.add_trace(pixel_index=self.draw_path)
+        # Seal and determine selected ROI
+        # Average traces and add subplot in TraceViewer
+
+    def add_waypoint(self, event):
+        if event.xdata is not None and event.ydata is not None:
+            x = int(event.xdata)
+            y = int(event.ydata)
+            # avoid duplicate points
+            if x in self.path_x_index and y in self.path_x_index[x]:
+                print(x, y, "already in path")
+            else:
+                self.draw_path.append([x, y])
+                self.path_x_index[x].append(y)
+
+    def clear_waypoints(self):
+        self.draw_path = []
+        self.path_x_index = defaultdict(list)
 
     def update_new_image(self):
         self.fig.clf()
