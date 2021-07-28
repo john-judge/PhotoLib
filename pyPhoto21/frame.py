@@ -23,6 +23,8 @@ class FrameViewer:
         self.moving = False
         self.draw_path = []
         self.path_x_index = defaultdict(list)
+        self.colors = ['b', 'r', 'g', 'c', 'm', 'k', 'y']
+        self.shapes = []
 
         self.trial_index = 0
         self.smax = None
@@ -63,7 +65,7 @@ class FrameViewer:
                 self.fp_axes[i].get_yaxis().set_visible(False)
 
         # Rest of the plot is the image
-        self.ax = self.fig.add_subplot(gs[1:-1,:]) # leaves last row blank -- for Slider
+        self.ax = self.fig.add_subplot(gs[1:-1, :]) # leaves last row blank -- for Slider
         axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
         self.smax = Slider(axmax, 'Frame Selector', 0, np.max(self.num_frames), valinit=self.ind)
 
@@ -71,8 +73,8 @@ class FrameViewer:
                                                          get_rli=self.show_rli)
 
         self.im = self.ax.imshow(self.current_frame,
-                                aspect = 'auto',
-                                cmap='jet')
+                                 aspect='auto',
+                                 cmap='jet')
 
     def get_slider_max(self):
         return self.smax
@@ -113,11 +115,18 @@ class FrameViewer:
         if event.button == 3:  # right click
             self.tv.clear_traces()
         elif event.button == 1:  # left click
-            pass
+            self.ondrag(event)
 
     # Identified drag has completed
     def ondrag(self, event):
-        self.tv.add_trace(pixel_index=self.draw_path)
+        draw = np.array(self.draw_path)
+        success = self.tv.add_trace(pixel_index=draw,
+                                    color=self.colors[len(self.shapes)-1])
+        if success:
+            self.add_shape(draw)
+        else:
+            print('No trace created for this ROI selection.')
+        self.draw_path = []
         # Seal and determine selected ROI
         # Average traces and add subplot in TraceViewer
 
@@ -127,10 +136,30 @@ class FrameViewer:
             y = int(event.ydata)
             # avoid duplicate points
             if x in self.path_x_index and y in self.path_x_index[x]:
-                print(x, y, "already in path")
+                pass
             else:
                 self.draw_path.append([x, y])
                 self.path_x_index[x].append(y)
+
+    def add_shape(self, points):
+        self.shapes.append(points)
+        col = self.colors[len(self.shapes)-1]
+        self.ax.fill(points[:, 0],
+                     points[:, 1],
+                     col,
+                     alpha=0.5,
+                     edgecolor=col)
+        self.fig.canvas.draw()
+
+    def plot_all_shapes(self):
+        for i in range(len(self.shapes)):
+            points = self.shapes[i]
+            col = self.colors[i]
+            self.ax.fill(points[:, 0],
+                         points[:, 1],
+                         col,
+                         alpha=0.5,
+                         edgecolor=col)
 
     def clear_waypoints(self):
         self.draw_path = []
@@ -141,6 +170,7 @@ class FrameViewer:
         self.redraw_slider()
         self.populate_figure()
         self.update()
+        self.plot_all_shapes()
 
     def update(self, update_hyperslicer=True):
         print('updating frame...')
@@ -153,7 +183,7 @@ class FrameViewer:
                          vmax=np.max(self.current_frame))
 
         #self.ax.set_ylabel('slice %s' % self.ind)
-        self.im.axes.figure.canvas.draw()
+        self.fig.canvas.draw()
         if self.hyperslicer is not None and update_hyperslicer:
             self.hyperslicer.update_data(show_rli=self.show_rli)
 

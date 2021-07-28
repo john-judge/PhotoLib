@@ -1,6 +1,8 @@
 import numpy as np
+from matplotlib.path import Path
 
 from pyPhoto21.image import SignalProcessor
+
 
 class Data:
 
@@ -161,12 +163,23 @@ class Data:
         ret_trace = None
         if index is None:
             return ret_trace
-        elif type(index[0]) == int:
-            ret_trace = images[:, index[0], index[1]]
-        elif type(index[0]) == list:
-            index = np.array(index)
-            ret_trace = images[:, index[:, 1], index[:, 0]]
-            ret_trace = np.average(ret_trace, axis=1)
+        elif type(index) == np.ndarray:
+            if index.shape[0] == 1:
+                ret_trace = images[:, index[0, 1], index[0, 0]]
+            else:
+                _, h, w = images.shape
+                x, y = np.meshgrid(np.arange(h), np.arange(w))  # make a canvas with coordinates
+                x, y = x.flatten(), y.flatten()
+                points = np.vstack((x, y)).T
+
+                p = Path(index, closed=False)
+                print(p)
+                mask = p.contains_points(points).reshape(h, w)  # mask of filled in path
+                index = np.where(mask)
+                print(index)
+                ret_trace = images[:, mask]
+                print(ret_trace.shape)
+                ret_trace = np.average(ret_trace, axis=1)
         return ret_trace
 
     # Returns the full (x2) memory for hardware to use
