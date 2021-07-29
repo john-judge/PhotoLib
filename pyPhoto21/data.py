@@ -166,6 +166,7 @@ class Data:
     def get_display_trace(self, index=None, trial=None):
         images = self.get_acqui_images()
         if images is None:
+            print("get_display_trace: No images to display.")
             return None
         if trial is None:
             images = np.average(images, axis=0)
@@ -188,9 +189,12 @@ class Data:
                 mask = p.contains_points(points).reshape(h, w)  # mask of filled in path
                 index = np.where(mask)
                 if np.size(index) < 1:
+                    print("get_display_trace: filled shape is empty:", index)
                     return None
                 ret_trace = images[:, mask]
                 ret_trace = np.average(ret_trace, axis=1)
+            else:
+                print("get_display_trace: drawn shape is empty:", index)
         return ret_trace
 
     # Returns the full (x2) memory for hardware to use
