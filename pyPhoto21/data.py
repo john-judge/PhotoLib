@@ -8,7 +8,8 @@ class Data:
 
     def __init__(self, hardware):
         self.hardware = hardware
-        self.num_trials = 1
+        self.num_trials = 5
+        self.int_trials = 10  # seconds
         self.light_rli = 200
         self.dark_rli = 280
         self.num_pts = 2000
@@ -19,8 +20,15 @@ class Data:
         self.interval_bursts = 15
         self.duration = 200
         self.acqui_onset = 50
+        self.acqui_duration = 267
         self.program = 7
         self.num_fp_pts = 4
+        self.light_on_onset = 0
+        self.light_on_duration = 1200
+        self.stimulator_onset = {
+            1: 300,
+            2: 300,
+        }
         self.display_widths = [2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024]
         self.display_heights = [1024, 100, 320, 160, 160, 80, 60, 40]
         self.display_camera_programs = ["200 Hz   2048x1024",
@@ -51,24 +59,24 @@ class Data:
         self.set_num_light_rli(light_rli=self.light_rli,
                                force_resize=True)
 
-        self.hardware.set_num_pulses(num_pulses=self.num_pulses,
+        self.hardware.set_num_pulses(value=self.num_pulses,
                                      channel=1)
-        self.hardware.set_num_pulses(num_pulses=self.num_pulses,
+        self.hardware.set_num_pulses(value=self.num_pulses,
                                      channel=2)
 
-        self.hardware.set_int_pulses(interval_pulses=self.interval_pulses,
+        self.hardware.set_int_pulses(value=self.interval_pulses,
                                      channel=1)
-        self.hardware.set_int_pulses(interval_pulses=self.interval_pulses,
+        self.hardware.set_int_pulses(value=self.interval_pulses,
                                      channel=2)
 
-        self.hardware.set_num_bursts(num_bursts=self.num_bursts,
+        self.hardware.set_num_bursts(value=self.num_bursts,
                                      channel=1)
-        self.hardware.set_num_bursts(num_bursts=self.num_bursts,
+        self.hardware.set_num_bursts(value=self.num_bursts,
                                      channel=2)
 
-        self.hardware.set_int_bursts(interval_bursts=self.interval_bursts,
+        self.hardware.set_int_bursts(value=self.interval_bursts,
                                      channel=1)
-        self.hardware.set_int_bursts(interval_bursts=self.interval_bursts,
+        self.hardware.set_int_bursts(value=self.interval_bursts,
                                      channel=2)
 
         self.hardware.set_schedule_rli_flag(schedule_rli_flag=self.schedule_rli_flag)
@@ -253,6 +261,9 @@ class Data:
     def set_fp_data(self, data):
         self.fp_data = data
 
+    def get_duration(self):
+        return self.hardware.get_duration()
+
     def set_num_pts(self, num_pts, force_resize=False):
         tmp = self.num_pts
         self.num_pts = num_pts
@@ -268,7 +279,7 @@ class Data:
                                      (self.get_num_trials(),
                                       self.get_num_fp(),
                                       self.get_num_pts()))
-            self.hardware.set_num_pts(num_pts=num_pts)
+            self.hardware.set_num_pts(value=num_pts)
 
     def set_num_dark_rli(self, dark_rli, force_resize=False):
         tmp = self.dark_rli
@@ -304,6 +315,14 @@ class Data:
     def get_display_height(self):
         return self.display_heights[self.get_camera_program()]
 
+    def get_stim_onset(self, channel):
+        if channel == 1 or channel == 2:
+            return self.stimulator_onset[channel]
+
+    def set_stim_onset(self, channel, value):
+        if channel == 1 or channel == 2:
+            self.stimulator_onset[channel] = value
+
     def get_duration(self):
         return self.hardware.get_duration()
 
@@ -324,6 +343,9 @@ class Data:
             return self.num_fp_pts
         return 4  # Little Dave: Fixed at 4 field potential measurements with NI-USB
 
+    def get_num_pulses(self, ch):
+        return self.hardware.get_num_pulses(channel=ch)
+
     def set_num_fp(self, value):
         self.num_fp_pts = value
 
@@ -333,15 +355,33 @@ class Data:
     def set_num_trials(self, num_trials):
         self.num_trials = num_trials
 
+    def get_int_trials(self):
+        return self.int_trials
+
+    def set_int_trials(self, int_trials):
+        self.int_trials = int_trials
+
     def get_is_loaded_from_file(self):
         return self.is_loaded_from_file
 
     def set_is_loaded_from_file(self, value):
         self.is_loaded_from_file = value
 
-    def get_num_trials(self):
-        return self.num_trials
+    def set_light_on_onset(self, v):
+        self.light_on_onset = v
 
-    def set_num_trials(self, v):
-        self.num_trials = v
+    def set_light_on_duration(self, v):
+        self.light_on_duration = v
+
+    def set_acqui_onset(self, v):
+        self.acqui_onset = v
+
+    def set_acqui_duration(self, v):
+        self.acqui_duration = v
+
+    def get_acqui_onset(self):
+        return self.acqui_onset
+
+    def get_acqui_duration(self):
+        return self.acqui_duration
 

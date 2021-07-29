@@ -233,9 +233,17 @@ class GUI:
     def launch_github_page():
         open_browser('https://github.com/john-judge/PhotoLib', new=2)
 
+    # Returns True if string s is a valid numeric input
+    @staticmethod
+    def validate_numeric_input(s, non_zero=False, max_digits=None):
+        return type(s) == str \
+            and s.isnumeric() \
+            and (max_digits is None or len(s) <= max_digits) \
+            and (not non_zero or int(s) != 0)
+
     def set_digital_binning(self, **kwargs):
         binning = kwargs['values']
-        if not binning.isnumeric():
+        if not self.validate_numeric_input(binning, non_zero=True):
             self.window['Digital Binning'].update('')
             return
         elif len(binning) > 3:
@@ -255,6 +263,40 @@ class GUI:
 
     def set_is_schedule_rli_enabled(self, value):
         self.schedule_rli_enabled = value
+
+    def set_light_on_onset(self, **kwargs):
+        v = kwargs['values']
+        self.data.set_light_on_onset(v)
+
+    def set_light_on_duration(self, **kwargs):
+        v = kwargs['values']
+        self.data.set_light_on_duration(v)
+
+    def set_acquisition_onset(self, **kwargs):
+        v = kwargs['values']
+        self.data.set_acquisition_onset(v)
+
+    def set_acquisition_duration(self, **kwargs):
+        v = kwargs['values']
+        self.data.set_acquisition_duration(v)
+
+    def set_stimulator_onset(self, **kwargs):
+        v = kwargs['values']
+        ch = kwargs['channel']
+        self.data.set_stimulator_onset(v, ch)
+
+    def set_stimulator_duration(self, **kwargs):
+        v = kwargs['values']
+        ch = kwargs['channel']
+        self.data.set_stimulator_duration(v, ch)
+
+    def validate_and_pass(self, **kwargs):
+        fn_to_call = kwargs['call']
+        v = kwargs['values']
+        ch = kwargs['channel']
+        if self.validate_numeric_input(v, max_digits=6):
+            fn_to_call(value=int(v), channel=ch)
+            print("called:", fn_to_call)
 
     def define_event_mapping(self):
         if self.event_mapping is None:
@@ -298,6 +340,62 @@ class GUI:
                 "Choose Save Directory": {
                     'function': self.choose_save_dir,
                     'args': {},
+                },
+                'Light On Onset': {
+                    'function': self.set_light_on_onset,
+                    'args': {},
+                },
+                'Light On Duration': {
+                    'function': self.set_light_on_duration,
+                    'args': {},
+                },
+                'Acquisition Onset': {
+                    'function': self.set_acquisition_onset,
+                    'args': {},
+                },
+                'Acquisition Duration': {
+                    'function': self.set_acquisition_duration,
+                    'args': {},
+                },
+                'Stimulator #1 Onset': {
+                    'function': self.set_stimulator_onset,
+                    'args': {'channel': 1},
+                },
+                'Stimulator #2 Onset': {
+                    'function': self.set_stimulator_onset,
+                    'args': {'channel': 2},
+                },
+                'num_pulses Stim #1': {
+                    'function': self.validate_and_pass,
+                    'args': {'channel': 1, 'call': self.data.hardware.set_num_pulses},
+                },
+                'num_pulses Stim #2': {
+                    'function': self.validate_and_pass,
+                    'args': {'channel': 2, 'call': self.data.hardware.set_num_pulses},
+                },
+                'int_pulses Stim #1': {
+                    'function': self.validate_and_pass,
+                    'args': {'channel': 1, 'call': self.data.hardware.set_int_pulses},
+                },
+                'int_pulses Stim #2': {
+                    'function': self.validate_and_pass,
+                    'args': {'channel': 2, 'call': self.data.hardware.set_int_pulses},
+                },
+                'num_bursts Stim #1': {
+                    'function': self.validate_and_pass,
+                    'args': {'channel': 1, 'call': self.data.hardware.set_num_bursts},
+                },
+                'num_bursts Stim #2': {
+                    'function': self.validate_and_pass,
+                    'args': {'channel': 2, 'call': self.data.hardware.set_num_bursts},
+                },
+                'int_bursts Stim #1': {
+                    'function': self.validate_and_pass,
+                    'args': {'channel': 1, 'call': self.data.hardware.set_int_bursts},
+                },
+                'int_bursts Stim #2': {
+                    'function': self.validate_and_pass,
+                    'args': {'channel': 2, 'call': self.data.hardware.set_int_bursts},
                 },
             }
 

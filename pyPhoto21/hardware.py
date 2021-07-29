@@ -57,42 +57,42 @@ class Hardware:
 
     # set the number of points acquired during recording
     def set_num_pts(self, **kwargs):
-        self.lib.setNumPts(self.controller, kwargs['num_pts'])
+        self.lib.setNumPts(self.controller, kwargs['value'])
 
     def get_num_pts(self):
         return self.lib.getNumPts(self.controller)
 
     # set the interval between points acquired during recording
     def set_int_pts(self, **kwargs):
-        self.lib.setIntPts(self.controller, kwargs['interval'])
+        self.lib.setIntPts(self.controller, kwargs['value'])
 
     def get_int_pts(self):
         return self.lib.getIntPts(self.controller)
 
     # set the number of pulses during acquisition
     def set_num_pulses(self, **kwargs):
-        self.lib.setNumPulses(self.controller, kwargs['num_pulses'], kwargs['channel'])
+        self.lib.setNumPulses(self.controller, kwargs['value'], kwargs['channel'])
 
     def get_num_pulses(self, **kwargs):
         return self.lib.getNumPulses(self.controller, kwargs['channel'])
 
     # set the interval between pulses during acquisition
     def set_int_pulses(self, **kwargs):
-        self.lib.setIntPulses(self.controller, kwargs['interval_pulses'], kwargs['channel'])
+        self.lib.setIntPulses(self.controller, kwargs['value'], kwargs['channel'])
 
     def get_int_pulses(self, **kwargs):
         return self.lib.getIntPulses(self.controller, kwargs['channel'])
 
     # set the number of bursts during acquisition
     def set_num_bursts(self, **kwargs):
-        self.lib.setNumBursts(self.controller, kwargs['num_bursts'], kwargs['channel'])
+        self.lib.setNumBursts(self.controller, kwargs['value'], kwargs['channel'])
 
     def get_num_bursts(self, **kwargs):
         return self.lib.getNumBursts(self.controller, kwargs['channel'])
 
     # set the interval between bursts during acquisition
     def set_int_bursts(self, **kwargs):
-        self.lib.setIntBursts(self.controller, kwargs['interval_bursts'], kwargs['channel'])
+        self.lib.setIntBursts(self.controller, kwargs['value'], kwargs['channel'])
 
     def get_int_bursts(self, **kwargs):
         return self.lib.getIntBursts(self.controller, kwargs['channel'])
