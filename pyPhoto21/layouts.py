@@ -68,10 +68,10 @@ class Layouts:
             [sg.Text("Auto:", size=(8, 1)),
              sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
              sg.Button("Take RLI", button_color=('brown', 'gray'), size=button_size)],
-            [sg.Checkbox('RLI', default=True, enable_events=True, key="Auto RLI", size=checkbox_size),
+            [sg.Checkbox('RLI', default=True, enable_events=self.data.schedule_rli_flag, key="Auto RLI", size=checkbox_size),
              sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size),
              sg.Button("Record", button_color=('black', 'red'), size=button_size)],
-            [sg.Checkbox('Save', default=True, enable_events=True, key="Autosave", size=checkbox_size),
+            [sg.Checkbox('Save', default=self.data.auto_save_data, enable_events=True, key="Autosave", size=checkbox_size),
              sg.Button("Save Processed", button_color=('black', 'green'), size=button_size),
              sg.Button("Save", button_color=('black', 'green'), size=button_size)]]
 

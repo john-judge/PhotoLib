@@ -128,11 +128,6 @@ extern "C"
 		return controller->getAcquiDuration();
 	}
 
-	__declspec(dllexport) void NiErrorDump(Controller* controller)
-	{
-		controller->NiErrorDump();
-	}
-
 	__declspec(dllexport) void setNumDarkRLI(Controller* controller, int dark)
 	{
 		controller->setNumDarkRLI(dark);
@@ -163,4 +158,23 @@ extern "C"
 		return controller->getDisplayHeight();
 	}
 
+	__declspec(dllexport) void setStimOnset(Controller* controller, int ch, float v)
+	{
+		controller->setStimOnset(ch, v);
+	}
+
+	__declspec(dllexport) void setStimDuration(Controller* controller, int ch, float v)
+	{
+		controller->setStimDuration(ch, v);
+	}
+
+	__declspec(dllexport) float getStimOnset(Controller* controller, int ch)
+	{
+		return controller->getStimOnset(ch);
+	}
+
+	__declspec(dllexport) float getStimDuration(Controller* controller, int ch)
+	{
+		return controller->getStimDuration(ch);
+	}
 };

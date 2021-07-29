@@ -89,7 +89,6 @@ class FrameViewer:
             self.update()
 
     def onrelease(self, event):
-        print("release")
         if self.press and not self.moving:
             self.change_frame(event)
             self.onclick(event)
@@ -111,9 +110,9 @@ class FrameViewer:
             self.moving = True
 
     def onclick(self, event):
-        print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
-              ('double' if event.dblclick else 'single', event.button,
-               event.x, event.y, event.xdata, event.ydata))
+        #print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+        #      ('double' if event.dblclick else 'single', event.button,
+        #       event.x, event.y, event.xdata, event.ydata))
         if event.button == 3:  # right click
             self.tv.clear_traces()
             self.clear_shapes()
@@ -208,11 +207,17 @@ class FrameViewer:
 
     def update_num_frames(self):
         # choose correct data dimensions for viewer
+        refresh_ind = False
         if self.show_rli:
-            self.num_frames = self.data.get_num_rli_pts()
+            n_frames = self.data.get_num_rli_pts()
+            refresh_ind = (n_frames != self.num_frames)
+            self.num_frames = n_frames
         else:
-            self.num_frames = self.data.get_num_pts()
-        self.ind = self.num_frames // 2
+            n_frames = self.data.get_num_pts()
+            refresh_ind = (n_frames != self.num_frames)
+            self.num_frames = n_frames
+        if refresh_ind:
+            self.ind = self.num_frames // 2
 
     def set_show_rli_flag(self, value, update=False):
         self.show_rli = value

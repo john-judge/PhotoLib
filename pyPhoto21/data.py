@@ -40,8 +40,8 @@ class Data:
                                         "5000 Hz  1024x60",
                                         "7500 Hz  1024x40"]
 
-        self.schedule_rli_flag = True  # include take RLI and division
-        self.auto_save_data = True
+        self.schedule_rli_flag = False  # TO DO: include take RLI and division
+        self.auto_save_data = False
 
         # Memory
         self.rli_images = None
@@ -126,7 +126,8 @@ class Data:
                                           h,
                                           w))
             self.fp_data = np.resize(self.fp_data,
-                                     (self.get_num_fp(),
+                                     (self.get_num_trials(),
+                                      self.get_num_fp(),
                                       self.get_num_pts()))
 
         else:

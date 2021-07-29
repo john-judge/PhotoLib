@@ -157,7 +157,7 @@ class GUI:
         self.fv.update_new_image()
         self.data.set_is_loaded_from_file(False)
         if self.get_is_auto_save_enabled():
-            self.file.save_to_file()
+            #self.file.save_to_compressed_file()
             self.file.increment_run()
 
     def take_rli(self, **kwargs):

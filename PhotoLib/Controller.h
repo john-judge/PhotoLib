@@ -66,10 +66,9 @@ public:
 	Channel* sti1;
 	Channel* sti2;
 
-	void NiErrorDump();
-
 	// NI-DAQmx
 	int NI_openShutter(uInt8);
+
 	void NI_stopTasks();
 	void NI_clearTasks();
 
@@ -89,6 +88,11 @@ public:
 
 	int getDisplayWidth();
 	int getDisplayHeight();
+
+	void setStimOnset(int ch, float v);
+	void setStimDuration(int ch, float v);
+	float getStimOnset(int ch);
+	float getStimDuration(int ch);
 
 	// NI Digital Output: create stimulation patterns
 	void fillPDOut(char realFlag);

@@ -29,7 +29,7 @@ using namespace std;
  */
 #define CAM_INPUT_OFFSET 10
 #define NUM_BNC_CHANNELS 4
-#define DAQmxErrChk(functionCall)  if( DAQmxFailed(error=(functionCall)) ) NiErrorDump(); else
+#define DAQmxErrChk(functionCall)  if( DAQmxFailed(error=(functionCall))) NiErrorDump(error); else
 
  //=============================================================================
 Controller::Controller()
@@ -87,10 +87,29 @@ Controller::~Controller()
 	stop();
 }
 
-void Controller::NiErrorDump() {
+void NiErrorDump(int32 error) {
+	char    errBuff[2048] = { '\0' };
 	if (DAQmxFailed(error))
 		DAQmxGetExtendedErrorInfo(errBuff, 2048);
 	cout << errBuff;
+}
+
+
+int32 CVICALLBACK DoneCallback(TaskHandle taskHandle, int32 status, void* callbackData)
+{
+	int32   error = 0;
+	char    errBuff[2048] = { '\0' };
+
+	// Check to see if an error stopped the task.
+	DAQmxErrChk(status);
+
+Error:
+	if (DAQmxFailed(error)) {
+		DAQmxGetExtendedErrorInfo(errBuff, 2048);
+		DAQmxClearTask(taskHandle);
+		fprintf(stdout, "DAQmx Error: %s\n", errBuff);
+	}
+	return 0;
 }
 
 //=============================================================================
@@ -136,7 +155,7 @@ int Controller::takeRli(unsigned short* memory) {
 	}
 
 	// parallel section pauses, threads sync and close	
-	//NI_openShutter(1);
+	NI_openShutter(1);
 	Sleep(100);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	// parallel acquisition resumes now that light is on	
@@ -163,7 +182,7 @@ int Controller::takeRli(unsigned short* memory) {
 		cam.end_images(ipdv);
 	}
 	Sleep(100);
-	//NI_openShutter(0); // light off	
+	NI_openShutter(0); // light off	
 
 	//=============================================================================	
 	// Image reassembly	
@@ -218,7 +237,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	DAQmxErrChk(DAQmxCfgImplicitTiming(taskHandle_clk, DAQmx_Val_ContSamps, get_digital_output_size()));
 
 	// Clock for synchronizing tasks
-	DAQmxErrChk(DAQmxCreateTask("Stimulator1", &taskHandle_out));
+	DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
 	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0:2", "", DAQmx_Val_ChanForAllLines));
 	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI12", getIntPts(),
 						DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));		//P
@@ -232,19 +251,16 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
 	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", 1005.0 / getIntPts(), 
 				DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
+	DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
 
 	//-------------------------------------------
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
 	float64 *NI_ptr = tmp_fp_memory;
-	// Done callback from TurboSM probably not necessary:
-	//int32 CVICALLBACK DoneCallback(TaskHandle taskHandle, int32 status, void *callbackData);
-	//DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
 	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, get_digital_output_size(), 0, 10.0, 
 					DAQmx_Val_GroupByChannel, outputs, &total_written, NULL));
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
-
 	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
 	DAQmxErrChk(DAQmxStartTask(taskHandle_clk));
 	cout << "Total written: " << total_written << "\n\t Size of output: " << get_digital_output_size() << "\n";
@@ -325,6 +341,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 }
 
 //=============================================================================
+/*
 int Controller::NI_openShutter(uInt8 on)
 {
 	int32       error = 0;
@@ -332,7 +349,32 @@ int Controller::NI_openShutter(uInt8 on)
 	uInt8       data[4] = { 0,on,0,0 };
 	char        errBuff[2048] = { '\0' };
 
-	if (on) {
+	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
+	DAQmxErrChk(DAQmxCreateDOChan(taskHandle, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));
+	DAQmxErrChk(DAQmxStartTask(taskHandle));
+	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle, 1, 1, 10.0, DAQmx_Val_GroupByChannel, data, NULL, NULL));
+
+Error:
+	if (DAQmxFailed(error))
+		DAQmxGetExtendedErrorInfo(errBuff, 2048);
+	if (taskHandle != 0) {
+		DAQmxStopTask(taskHandle);
+		DAQmxClearTask(taskHandle);
+	}
+	if (DAQmxFailed(error))
+		printf("DAQmx Error: %s\n", errBuff);
+	return 0;
+}*/
+
+//=============================================================================
+int Controller::NI_openShutter(uInt8 on)
+{
+	int32       error = 0;
+	TaskHandle  taskHandle = 0;
+	uInt8       data[4] = { 0,on,0,0 };
+	char        errBuff[2048] = { '\0' };
+
+	if (on == 1) {
 		DAQmxErrChk(DAQmxCreateTask("LED", &taskHandle_led));
 		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_led, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));
 		DAQmxErrChk(DAQmxStartTask(taskHandle_led));
@@ -340,10 +382,11 @@ int Controller::NI_openShutter(uInt8 on)
 
 	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle_led, 1, 1, 10.0, DAQmx_Val_GroupByChannel, data, NULL, NULL));
 
-	if (!on) {
+	if (on == 0) {
 		DAQmxStopTask(taskHandle_led);
 		DAQmxClearTask(taskHandle_led);
 	}
+	return 0;
 }
 
 //=============================================================================
@@ -505,6 +548,7 @@ float Controller::getDuration() {
 
 //=============================================================================
 void Controller::setNumPulses(int ch, int p) {
+	cout << "PhotoLib: setting num_pulses of channel " << ch << " to " << p << "\n";
 	if (ch == 1) numPulses1 = p;
 	else numPulses2 = p;
 }
@@ -646,6 +690,26 @@ int Controller::getDisplayWidth() {
 
 int Controller::getDisplayHeight() {
 	return Camera::DISPLAY_HEIGHT[getCameraProgram()];
+}
+
+void Controller::setStimOnset(int ch, float v) {
+	if (ch == 1) sti1->setOnset(v);
+	else sti2->setOnset(v);
+}
+
+void Controller::setStimDuration(int ch, float v) {
+	if (ch == 1) sti1->setDuration(v);
+	else sti2->setDuration(v);
+}
+
+float Controller::getStimOnset(int ch) {
+	if (ch == 1) return sti1->getOnset();
+	return sti2->getOnset();
+}
+
+float Controller::getStimDuration(int ch) {
+	if (ch == 1) return sti1->getDuration();
+	return sti2->getDuration();
 }
 
 

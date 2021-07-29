@@ -21,6 +21,7 @@ class Hardware:
 
     def record(self, **kwargs):
         imgs_orig_shape = kwargs['images'].shape
+        print(imgs_orig_shape)
         fp_orig_shape = kwargs['fp_data'].shape
         imgs = kwargs['images'].reshape(-1)
         fp_data = kwargs['fp_data'].reshape(-1)
@@ -71,28 +72,28 @@ class Hardware:
 
     # set the number of pulses during acquisition
     def set_num_pulses(self, **kwargs):
-        self.lib.setNumPulses(self.controller, kwargs['value'], kwargs['channel'])
+        self.lib.setNumPulses(self.controller, kwargs['channel'], kwargs['value'])
 
     def get_num_pulses(self, **kwargs):
         return self.lib.getNumPulses(self.controller, kwargs['channel'])
 
     # set the interval between pulses during acquisition
     def set_int_pulses(self, **kwargs):
-        self.lib.setIntPulses(self.controller, kwargs['value'], kwargs['channel'])
+        self.lib.setIntPulses(self.controller, kwargs['channel'], kwargs['value'])
 
     def get_int_pulses(self, **kwargs):
         return self.lib.getIntPulses(self.controller, kwargs['channel'])
 
     # set the number of bursts during acquisition
     def set_num_bursts(self, **kwargs):
-        self.lib.setNumBursts(self.controller, kwargs['value'], kwargs['channel'])
+        self.lib.setNumBursts(self.controller, kwargs['channel'], kwargs['value'])
 
     def get_num_bursts(self, **kwargs):
         return self.lib.getNumBursts(self.controller, kwargs['channel'])
 
     # set the interval between bursts during acquisition
     def set_int_bursts(self, **kwargs):
-        self.lib.setIntBursts(self.controller, kwargs['value'], kwargs['channel'])
+        self.lib.setIntBursts(self.controller, kwargs['channel'], kwargs['value'])
 
     def get_int_bursts(self, **kwargs):
         return self.lib.getIntBursts(self.controller, kwargs['channel'])
@@ -110,9 +111,6 @@ class Hardware:
 
     def get_acqui_onset(self):
         return self.lib.getAcquiOnset(self.controller)
-
-    def ni_error_dump(self):
-        self.lib.NiErrorDump(self.controller)
 
     #  get total acquisition duration
     def get_acqui_duration(self):
@@ -137,6 +135,18 @@ class Hardware:
 
     def get_display_height(self):
         return self.lib.getDisplayHeight(self.controller)
+
+    def get_stim_onset(self, **kwargs):
+        return self.lib.getStimOnset(self.controller, kwargs['channel'])
+
+    def get_stim_duration(self, **kwargs):
+        return self.lib.getStimDuration(self.controller, kwargs['channel'])
+
+    def set_stim_onset(self, **kwargs):
+        return self.lib.setStimOnset(self.controller, kwargs['channel'], kwargs['value'])
+
+    def set_stim_duration(self, **kwargs):
+        return self.lib.setStimDuration(self.controller, kwargs['channel'], kwargs['value'])
 
     def define_c_types(self):
         controller_handle = ctypes.POINTER(ctypes.c_char)
@@ -202,9 +212,7 @@ class Hardware:
         
         self.lib.getAcquiDuration.argtypes = [controller_handle]
         self.lib.getAcquiDuration.restype = ctypes.c_float
-        
-        self.lib.NiErrorDump.argtypes = [controller_handle]
-        
+
         self.lib.setNumDarkRLI.argtypes = [controller_handle, ctypes.c_int]
         
         self.lib.getNumDarkRLI.argtypes = [controller_handle]
@@ -218,6 +226,14 @@ class Hardware:
         self.lib.getDisplayWidth.restype = ctypes.c_int
         self.lib.getDisplayHeight.restype = ctypes.c_int
 
+        self.lib.getStimOnset.restype = ctypes.c_float
+        self.lib.getStimOnset.argtypes = [controller_handle, ctypes.c_int]
+
+        self.lib.getStimDuration.restype = ctypes.c_float
+        self.lib.getStimDuration.argtypes = [controller_handle, ctypes.c_int]
+
+        self.lib.setStimOnset.argtypes = [controller_handle, ctypes.c_int, ctypes.c_float]
+        self.lib.setStimDuration.argtypes = [controller_handle, ctypes.c_int, ctypes.c_float]
 
     def load_dll(self, dll_path='./x64/Release/', verbose=False):
         dll_path = os.path.abspath(dll_path)
