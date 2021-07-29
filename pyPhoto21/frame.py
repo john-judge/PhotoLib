@@ -89,6 +89,7 @@ class FrameViewer:
             self.update()
 
     def onrelease(self, event):
+        print("release")
         if self.press and not self.moving:
             self.change_frame(event)
             self.onclick(event)
@@ -99,12 +100,13 @@ class FrameViewer:
 
     def onpress(self, event):
         if not self.press:
-            self.clear_waypoints()
-            self.add_waypoint(event)
+            if event.button == 2:
+                self.clear_waypoints()
+                self.add_waypoint(event)
             self.press = True
 
     def onmove(self, event):
-        if self.press:
+        if self.press and event.button == 2:  # middle mouse
             self.add_waypoint(event)
             self.moving = True
 
@@ -114,14 +116,15 @@ class FrameViewer:
                event.x, event.y, event.xdata, event.ydata))
         if event.button == 3:  # right click
             self.tv.clear_traces()
-        elif event.button == 1:  # left click
+            self.clear_shapes()
+        elif event.button == 2:  # left click
             self.ondrag(event)
 
     # Identified drag has completed
     def ondrag(self, event):
         draw = np.array(self.draw_path)
         success = self.tv.add_trace(pixel_index=draw,
-                                    color=self.colors[len(self.shapes)-1])
+                                    color=self.colors[(len(self.shapes)-1) % len(self.colors)])
         if success:
             self.add_shape(draw)
         else:
@@ -143,13 +146,17 @@ class FrameViewer:
 
     def add_shape(self, points):
         self.shapes.append(points)
-        col = self.colors[len(self.shapes)-1]
+        col = self.colors[(len(self.shapes)-1) % len(self.colors)]
         self.ax.fill(points[:, 0],
                      points[:, 1],
                      col,
                      alpha=0.5,
                      edgecolor=col)
         self.fig.canvas.draw()
+
+    def clear_shapes(self):
+        self.shapes = []
+        self.update_new_image()
 
     def plot_all_shapes(self):
         for i in range(len(self.shapes)):
@@ -173,7 +180,6 @@ class FrameViewer:
         self.plot_all_shapes()
 
     def update(self, update_hyperslicer=True):
-        print('updating frame...')
         self.current_frame = self.data.get_display_frame(index=self.ind,
                                                          get_rli=self.show_rli,
                                                          binning=self.binning)

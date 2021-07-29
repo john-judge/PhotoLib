@@ -122,7 +122,7 @@ class GUI:
 
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
 
-        figure_canvas_agg.get_tk_widget().pack(fill="both", expand=True)
+        figure_canvas_agg.get_tk_widget().pack()#fill="none", expand=False)
         # figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll) # currently scroll not used.
         figure_canvas_agg.mpl_connect('button_release_event', self.fv.onrelease)
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onpress)
@@ -145,7 +145,7 @@ class GUI:
         figure_canvas_agg.draw()
         toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
         toolbar.update()
-        figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=False)
+        figure_canvas_agg.get_tk_widget().pack(fill='none', expand=False)
 
     def record(self, **kwargs):
         if self.get_is_schedule_rli_enabled():
@@ -173,14 +173,29 @@ class GUI:
         program_index = self.data.display_camera_programs.index(program_name)
         self.data.set_camera_program(program_index)
 
-    def save_to_file(self):
-        self.file.save_to_file(self.data.get_acqui_images(), self.data.get_rli_images())
-
     def launch_hyperslicer(self):
         self.fv.launch_hyperslicer()
 
     def toggle_show_rli(self, **kwargs):
         self.fv.set_show_rli_flag(kwargs['values'], update=True)
+
+    @staticmethod
+    def notify_window(title, message):
+        layout = [[sg.Column([
+            [sg.Text(message)],
+            [sg.Button("OK")]])]]
+        wind = sg.Window(title, layout, finalize=True)
+        while True:
+            event, values = wind.read()
+            # End intro when user closes window or
+            # presses the OK button
+            if event == "OK" or event == sg.WIN_CLOSED:
+                break
+        wind.close()
+
+    def choose_save_dir(self):
+        # Spawn a folder browser
+        print("choose_save_dir not implemented")
 
     def load_zda_file(self):
         file_window = sg.Window('File Browser',
@@ -194,10 +209,19 @@ class GUI:
         while True:
             event, values = file_window.read()
             if event == sg.WIN_CLOSED or event == "Exit":
-                break
+                file_window.close()
+                return
             elif event == "file_window.open":
                 file = values["file_window.browse"]
-                break
+                file_ext = file.split('.')
+                if len(file_ext) > 0:
+                    file_ext = file_ext[-1]
+                else:
+                    file_ext = ''
+                if file_ext not in ['zda', 'pbz2']:
+                    self.notify_window("File Type", "Unsupported file type.\nSelect .zda or .pbz2")
+                else:
+                    break
         file_window.close()
         self.data.clear_data_memory()
         print("Loading from file:", file, "\nThis will take a few seconds...")
@@ -244,7 +268,7 @@ class GUI:
                     'args': {}
                 },
                 'Save': {
-                    'function': self.save_to_file,
+                    'function': self.file.save_to_compressed_file,
                     'args': {}
                 },
                 'Launch Hyperslicer': {
@@ -259,7 +283,7 @@ class GUI:
                     'function': self.toggle_show_rli,
                     'args': {},
                 },
-                "Open (.zda)": {
+                "Open": {
                     'function': self.load_zda_file,
                     'args': {},
                 },
@@ -270,7 +294,11 @@ class GUI:
                 'Digital Binning': {
                     'function': self.set_digital_binning,
                     'args': {},
-                }
+                },
+                "Choose Save Directory": {
+                    'function': self.choose_save_dir,
+                    'args': {},
+                },
             }
 
 

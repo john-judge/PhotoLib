@@ -128,7 +128,8 @@ class Data:
     # index can be an integer or a list of [start:end] over which to average
     def get_display_frame(self, index=None, trial=None, get_rli=False, binning=1):
         images = self.get_acqui_images()
-
+        if images is None:
+            return None
         if get_rli:
             images = self.get_rli_images()
         else:
@@ -155,6 +156,8 @@ class Data:
 
     def get_display_trace(self, index=None, trial=None):
         images = self.get_acqui_images()
+        if images is None:
+            return None
         if trial is None:
             images = np.average(images, axis=0)
         else:
@@ -166,19 +169,18 @@ class Data:
         elif type(index) == np.ndarray:
             if index.shape[0] == 1:
                 ret_trace = images[:, index[0, 1], index[0, 0]]
-            else:
+            elif np.size(index) > 0:
                 _, h, w = images.shape
                 x, y = np.meshgrid(np.arange(h), np.arange(w))  # make a canvas with coordinates
                 x, y = x.flatten(), y.flatten()
                 points = np.vstack((x, y)).T
 
                 p = Path(index, closed=False)
-                print(p)
                 mask = p.contains_points(points).reshape(h, w)  # mask of filled in path
                 index = np.where(mask)
-                print(index)
+                if np.size(index) < 1:
+                    return None
                 ret_trace = images[:, mask]
-                print(ret_trace.shape)
                 ret_trace = np.average(ret_trace, axis=1)
         return ret_trace
 
@@ -336,4 +338,10 @@ class Data:
 
     def set_is_loaded_from_file(self, value):
         self.is_loaded_from_file = value
+
+    def get_num_trials(self):
+        return self.num_trials
+
+    def set_num_trials(self, v):
+        self.num_trials = v
 

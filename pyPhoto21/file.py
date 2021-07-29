@@ -1,13 +1,16 @@
-import pandas as pd
-import os, glob
+import os
 import struct
 import numpy as np
+
+import bz2
+import _pickle as cPickle
 
 
 class File:
 
     def __init__(self, data):
         self.data = data
+        self.save_dir = os.getcwd()
         self.current_slice = 0
         self.current_location = 0
         self.current_run = 0
@@ -31,18 +34,74 @@ class File:
             return '0' + s
         return s
 
-    def get_filename(self, extension='.zda'):
+    def get_filename(self, extension='.pbz2'):
         return self.pad_zero(self.current_slice) + '-' + \
                self.pad_zero(self.current_location) + '-' + \
                self.pad_zero(self.current_run) + extension
 
-    def save_to_file(self, acqui_images, rli_images):
-        fn = self.get_filename()
+    def save_to_compressed_file(self):
+        acqui_images = self.data.get_acqui_images()
+        rli_images = self.data.get_rli_images()
+        fp_data = self.data.get_fp_data()
+        fn = self.get_save_dir() + '/' + self.get_filename()
+
         print("Saving to file " + fn + "...")
-        version = 6  # Little Dave version
-        # TO DO: use ZDA format.
+        metadata ={
+            'version': 6,  # Little Dave version
+            'num_fp': self.data.get_num_fp(),
+            'slice_no': self.current_slice,
+            'location_no': self.current_location,
+            'run_no': self.current_run,
+            'num_trials': self.data.get_num_trials(),
+            'num_pts': self.data.get_num_pts(),
+            'int_pts': self.data.get_int_pts(),
+            'rli_pts_dark': self.data.dark_rli,
+            'rli_pts_light': self.data.light_rli
+        }
+        d = {
+            'acqui': acqui_images,
+            'rli': rli_images,
+            'fp': fp_data,
+            'meta': metadata
+        }
+        with bz2.BZ2File(fn, 'w') as f:
+            cPickle.dump(d, f)
+        print("File saved.")
+
+    def load_from_compressed_file(self, filename):
+        data = bz2.BZ2File(filename, 'rb')
+        data = cPickle.load(data)
+        meta = data['meta']
+
+        # Recording load
+        self.data.set_acqui_images(data['acqui'], from_file=True)
+
+        # RLI load
+        self.data.set_rli_images(data['rli'], from_file=True)
+
+        # FP data load
+        self.data.set_fp_data(data['fp'])
+
+        if meta is not None:
+            self.data.set_num_fp(meta['num_fp'])
+            self.current_slice = meta['slice_no']
+            self.current_location = meta['location_no']
+            self.current_run = meta['run_no']
+            self.data.set_num_trials(meta['num_trials'])
+            self.data.set_num_pts(meta['num_pts'])
+            self.data.set_num_dark_rli(meta['rli_pts_dark'])
+            self.data.set_num_light_rli(meta['rli_pts_light'])
+
+        return data['meta']
 
     def load_from_file(self, filename):
+        file_ext = filename.split('.')[-1]
+        if file_ext == 'zda':
+            self.load_from_legacy_file(filename)
+        elif file_ext == 'pbz2':
+            self.load_from_compressed_file(filename)
+
+    def load_from_legacy_file(self, filename):
         ds = Dataset(filename)
         # Set meta data
         meta = ds.get_meta()
@@ -81,6 +140,12 @@ class File:
             self.data.set_num_light_rli(2)
 
         return ds.get_meta()
+
+    def set_save_dir(self, dir):
+        self.save_dir = dir
+
+    def get_save_dir(self):
+        return self.save_dir
 
 
 class Dataset:
@@ -189,6 +254,11 @@ class Dataset:
         metadata as a dict.
         ZDA files are a custom PhotoZ binary format that must be interpreted byte-
         by-byte """
+        print("Reading legacy ZDA file. This can take several seconds." +
+              "\n\t Important Note: Legacy ZDA file format (2006) is slow, and I" +
+              "\n\t have no plans to speed it up (possible but not worth doing)." +
+              "\n\t Please use PhotoZ to save your ZDA, once loaded, in the new" +
+              "\n\t format (compressed pickle .pbz2) format.")
         file = open(zda_file, 'rb')
         # data type sizes in bytes
         chSize = 1
@@ -291,6 +361,7 @@ class Dataset:
             file.close()
             return None
         return pt
+
 
 class DataLoader:
 

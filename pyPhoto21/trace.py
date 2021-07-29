@@ -18,8 +18,7 @@ class TraceViewer:
 
     def populate_figure(self):
         num_traces = len(self.traces)
-        print("plotting # traces:", num_traces)
-        gs = self.fig.add_gridspec(num_traces, 1)
+        gs = self.fig.add_gridspec(max(1, num_traces), 1)
         self.axes = []
         n = self.data.get_num_pts()
         t = np.linspace(0, n * self.data.get_int_pts(), num=n)
@@ -51,6 +50,7 @@ class TraceViewer:
         self.clear_figure()
         self.traces = []
         self.trace_colors = []
+        self.populate_figure()
 
 
 
