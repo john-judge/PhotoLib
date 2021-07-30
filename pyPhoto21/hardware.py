@@ -9,9 +9,14 @@ class Hardware:
     
     def __init__(self, dll_path='./x64/Release/'):
         self.lib = None
-        self.load_dll(dll_path=dll_path)
-        self.define_c_types()
-        self.controller = self.lib.createController()
+        try:
+            self.load_dll(dll_path=dll_path)
+            self.define_c_types()
+            self.controller = self.lib.createController()
+        except Exception as e:
+            print(dll_path, "not found or otherwise unable to load. Photo21 will continue",
+                  "in analysis mode without access to hardware for data acquisition.")
+            print(e)
 
     def __del__(self):
         try:
