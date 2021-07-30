@@ -181,7 +181,7 @@ class Data:
                 ret_trace = images[:, index[0, 1], index[0, 0]]
             elif np.size(index) > 0:
                 _, h, w = images.shape
-                x, y = np.meshgrid(np.arange(h), np.arange(w))  # make a canvas with coordinates
+                x, y = np.meshgrid(np.arange(w), np.arange(h))  # make a canvas with coordinates
                 x, y = x.flatten(), y.flatten()
                 points = np.vstack((x, y)).T
 

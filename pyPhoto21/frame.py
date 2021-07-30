@@ -23,7 +23,7 @@ class FrameViewer:
         self.moving = False
         self.draw_path = []
         self.path_x_index = defaultdict(list)
-        self.colors = ['b', 'r', 'g', 'c', 'm', 'k', 'y']
+        self.colors = ['red', 'green', 'cyan', 'magenta', 'yellow', 'black', 'blue']
         self.shapes = []
 
         self.trial_index = 0
@@ -119,13 +119,17 @@ class FrameViewer:
         elif event.button == 2:  # left click
             self.ondrag(event)
 
+    def get_next_color(self):
+        return self.colors[(len(self.shapes) - 1) % len(self.colors)]
+
     # Identified drag has completed
     def ondrag(self, event):
+        color = self.get_next_color()
         draw = np.array(self.draw_path)
         success = self.tv.add_trace(pixel_index=draw,
-                                    color=self.colors[(len(self.shapes)-1) % len(self.colors)])
+                                    color=color)
         if success:
-            self.add_shape(draw)
+            self.add_shape(draw, color)
         else:
             print('No trace created for this ROI selection.')
         self.draw_path = []
@@ -143,14 +147,13 @@ class FrameViewer:
                 self.draw_path.append([x, y])
                 self.path_x_index[x].append(y)
 
-    def add_shape(self, points):
+    def add_shape(self, points, color):
         self.shapes.append(points)
-        col = self.colors[(len(self.shapes)-1) % len(self.colors)]
         self.ax.fill(points[:, 0],
                      points[:, 1],
-                     col,
+                     color,
                      alpha=0.5,
-                     edgecolor=col)
+                     edgecolor=color)
         self.fig.canvas.draw()
 
     def clear_shapes(self):
@@ -160,7 +163,7 @@ class FrameViewer:
     def plot_all_shapes(self):
         for i in range(len(self.shapes)):
             points = self.shapes[i]
-            col = self.colors[i]
+            col = self.tv.trace_colors[i]
             self.ax.fill(points[:, 0],
                          points[:, 1],
                          col,
