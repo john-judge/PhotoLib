@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib.path import Path
 
-from pyPhoto21.image import SignalProcessor
+from pyPhoto21.analysis.core import AnalysisCore
 
 
 class Data:
@@ -42,6 +42,9 @@ class Data:
 
         self.schedule_rli_flag = False  # TO DO: include take RLI and division
         self.auto_save_data = False
+
+        # Analysis
+        self.core = AnalysisCore()
 
         # Memory
         self.rli_images = None
@@ -135,7 +138,9 @@ class Data:
 
     # Based on system state, create/get the frame that should be displayed.
     # index can be an integer or a list of [start:end] over which to average
-    def get_display_frame(self, index=None, trial=None, get_rli=False, binning=1):
+    def get_display_frame(self, index=None, trial=None, get_rli=False, show_processed=False, binning=1):
+        if show_processed:
+            return self.core.get_processed_display_frame()
         images = self.get_acqui_images()
         if images is None:
             return None
@@ -156,8 +161,7 @@ class Data:
             ret_frame = np.average(images, axis=0)
 
         # digital binning
-        ret_frame = SignalProcessor().create_binned_data(ret_frame,
-                                                         binning_factor=binning)
+        ret_frame = self.core.create_binned_data(ret_frame, binning_factor=binning)
 
         # crop out 1px borders
         ret_frame = ret_frame[1:-2, 1:-2]

@@ -1,13 +1,10 @@
 import numpy as np
 import matplotlib.figure as figure
 from matplotlib.widgets import Slider
-import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
 
 from collections import defaultdict
 
-from pyPhoto21.hyperslicer import HyperSlicer
-
+from pyPhoto21.analysis.hyperslicer import HyperSlicer
 
 class FrameViewer:
     def __init__(self, data, tv, show_rli=True):
@@ -17,6 +14,7 @@ class FrameViewer:
         self.ind = 0
         self.binning = 1
         self.tv = tv  # TraceViewer
+        self.show_processed_data = False
 
         # Mouse event state
         self.press = False
@@ -48,6 +46,12 @@ class FrameViewer:
     def get_trial_index(self):
         return self.trial_index
 
+    def set_show_processed_data(self, v):
+        self.show_processed_data = v
+
+    def get_show_processed_data(self):
+        return self.show_processed_data
+
     def populate_figure(self):
         # top row of Field Potential traces
         num_fp = min(9, self.data.get_num_fp())
@@ -63,18 +67,19 @@ class FrameViewer:
             self.fp_axes[i].set_title("FP " + str(i))
             if num_fp > 4 and i > 0:
                 self.fp_axes[i].get_yaxis().set_visible(False)
+        self.populate_image()
 
+    def populate_image(self):
         # Rest of the plot is the image
         self.ax = self.fig.add_subplot(gs[1:-1, :]) # leaves last row blank -- for Slider
         axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
         self.smax = Slider(axmax, 'Frame Selector', 0, np.max(self.num_frames), valinit=self.ind)
 
-        self.current_frame = self.data.get_display_frame(index=self.ind,
-                                                         get_rli=self.show_rli)
-
+        self.refresh_current_frame()
         self.im = self.ax.imshow(self.current_frame,
                                  aspect='auto',
                                  cmap='jet')
+
 
     def get_slider_max(self):
         return self.smax
@@ -147,6 +152,7 @@ class FrameViewer:
                 self.draw_path.append([x, y])
                 self.path_x_index[x].append(y)
 
+    # The points are a Nx2 numpy array of x,y coordinates representing a polygon path
     def add_shape(self, points, color):
         self.shapes.append(points)
         self.ax.fill(points[:, 0],
@@ -181,11 +187,13 @@ class FrameViewer:
         self.update()
         self.plot_all_shapes()
 
-    def update(self, update_hyperslicer=True):
+    def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
                                                          get_rli=self.show_rli,
-                                                         binning=self.binning)
+                                                         show_processed=self.get_show_processed_data())
 
+    def update(self, update_hyperslicer=True):
+        self.refresh_current_frame()
         self.im.set_data(self.current_frame)
         self.im.set_clim(vmin=np.min(self.current_frame),
                          vmax=np.max(self.current_frame))

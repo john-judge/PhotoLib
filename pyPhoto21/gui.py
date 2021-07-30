@@ -13,6 +13,7 @@ from webbrowser import open as open_browser
 
 from pyPhoto21.frame import FrameViewer
 from pyPhoto21.trace import TraceViewer
+from pyPhoto21.analysis.roi import ROI
 from pyPhoto21.layouts import *
 
 from mpl_interactions import image_segmenter
@@ -32,8 +33,9 @@ class GUI:
         self.production_mode = production_mode
         self.auto_save_enabled = True
         self.schedule_rli_enabled = True
-        self.fv = None  # FrameViewer object
-        self.tv = None  # TraceViewer object
+        self.tv = TraceViewer(self.data)
+        self.fv = FrameViewer(self.data, self.tv)
+        self.roi = ROI(self.data, self.fv)
         self.layouts = Layouts(data)
         self.window = None
 
@@ -82,8 +84,6 @@ class GUI:
                                 element_justification='center',
                                 resizable=True,
                                 font='Helvetica 18')
-        self.tv = TraceViewer(self.data)
-        self.fv = FrameViewer(self.data, self.tv)
         self.plot_trace()
         self.plot_frame()
         self.main_workflow_loop()
