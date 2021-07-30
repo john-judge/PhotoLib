@@ -1,4 +1,4 @@
-name: C:\Users\jjudge3\Desktop\scratch\PhotoLib\env
+name: PhotoLib
 channels:
   - conda-forge
   - defaults
@@ -53,6 +53,7 @@ dependencies:
   - ipython_genutils=0.2.0=py_1
   - jedi=0.18.0=py38haa244fe_2
   - jinja2=3.0.1=pyhd8ed1ab_0
+  - joblib=1.0.1=pyhd8ed1ab_0
   - jpeg=9b=hb83a4c4_2
   - jsonschema=3.2.0=pyhd8ed1ab_3
   - jupyter_client=6.1.12=pyhd8ed1ab_0
@@ -121,6 +122,7 @@ dependencies:
   - qtpy=1.9.0=py_0
   - requests=2.25.1=pyhd3eb1b0_0
   - scikit-image=0.18.2=py38h60cbd38_0
+  - scikit-learn=0.24.2=py38hf11a4ad_1
   - scipy=1.6.2=py38h66253e8_1
   - setuptools=52.0.0=py38haa95532_0
   - sip=4.19.13=py38ha925a31_0
@@ -136,6 +138,7 @@ dependencies:
   - sphinxcontrib-serializinghtml=1.1.5=pyhd8ed1ab_0
   - sqlite=3.36.0=h2bbff1b_0
   - tblib=1.7.0=pyhd8ed1ab_0
+  - threadpoolctl=2.2.0=pyh8a188c0_0
   - tifffile=2020.10.1=py38h8c2d366_2
   - tk=8.6.10=he774522_0
   - toolz=0.11.1=py_0
@@ -156,6 +159,7 @@ dependencies:
   - wrapt=1.12.1=py38h294d835_3
   - xz=5.2.5=h62dcd97_0
   - yaml=0.2.5=he774522_0
+  - yellowbrick=1.3.post1=pyhd8ed1ab_1
   - zarr=2.8.3=pyhd8ed1ab_0
   - zeromq=4.3.4=h0e60522_0
   - zict=2.0.0=py_0
@@ -164,4 +168,4 @@ dependencies:
   - zstd=1.4.9=h19a0ad4_0
   - pip:
     - mpl-interactions==0.17.12
-prefix: C:\Users\jjudge3\Desktop\scratch\PhotoLib\env
+prefix: C:\Users\jjudge3\Anaconda3\envs\PhotoLib
