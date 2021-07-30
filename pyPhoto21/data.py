@@ -266,9 +266,6 @@ class Data:
     def set_fp_data(self, data):
         self.fp_data = data
 
-    def get_duration(self):
-        return self.hardware.get_duration()
-
     def set_num_pts(self, num_pts, force_resize=False):
         tmp = self.num_pts
         self.num_pts = num_pts
@@ -329,19 +326,19 @@ class Data:
             self.stimulator_onset[channel] = value
 
     def get_duration(self):
-        return self.hardware.get_duration()
+        return self.duration
 
     def get_acqui_duration(self):
-        return self.hardware.get_acqui_duration()
+        return self.acqui_duration
 
     def get_num_pts(self):
-        return self.hardware.get_num_pts()
+        return self.num_pts
 
     def get_num_rli_pts(self):
-        return self.hardware.get_num_dark_rli() + self.hardware.get_num_light_rli()
+        return self.dark_rli + self.light_rli
 
     def get_int_pts(self):
-        return self.hardware.get_int_pts()
+        return self.interval_pts
 
     def get_num_fp(self):
         if self.get_is_loaded_from_file():
@@ -349,7 +346,7 @@ class Data:
         return 4  # Little Dave: Fixed at 4 field potential measurements with NI-USB
 
     def get_num_pulses(self, ch):
-        return self.hardware.get_num_pulses(channel=ch)
+        return self.num_pulses
 
     def set_num_fp(self, value):
         self.num_fp_pts = value

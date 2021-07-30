@@ -9,6 +9,7 @@ class Hardware:
     
     def __init__(self, dll_path='./x64/Release/'):
         self.lib = None
+        self.hardware_enabled = True
         try:
             self.load_dll(dll_path=dll_path)
             self.define_c_types()
@@ -17,14 +18,19 @@ class Hardware:
             print(dll_path, "not found or otherwise unable to load. Photo21 will continue",
                   "in analysis mode without access to hardware for data acquisition.")
             print(e)
+            self.hardware_enabled = False
 
     def __del__(self):
-        try:
-            self.lib.destroyController(self.controller)
-        except AttributeError:
-            pass
+        if self.hardware_enabled:
+            try:
+                self.lib.destroyController(self.controller)
+            except AttributeError:
+                pass
 
     def record(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         imgs_orig_shape = kwargs['images'].shape
         print(imgs_orig_shape)
         fp_orig_shape = kwargs['fp_data'].shape
@@ -39,6 +45,9 @@ class Hardware:
         fp_data = fp_data.reshape(fp_orig_shape)
 
     def take_rli(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         orig_shape = kwargs['images'].shape
         imgs = kwargs['images'].reshape(-1)
         try:
@@ -50,6 +59,9 @@ class Hardware:
 
     # choose programs 0-7 (inclusive)
     def set_camera_program(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         if 'program' not in kwargs:
             return
         p = kwargs['program']
@@ -59,101 +71,188 @@ class Hardware:
         self.lib.setCameraProgram(self.controller, kwargs['program'])
 
     def get_camera_program(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getCameraProgram(self.controller)
 
     # set the number of points acquired during recording
     def set_num_pts(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setNumPts(self.controller, kwargs['value'])
 
     def get_num_pts(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getNumPts(self.controller)
 
     # set the interval between points acquired during recording
     def set_int_pts(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setIntPts(self.controller, kwargs['value'])
 
     def get_int_pts(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getIntPts(self.controller)
 
     # set the number of pulses during acquisition
     def set_num_pulses(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setNumPulses(self.controller, kwargs['channel'], kwargs['value'])
 
     def get_num_pulses(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getNumPulses(self.controller, kwargs['channel'])
 
     # set the interval between pulses during acquisition
     def set_int_pulses(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setIntPulses(self.controller, kwargs['channel'], kwargs['value'])
 
     def get_int_pulses(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getIntPulses(self.controller, kwargs['channel'])
 
     # set the number of bursts during acquisition
     def set_num_bursts(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setNumBursts(self.controller, kwargs['channel'], kwargs['value'])
 
     def get_num_bursts(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getNumBursts(self.controller, kwargs['channel'])
 
     # set the interval between bursts during acquisition
     def set_int_bursts(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setIntBursts(self.controller, kwargs['channel'], kwargs['value'])
 
     def get_int_bursts(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getIntBursts(self.controller, kwargs['channel'])
 
     def set_schedule_rli_flag(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setScheduleRliFlag(self.controller, kwargs['schedule_rli_flag'])
 
     # get total acquisition OR stimulation duration, whichever is longer
     def get_duration(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getDuration(self.controller)
 
     # set acqui onset
     def set_acqui_onset(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setAcquiOnset(self.controller, kwargs['acqui_onset'])
 
     def get_acqui_onset(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getAcquiOnset(self.controller)
 
     #  get total acquisition duration
     def get_acqui_duration(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getAcquiDuration(self.controller)
 
     # set num dark RLI frames
     def set_num_dark_rli(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setNumDarkRLI(self.controller, kwargs['dark_rli'])
 
     def get_num_dark_rli(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getNumDarkRLI(self.controller)
 
     # set num light RLI frames
     def set_num_light_rli(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         self.lib.setNumLightRLI(self.controller, kwargs['light_rli'])
 
     def get_num_light_rli(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getNumLightRLI(self.controller)
 
     def get_display_width(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getDisplayWidth(self.controller)
 
     def get_display_height(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getDisplayHeight(self.controller)
 
     def get_stim_onset(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getStimOnset(self.controller, kwargs['channel'])
 
     def get_stim_duration(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.getStimDuration(self.controller, kwargs['channel'])
 
     def set_stim_onset(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.setStimOnset(self.controller, kwargs['channel'], kwargs['value'])
 
     def set_stim_duration(self, **kwargs):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         return self.lib.setStimDuration(self.controller, kwargs['channel'], kwargs['value'])
 
     def define_c_types(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
         controller_handle = ctypes.POINTER(ctypes.c_char)
         c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16, ndim=1, flags='C_CONTIGUOUS')
         c_float_array = np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS')
