@@ -117,7 +117,7 @@ class GUI:
     def plot_frame(self):
         fig = self.fv.get_fig()
         s_max = self.fv.get_slider_max()
-        canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
+        #canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
         canvas = self.window['frame_canvas'].TKCanvas
 
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
@@ -127,9 +127,9 @@ class GUI:
         figure_canvas_agg.mpl_connect('button_release_event', self.fv.onrelease)
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onpress)
         figure_canvas_agg.mpl_connect('motion_notify_event', self.fv.onmove)
-        toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
-        toolbar.update()
-        figure_canvas_agg.draw()
+        #toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
+        #toolbar.update()
+        figure_canvas_agg.draw_idle()
         s_max.on_changed(self.fv.change_frame)
 
     # include a matplotlib figure in a Tkinter canvas
@@ -142,7 +142,7 @@ class GUI:
             for child in canvas_toolbar.winfo_children():
                 child.destroy()
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
-        figure_canvas_agg.draw()
+        figure_canvas_agg.draw_idle()
         toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
         toolbar.update()
         figure_canvas_agg.get_tk_widget().pack(fill='none', expand=False)

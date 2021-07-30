@@ -30,7 +30,7 @@ class TraceViewer:
             self.axes[-1].plot(t, trace, color=self.trace_colors[i])
             if num_traces > 4 and i != num_traces - 1:
                 self.axes[-1].get_xaxis().set_visible(False)
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
     def add_trace(self, pixel_index=None, color='b'):
         trace = self.data.get_display_trace(index=pixel_index,

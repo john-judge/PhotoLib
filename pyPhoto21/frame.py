@@ -154,7 +154,7 @@ class FrameViewer:
                      color,
                      alpha=0.5,
                      edgecolor=color)
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
     def clear_shapes(self):
         self.shapes = []
@@ -191,7 +191,7 @@ class FrameViewer:
                          vmax=np.max(self.current_frame))
 
         #self.ax.set_ylabel('slice %s' % self.ind)
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
         if self.hyperslicer is not None and update_hyperslicer:
             self.hyperslicer.update_data(show_rli=self.show_rli)
 
