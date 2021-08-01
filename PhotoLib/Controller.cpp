@@ -548,7 +548,6 @@ float Controller::getDuration() {
 
 //=============================================================================
 void Controller::setNumPulses(int ch, int p) {
-	cout << "PhotoLib: setting num_pulses of channel " << ch << " to " << p << "\n";
 	if (ch == 1) numPulses1 = p;
 	else numPulses2 = p;
 }

@@ -33,14 +33,15 @@ class ROI:
 
         self.current_display_frame = None  # this should be a numpy array of (h, w) dimensions before you activate cluster mode
 
-
-    # update fig (a matplotlib figure) with cluster
-    def cluster_by_snr(self, fig, trial=None):
+    def enable_roi_identification(self, trial=None):
 
         data = self.data.get_acqui_images(trial=trial)  # get the acquired image data
 
+        if data is None:
+            return
+
         print(data.shape, "shape of data (trial, time, height, width)")
-        print("enable_cluster_by_snr not implemented")
+        print("enable_roi_identification not implemented")
         # compute the frame to display and store it to self.current_display_frame
         # then call self.data.core.set_processed_display_frame(self.current_display_frame)
 
@@ -55,6 +56,9 @@ class ROI:
         #   The points are a Nx2 numpy array of x,y
         #   coordinates representing a polygon path
 
+    def disable_roi_identification(self):
+        pass  # do any cleanup needed here
+
     def launch_silhouette_plot(self, fig):
         print("launch_silhouette_plot not implemented")
         # TO DO: The caller of this method
@@ -68,6 +72,12 @@ class ROI:
         return None
 
     def set_cutoff(self, kind, form, value):
+        if self.cutoff[kind][form] != value:
+            pass
+            # Maybe trigger an update event immediately?
+            # Or if that's too performance-intensive, we can update only when
+            # user is done filling out the form.
+        print("Setting cutoff of", kind, form, "to:", value)
         self.cutoff[kind][form] = value
 
     def get_time_window(self, kind):

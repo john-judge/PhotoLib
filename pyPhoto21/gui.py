@@ -19,6 +19,7 @@ from pyPhoto21.layouts import *
 from mpl_interactions import image_segmenter
 from matplotlib.widgets import Slider
 
+
 # import io
 
 
@@ -35,7 +36,7 @@ class GUI:
         self.schedule_rli_enabled = True
         self.tv = TraceViewer(self.data)
         self.fv = FrameViewer(self.data, self.tv)
-        self.roi = ROI(self.data, self.fv)
+        self.roi = ROI(self.data)
         self.layouts = Layouts(data)
         self.window = None
 
@@ -89,13 +90,15 @@ class GUI:
         self.main_workflow_loop()
         self.window.close()
 
-    def main_workflow_loop(self, history_debug=False):
+    def main_workflow_loop(self, history_debug=False, window=None, exit_event="Exit"):
+        if window is None:
+            window = self.window
         events = ''
         while True:
-            event, values = self.window.read()
+            event, values = window.read()
             if history_debug and event is not None:
                 events += str(event) + '\n'
-            if event == "Exit" or event == sg.WIN_CLOSED:
+            if event == exit_event or event == sg.WIN_CLOSED:
                 break
             elif event not in self.event_mapping or self.event_mapping[event] is None:
                 print("Not Implemented:", event)
@@ -117,18 +120,18 @@ class GUI:
     def plot_frame(self):
         fig = self.fv.get_fig()
         s_max = self.fv.get_slider_max()
-        #canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
+        # canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
         canvas = self.window['frame_canvas'].TKCanvas
 
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
 
-        figure_canvas_agg.get_tk_widget().pack()#fill="none", expand=False)
+        figure_canvas_agg.get_tk_widget().pack()  # fill="none", expand=False)
         # figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll) # currently scroll not used.
         figure_canvas_agg.mpl_connect('button_release_event', self.fv.onrelease)
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onpress)
         figure_canvas_agg.mpl_connect('motion_notify_event', self.fv.onmove)
-        #toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
-        #toolbar.update()
+        # toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
+        # toolbar.update()
         figure_canvas_agg.draw_idle()
         s_max.on_changed(self.fv.change_frame)
 
@@ -157,7 +160,7 @@ class GUI:
         self.fv.update_new_image()
         self.data.set_is_loaded_from_file(False)
         if self.get_is_auto_save_enabled():
-            #self.file.save_to_compressed_file()
+            # self.file.save_to_compressed_file()
             self.file.increment_run()
 
     def take_rli(self, **kwargs):
@@ -237,9 +240,9 @@ class GUI:
     @staticmethod
     def validate_numeric_input(s, non_zero=False, max_digits=None):
         return type(s) == str \
-            and s.isnumeric() \
-            and (max_digits is None or len(s) <= max_digits) \
-            and (not non_zero or int(s) != 0)
+               and s.isnumeric() \
+               and (max_digits is None or len(s) <= max_digits) \
+               and (not non_zero or int(s) != 0)
 
     def set_digital_binning(self, **kwargs):
         binning = kwargs['values']
@@ -297,6 +300,29 @@ class GUI:
         if self.validate_numeric_input(v, max_digits=6):
             fn_to_call(value=int(v), channel=ch)
             print("called:", fn_to_call)
+
+    def launch_roi_settings(self, **kwargs):
+        w = sg.Window('ROI Identification Settings',
+                      self.layouts.create_roi_settings_form(),
+                      finalize=True,
+                      element_justification='center',
+                      resizable=True,
+                      font='Helvetica 18')
+        # roi settings event loop
+        self.main_workflow_loop(window=w, exit_event="Exit ROI")
+        w.close()
+
+    def enable_roi_identification(self, **kwargs):
+        if kwargs['values']:
+            self.roi.enable_roi_identification()
+        else:
+            self.roi.disable_roi_identification()
+        self.fv.update_new_image()
+
+    def set_cutoff(self, **kwargs):
+        self.roi.set_cutoff(kwargs['kind'],
+                            kwargs['form'],
+                            kwargs['values'])
 
     def define_event_mapping(self):
         if self.event_mapping is None:
@@ -397,7 +423,56 @@ class GUI:
                     'function': self.validate_and_pass,
                     'args': {'channel': 2, 'call': self.data.hardware.set_int_bursts},
                 },
+                "ROI Identifier Config": {
+                    'function': self.launch_roi_settings,
+                    'args': {},
+                },
+                "Identify ROI": {
+                    'function': self.enable_roi_identification,
+                    'args': {}
+                },
+                'Pixel-wise SNR cutoff Value': {
+                    'function': self.set_cutoff,
+                    'args': {'form': 'value',
+                             'kind': 'pixel'}
+                },
+                'Pixel-wise SNR cutoff Percentile': {
+                    'function': self.set_cutoff,
+                    'args': {'form': 'percentile',
+                             'kind': 'pixel'}
+                },
+                'Cluster-wise SNR cutoff Value': {
+                    'function': self.set_cutoff,
+                    'args': {'form': 'value',
+                             'kind': 'cluster'}
+                },
+                'Cluster-wise SNR cutoff Percentile': {
+                    'function': self.set_cutoff,
+                    'args': {'form': 'percentile',
+                             'kind': 'cluster'}
+                },
+                'ROI-wise SNR cutoff Value': {
+                    'function': self.set_cutoff,
+                    'args': {'form': 'value',
+                             'kind': 'roi_snr'}
+                },
+                'ROI-wise SNR cutoff Percentile': {
+                    'function': self.set_cutoff,
+                    'args': {'form': 'percentile',
+                             'kind': 'roi_snr'}
+                },
+                'ROI-wise Amplitude cutoff Value': {
+                    'function': self.set_cutoff,
+                    'args': {'form': 'value',
+                             'kind': 'roi_amplitude'}
+                },
+                'ROI-wise Amplitude cutoff Percentile': {
+                    'function': self.set_cutoff,
+                    'args': {'form': 'percentile',
+                             'kind': 'roi_amplitude'}
+                }
             }
+
 
 
 class Toolbar(NavigationToolbar2Tk):

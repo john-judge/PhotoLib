@@ -67,9 +67,7 @@ class FrameViewer:
             self.fp_axes[i].set_title("FP " + str(i))
             if num_fp > 4 and i > 0:
                 self.fp_axes[i].get_yaxis().set_visible(False)
-        self.populate_image()
 
-    def populate_image(self):
         # Rest of the plot is the image
         self.ax = self.fig.add_subplot(gs[1:-1, :]) # leaves last row blank -- for Slider
         axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])

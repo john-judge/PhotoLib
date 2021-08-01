@@ -63,21 +63,62 @@ class Layouts:
 
     def create_left_column(self):
         button_size = (10, 1)
+        long_button_size = (20, 1)
         checkbox_size = (6, 1)
         acquisition_tab_layout = [
             [sg.Text("Auto:", size=(8, 1)),
              sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
              sg.Button("Take RLI", button_color=('brown', 'gray'), size=button_size)],
-            [sg.Checkbox('RLI', default=True, enable_events=self.data.schedule_rli_flag, key="Auto RLI", size=checkbox_size),
+            [sg.Checkbox('RLI', default=True, enable_events=self.data.schedule_rli_flag, key="Auto RLI",
+                         size=checkbox_size),
              sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size),
              sg.Button("Record", button_color=('black', 'red'), size=button_size)],
-            [sg.Checkbox('Save', default=self.data.auto_save_data, enable_events=True, key="Autosave", size=checkbox_size),
+            [sg.Checkbox('Save', default=self.data.auto_save_data, enable_events=True, key="Autosave",
+                         size=checkbox_size),
              sg.Button("Save Processed", button_color=('black', 'green'), size=button_size),
              sg.Button("Save", button_color=('black', 'green'), size=button_size)]]
 
-        analysis_tab_layout = [[
-            sg.Button("Launch Hyperslicer", button_color=('gray', 'blue')),
-        ]]
+        t_window = self.data.core.get_time_window()
+        if t_window[1] == -1:
+            t_window[1] = self.data.get_num_pts()
+        int_pts = self.data.get_int_pts()
+        analysis_tab_layout = [
+            [sg.Button("Select Time Window",
+                       button_color=('black', 'orange'),
+                       size=long_button_size),
+             sg.InputText(key="Time Window Start",
+                          default_text=str(t_window[0]),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Time Window End",
+                          default_text=str(t_window[1]),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" frames")],
+            [sg.Text("", size=long_button_size),
+             sg.InputText(key="Time Window Start (ms)",
+                          default_text=str(t_window[0] * int_pts),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Time Window End (ms)",
+                          default_text=str(t_window[1] * int_pts),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" ms")],
+            [sg.Button("Launch Hyperslicer",
+                       button_color=('white', 'blue'),
+                       size=long_button_size)],
+            [sg.Button("ROI Identifier Config",
+                       button_color=('black', 'green'),
+                       size=long_button_size),
+             sg.Checkbox('Identify ROI',
+                         default=False,
+                         enable_events=True,
+                         key="Identify ROI",
+                         size=button_size)],
+        ]
 
         array_tab_layout = [
             [sg.Checkbox('Show RLI', default=True, enable_events=True, key="Show RLI", size=button_size)],
@@ -219,7 +260,7 @@ class Layouts:
                                     default_text=str(self.data.get_num_trials()),
                                     enable_events=True,
                                     size=cell_size),
-                        sg.Text("", size=cell_size)],
+                       sg.Text("", size=cell_size)],
                       [sg.Text("Interval between Trials:", size=double_cell_size),
                        sg.InputText(key="int_records",
                                     default_text=str(self.data.get_num_trials()),
@@ -233,3 +274,49 @@ class Layouts:
             sg.Tab('DAQ Config', daq_layout)
         ]])]
         return [tab_group_right]
+
+    def create_roi_settings_form(self):
+        cell_size = (10, 1)
+        double_cell_size = (20, 1)
+        return [
+            [sg.Text("", size=double_cell_size),
+             sg.Text("Value", size=cell_size),
+             sg.Text("Percentile", size=cell_size), ],
+            [sg.Text("Pixel-wise SNR cutoff", size=double_cell_size),
+             sg.InputText(key="Pixel-wise SNR cutoff Value",
+                          default_text=str(self.data.get_num_trials()),
+                          enable_events=True,
+                          size=cell_size),
+             sg.InputText(key="Pixel-wise SNR cutoff Percentile",
+                          default_text=str(self.data.get_num_trials()),
+                          enable_events=True,
+                          size=cell_size)],
+            [sg.Text("Cluster-wise SNR cutoff", size=double_cell_size),
+             sg.InputText(key="Cluster-wise SNR cutoff Value",
+                          default_text=str(self.data.get_num_trials()),
+                          enable_events=True,
+                          size=cell_size),
+             sg.InputText(key="Cluster-wise SNR cutoff Percentile",
+                          default_text=str(self.data.get_num_trials()),
+                          enable_events=True,
+                          size=cell_size)],
+            [sg.Text("ROI-wise SNR cutoff", size=double_cell_size),
+             sg.InputText(key="ROI-wise SNR cutoff Value",
+                          default_text=str(self.data.get_num_trials()),
+                          enable_events=True,
+                          size=cell_size),
+             sg.InputText(key="ROI-wise SNR cutoff Percentile",
+                          default_text=str(self.data.get_num_trials()),
+                          enable_events=True,
+                          size=cell_size)],
+            [sg.Text("ROI-wise Amplitude cutoff", size=double_cell_size),
+             sg.InputText(key="ROI-wise Amplitude cutoff Value",
+                          default_text=str(self.data.get_num_trials()),
+                          enable_events=True,
+                          size=cell_size),
+             sg.InputText(key="ROI-wise Amplitude cutoff Percentile",
+                          default_text=str(self.data.get_num_trials()),
+                          enable_events=True,
+                          size=cell_size)],
+            [sg.Button("OK", key='Exit ROI')]
+        ]

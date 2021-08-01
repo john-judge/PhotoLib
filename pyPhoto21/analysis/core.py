@@ -20,7 +20,17 @@ class AnalysisCore:
         self.clustered = None
         self.cluster_indices_by_snr = None
 
+        self.time_window = [0, -1]
         self.current_processed_frame = None
+
+    def get_time_window(self):
+        return self.time_window
+
+    def set_time_window_start(self, v):
+        self.time_window[0] = v
+
+    def set_time_window_end(self, v):
+        self.time_window[1] = v
 
     def get_processed_display_frame(self):
         return self.current_processed_frame
@@ -29,9 +39,6 @@ class AnalysisCore:
         if type(image) != np.ndarray or len(image.shape) != 2:
             print("Not a valid processed display frame (core.py)!")
         self.current_processed_frame = image
-
-    def get_roi_image(self):
-        return self.roi.get_current_image()
 
     def get_snr(self, plot=False):
         """ Given a single trial, compute the SNR image for this trial """
