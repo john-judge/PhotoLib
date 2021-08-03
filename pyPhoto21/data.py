@@ -94,8 +94,8 @@ class Data:
                                     h,
                                     w,),
                                    dtype=np.uint16)
-        self.acqui_images = np.zeros((2,
-                                      self.get_num_trials(),
+        self.acqui_images = np.zeros((self.get_num_trials(),
+                                      2,  # extra mem for C++ reassembly
                                       self.get_num_pts(),
                                       h,
                                       w),
@@ -141,16 +141,13 @@ class Data:
     def get_display_frame(self, index=None, trial=None, get_rli=False, show_processed=False, binning=1):
         if show_processed:
             return self.core.get_processed_display_frame()
-        images = self.get_acqui_images()
-        if images is None:
-            return None
         if get_rli:
             images = self.get_rli_images()
         else:
-            if trial is None:
-                images = np.average(images, axis=0)
-            else:
-                images = images[trial, :, :]
+            images = self.get_acqui_images(trial=trial)
+        if images is None:
+            return None
+        print("get display frame image shape:", images.shape)
 
         ret_frame = None
         if type(index) == int and (index < images.shape[0]) and index >= 0:
@@ -202,12 +199,16 @@ class Data:
         return ret_trace
 
     # Returns the full (x2) memory for hardware to use
-    def get_acqui_memory(self):
-        return self.acqui_images
+    def get_acqui_memory(self, trial=None):
+        if trial is None:
+            return self.acqui_images
+        return self.acqui_images[trial, :, :, :, :]
 
     # Returns the full (x2) memory for hardware to use
-    def get_rli_memory(self):
-        return self.rli_images
+    def get_rli_memory(self, trial=None):
+        if trial is None:
+            return self.rli_images
+        return self.rli_images[trial, :, :, :, :]
 
     def get_fp_data(self, trial=None):
         if self.fp_data is None:
@@ -227,9 +228,9 @@ class Data:
                 return self.acqui_images[trial, :, :, :]
 
         if trial is None:
-            return self.acqui_images[0, :, :, :, :]
+            return self.acqui_images[:, 0, :, :, :]
         else:
-            return self.acqui_images[0, trial, :, :, :]
+            return self.acqui_images[trial, 0, :, :, :]
 
     def get_rli_images(self):
         if self.get_is_loaded_from_file():
@@ -252,12 +253,12 @@ class Data:
             self.acqui_images = data
             return
         if trial is None:
-            self.acqui_images[0, :, :, :, :] = data[:, :, :, :]
+            self.acqui_images[:, 0, :, :, :] = data[:, :, :, :]
         else:
             if len(data.shape) > 3:
-                self.acqui_images[0, trial, :, :, :] = data[trial, :, :, :]
+                self.acqui_images[trial, 0, :, :, :] = data[trial, :, :, :]
             else:
-                self.acqui_images[0, trial, :, :, :] = data[:, :, :]
+                self.acqui_images[trial, 0, :, :, :] = data[:, :, :]
 
     # trial is ignored if data is from file
     def set_rli_images(self, data, from_file=False):
@@ -276,8 +277,8 @@ class Data:
         if force_resize or tmp != num_pts:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.acqui_images, (2,
-                                          self.get_num_trials(),
+            np.resize(self.acqui_images, (self.get_num_trials(),
+                                          2, # extra mem for C++ reassembly
                                           self.get_num_pts(),
                                           w,
                                           h))
@@ -293,8 +294,8 @@ class Data:
         if force_resize or tmp != dark_rli:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (2,
-                                        self.light_rli + self.dark_rli,
+            np.resize(self.rli_images, (self.light_rli + self.dark_rli,
+                                        2,  # extra mem for C++ reassembly
                                         w,
                                         h))
             self.hardware.set_num_dark_rli(dark_rli=dark_rli)
@@ -305,8 +306,8 @@ class Data:
         if force_resize or tmp != light_rli:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (2,
-                                        self.light_rli + self.dark_rli,
+            np.resize(self.rli_images, (self.light_rli + self.dark_rli,
+                                        2,  # extra mem for C++ reassembly
                                         w,
                                         h))
             self.hardware.set_num_light_rli(light_rli=light_rli)
@@ -387,7 +388,4 @@ class Data:
 
     def get_acqui_onset(self):
         return self.acqui_onset
-
-    def get_acqui_duration(self):
-        return self.acqui_duration
 

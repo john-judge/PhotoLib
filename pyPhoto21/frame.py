@@ -187,6 +187,7 @@ class FrameViewer:
 
     def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
+                                                         trial=self.trial_index,
                                                          get_rli=self.show_rli,
                                                          show_processed=self.get_show_processed_data())
 

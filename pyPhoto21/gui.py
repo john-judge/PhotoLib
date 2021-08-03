@@ -156,7 +156,10 @@ class GUI:
         if self.data.get_is_loaded_from_file():
             self.data.resize_image_memory()
         # TO DO: loop over trials similar to MainController::acqui
-        self.hardware.record(images=self.data.get_acqui_memory(), fp_data=self.data.get_fp_data())
+        trial = 0
+        if 'trial' in kwargs:
+            trial = kwargs['trial']
+        self.hardware.record(images=self.data.get_acqui_memory(trial=trial), fp_data=self.data.get_fp_data())
         self.fv.update_new_image()
         self.data.set_is_loaded_from_file(False)
         if self.get_is_auto_save_enabled():

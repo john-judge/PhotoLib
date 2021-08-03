@@ -41,6 +41,12 @@ Controller::Controller()
 	sti1 = new Channel(300, 1);
 	sti2 = new Channel(300, 1);
 
+	// NI tasks
+	taskHandle_led = NULL;
+	taskHandle_clk = NULL;
+	taskHandle_in = NULL;
+	taskHandle_out = NULL;
+
 	// Acquisition
 	acquiOnset = float(50);
 
@@ -122,7 +128,6 @@ int Controller::takeRli(unsigned short* memory) {
 	cam.setCamProgram(getCameraProgram());
 	cam.init_cam();
 
-	int array_diodes = cam.width() * cam.height() / 2;
 	int rliPts = darkPts + lightPts;
 
 	unsigned char* image;
@@ -154,7 +159,7 @@ int Controller::takeRli(unsigned short* memory) {
 		}
 	}
 
-	// parallel section pauses, threads sync and close	
+	// parallel section closes momentarily, threads sync and close, then split up again.
 	NI_openShutter(1);
 	Sleep(100);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
@@ -183,6 +188,8 @@ int Controller::takeRli(unsigned short* memory) {
 	}
 	Sleep(100);
 	NI_openShutter(0); // light off	
+	NI_stopTasks();
+	NI_clearTasks();
 
 	//=============================================================================	
 	// Image reassembly	
@@ -231,28 +238,31 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 				// config clock channel M series don't have internal clock for output.
 	// clk frequency calculation: see SM's BNC_ratio, BNC_R_list, output_rate, and frame_interval
 	//			output_rate = BNC_ratio*1000.0 / frame_interval;
-	DAQmxErrChk(DAQmxCreateTask("Clock", &taskHandle_clk));
-	DAQmxErrChk(DAQmxCreateCOPulseChanTime(taskHandle_clk, "Dev1/ctr0", "", 
-						DAQmx_Val_Seconds, DAQmx_Val_Low, 0.00, 0.50 / getIntPts(), 0.50 / getIntPts()));
-	DAQmxErrChk(DAQmxCfgImplicitTiming(taskHandle_clk, DAQmx_Val_ContSamps, get_digital_output_size()));
-
+	if (!taskHandle_clk) {
+		DAQmxErrChk(DAQmxCreateTask("Clock", &taskHandle_clk));
+		DAQmxErrChk(DAQmxCreateCOPulseChanTime(taskHandle_clk, "Dev1/ctr0", "",
+			DAQmx_Val_Seconds, DAQmx_Val_Low, 0.00, 0.50 / getIntPts(), 0.50 / getIntPts()));
+		DAQmxErrChk(DAQmxCfgImplicitTiming(taskHandle_clk, DAQmx_Val_ContSamps, get_digital_output_size()));
+	}
 	// Clock for synchronizing tasks
-	DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
-	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0:2", "", DAQmx_Val_ChanForAllLines));
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI12", getIntPts(),
-						DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));		//P
-	
+	if (!taskHandle_out) {
+		DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
+		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
+		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI12", getIntPts(),
+			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));		//P
+	}
 	// External trigger:
-	DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_clk, "/Dev1/PFI1", DAQmx_Val_Rising));
+	//DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_clk, "/Dev1/PFI1", DAQmx_Val_Rising));
 
 	//-------------------------------------------
 	// Configure NI inputs and trigger
-	DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
-	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", 1005.0 / getIntPts(), 
-				DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
-	DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
-
+	if (!taskHandle_in) {
+		DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
+		DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
+		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(),
+			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
+		DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
+	}
 	//-------------------------------------------
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
@@ -267,7 +277,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//-------------------------------------------
 	// Camera Acquisition loops
-	//NI_openShutter(1);
+	NI_openShutter(1);
 	Sleep(100);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
@@ -278,7 +288,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 		// Start all images
 		cam.start_images(ipdv, loops);
 
-		unsigned short* privateMem = memory + (ipdv * quadrantSize *  getNumPts()); // pointer to this thread's section of MEMORY	
+		unsigned short* privateMem = memory + (ipdv * quadrantSize * getNumPts()); // pointer to this thread's section of MEMORY	
 		for (int i = 0; i < loops; i++)
 		{
 			// acquire data for this image from the IPDVth channel	
@@ -288,7 +298,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 			memcpy(privateMem, image, quadrantSize * sizeof(short) * superframe_factor);
 			privateMem += quadrantSize * superframe_factor; // stride to the next destination for this channel's memory	
 
-			
+
 			if (ipdv == 0) {
 				long read;
 				int samplesSoFar = superframe_factor * (i + 1);
@@ -301,13 +311,14 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 						DAQmx_Val_GroupByScanNumber, NI_ptr, (samplesSoFar - total_read) * NUM_BNC_CHANNELS, &read, NULL);
 				}
 				NI_ptr += read * NUM_BNC_CHANNELS;
-				
+
 				total_read += read;
 			}
 		}
-		Sleep(100);
-		//NI_openShutter(0);
+		cam.end_images(ipdv);
 	}
+	Sleep(100);
+	NI_openShutter(0);
 
 	cout << "Total read: " << total_read << "\n";
 
@@ -321,6 +332,19 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	//=============================================================================	
 	// Image reassembly	
 	cam.reassembleImages(memory, numPts);
+
+
+	// Debug: print reassembled images out
+	
+	unsigned short* img = (unsigned short*)(memory);
+	img += 355 * quadrantSize * NUM_PDV_CHANNELS / 2; // stride to the full image (now 1/2 size due to CDS subtract)
+
+
+	std::string filename = "full-out355.txt";
+	cam.printFinishedImage(img, filename.c_str(), true);
+	cout << "\t This full image was located in MEMORY at offset " <<
+		(img - (unsigned short*)memory) / quadrantSize << " quadrant-sizes\n";
+	
 
 	//=============================================================================	
 	// FP reassembly
@@ -369,12 +393,9 @@ Error:
 //=============================================================================
 int Controller::NI_openShutter(uInt8 on)
 {
-	int32       error = 0;
-	TaskHandle  taskHandle = 0;
 	uInt8       data[4] = { 0,on,0,0 };
-	char        errBuff[2048] = { '\0' };
 
-	if (on == 1) {
+	if (!taskHandle_led) {
 		DAQmxErrChk(DAQmxCreateTask("LED", &taskHandle_led));
 		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_led, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));
 		DAQmxErrChk(DAQmxStartTask(taskHandle_led));
@@ -385,6 +406,7 @@ int Controller::NI_openShutter(uInt8 on)
 	if (on == 0) {
 		DAQmxStopTask(taskHandle_led);
 		DAQmxClearTask(taskHandle_led);
+		taskHandle_led = NULL;
 	}
 	return 0;
 }
@@ -392,10 +414,10 @@ int Controller::NI_openShutter(uInt8 on)
 //=============================================================================
 void Controller::NI_stopTasks()
 {
-	DAQmxErrChk(DAQmxStopTask(taskHandle_in));
-	DAQmxErrChk(DAQmxStopTask(taskHandle_out));
-	DAQmxErrChk(DAQmxStopTask(taskHandle_clk));
-	DAQmxErrChk(DAQmxStopTask(taskHandle_led));
+	if(taskHandle_in) DAQmxErrChk(DAQmxStopTask(taskHandle_in));
+	if(taskHandle_out) DAQmxErrChk(DAQmxStopTask(taskHandle_out));
+	if(taskHandle_clk) DAQmxErrChk(DAQmxStopTask(taskHandle_clk));
+	if(taskHandle_led) DAQmxErrChk(DAQmxStopTask(taskHandle_led));
 }
 
 
@@ -411,10 +433,14 @@ int Controller::stop()
 //=============================================================================
 void Controller::NI_clearTasks()
 {
-	DAQmxClearTask(taskHandle_in);
-	DAQmxClearTask(taskHandle_out);
-	DAQmxClearTask(taskHandle_clk);
-	DAQmxClearTask(taskHandle_led);
+	if (taskHandle_in) DAQmxClearTask(taskHandle_in);
+	if (taskHandle_out) DAQmxClearTask(taskHandle_out);
+	if (taskHandle_clk) DAQmxClearTask(taskHandle_clk);
+	if (taskHandle_led) DAQmxClearTask(taskHandle_led);
+	taskHandle_led = NULL;
+	taskHandle_clk = NULL;
+	taskHandle_in = NULL;
+	taskHandle_out = NULL;
 }
 
 size_t Controller::get_digital_output_size() {
