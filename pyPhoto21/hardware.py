@@ -43,7 +43,6 @@ class Hardware:
             print(e)
         imgs = imgs.reshape(imgs_orig_shape)
         fp_data = fp_data.reshape(fp_orig_shape)
-        print("hardware.py acqui shape:", imgs_orig_shape)
 
     def take_rli(self, **kwargs):
         if not self.hardware_enabled:
@@ -57,7 +56,6 @@ class Hardware:
             print("Could not take RLI. Are the camera and NI-USB connected?")
             print(e)
         imgs = imgs.reshape(orig_shape)
-        print("hardware.py RLI shape:", orig_shape)
 
     # choose programs 0-7 (inclusive)
     def set_camera_program(self, **kwargs):

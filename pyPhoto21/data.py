@@ -52,6 +52,9 @@ class Data:
         self.fp_data = None
         self.is_loaded_from_file = False
 
+        self.auto_save_enabled = False
+        self.schedule_rli_enabled = False
+
         # synchronize defaults into hardware
         self.set_camera_program(self.program,
                                 force_resize=True)
@@ -147,7 +150,9 @@ class Data:
             images = self.get_acqui_images(trial=trial)
         if images is None:
             return None
-        print("get display frame image shape:", images.shape)
+        if len(images.shape) > 3:
+            print("Issue in data.py: get display frame image shape:", images.shape)
+            return None
 
         ret_frame = None
         if type(index) == int and (index < images.shape[0]) and index >= 0:
@@ -388,4 +393,16 @@ class Data:
 
     def get_acqui_onset(self):
         return self.acqui_onset
+
+    def get_is_auto_save_enabled(self):
+        return self.auto_save_enabled
+
+    def set_is_auto_save_enabled(self, value):
+        self.auto_save_enabled = value
+
+    def get_is_schedule_rli_enabled(self):
+        return self.schedule_rli_enabled
+
+    def set_is_schedule_rli_enabled(self, value):
+        self.schedule_rli_enabled = value
 

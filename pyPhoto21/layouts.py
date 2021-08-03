@@ -61,7 +61,7 @@ class Layouts:
                           )],
             [sg.Button("Open", key='file_window.open')]]
 
-    def create_left_column(self):
+    def create_left_column(self, gui):
         button_size = (10, 1)
         long_button_size = (20, 1)
         checkbox_size = (6, 1)
@@ -69,11 +69,11 @@ class Layouts:
             [sg.Text("Auto:", size=(8, 1)),
              sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
              sg.Button("Take RLI", button_color=('brown', 'gray'), size=button_size)],
-            [sg.Checkbox('RLI', default=True, enable_events=self.data.schedule_rli_flag, key="Auto RLI",
+            [sg.Checkbox('RLI', default=self.data.get_is_schedule_rli_enabled(), enable_events=True, key="Auto RLI",
                          size=checkbox_size),
              sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size),
              sg.Button("Record", button_color=('black', 'red'), size=button_size)],
-            [sg.Checkbox('Save', default=self.data.auto_save_data, enable_events=True, key="Autosave",
+            [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
                          size=checkbox_size),
              sg.Button("Save Processed", button_color=('black', 'green'), size=button_size),
              sg.Button("Save", button_color=('black', 'green'), size=button_size)]]
@@ -121,7 +121,11 @@ class Layouts:
         ]
 
         array_tab_layout = [
-            [sg.Checkbox('Show RLI', default=True, enable_events=True, key="Show RLI", size=button_size)],
+            [sg.Checkbox('Show RLI',
+                         default=gui.fv.get_show_rli_flag(),
+                         enable_events=True,
+                         key="Show RLI",
+                         size=button_size)],
             [sg.Button("Load Image", button_color=('gray', 'black'))],
             [sg.Text("Digital Binning:"), sg.InputText('1', key="Digital Binning", size=(5, 1), enable_events=True)]
         ]

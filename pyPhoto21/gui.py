@@ -32,8 +32,6 @@ class GUI:
         self.hardware = hardware
         self.file = file
         self.production_mode = production_mode
-        self.auto_save_enabled = True
-        self.schedule_rli_enabled = True
         self.tv = TraceViewer(self.data)
         self.fv = FrameViewer(self.data, self.tv)
         self.roi = ROI(self.data)
@@ -71,7 +69,7 @@ class GUI:
 
     def main_workflow(self):
         right_col = self.layouts.create_right_column()
-        left_col = self.layouts.create_left_column()
+        left_col = self.layouts.create_left_column(self)
         toolbar_menu = self.layouts.create_menu()
 
         layout = [[toolbar_menu],
@@ -259,16 +257,16 @@ class GUI:
         self.fv.set_digital_binning(binning)
 
     def get_is_auto_save_enabled(self):
-        return self.auto_save_enabled
+        return self.data.get_is_auto_save_enabled()
 
     def set_is_auto_save_enabled(self, value):
-        self.auto_save_enabled = value
+        self.data.set_is_auto_save_enabled(value)
 
     def get_is_schedule_rli_enabled(self):
-        return self.schedule_rli_enabled
+        return self.data.get_is_schedule_rli_enabled()
 
     def set_is_schedule_rli_enabled(self, value):
-        self.schedule_rli_enabled = value
+        self.data.set_is_schedule_rli_enabled(value)
 
     def set_light_on_onset(self, **kwargs):
         v = kwargs['values']
@@ -327,6 +325,12 @@ class GUI:
                             kwargs['form'],
                             kwargs['values'])
 
+    def toggle_auto_save(self, **kwargs):
+        self.set_is_auto_save_enabled(kwargs['values'])
+
+    def toggle_auto_rli(self, **kwargs):
+        self.set_is_schedule_rli_enabled(kwargs['values'])
+
     def define_event_mapping(self):
         if self.event_mapping is None:
             self.event_mapping = {
@@ -340,6 +344,14 @@ class GUI:
                 },
                 'Save': {
                     'function': self.file.save_to_compressed_file,
+                    'args': {}
+                },
+                'Auto Save': {
+                    'function': self.toggle_auto_save,
+                    'args': {}
+                },
+                'Auto RLI': {
+                    'function': self.toggle_auto_rli,
                     'args': {}
                 },
                 'Launch Hyperslicer': {

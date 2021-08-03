@@ -218,8 +218,8 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//-------------------------------------------
 	// Initialize NI tasks
-	float64* tmp_fp_memory = new(std::nothrow) float64[numPts * NUM_BNC_CHANNELS];
-	memset(tmp_fp_memory, 0, numPts * NUM_BNC_CHANNELS * sizeof(float64));
+	int16* tmp_fp_memory = new(std::nothrow) int16[numPts * NUM_BNC_CHANNELS];
+	memset(tmp_fp_memory, 0, numPts * NUM_BNC_CHANNELS * sizeof(int16));
 	float64 samplingRate = 1000.0 / getIntPts(); 
 	setDuration();
 	fillPDOut(1);
@@ -233,6 +233,38 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	int superframe_factor = cam.get_superframe_factor();
 
+	int32 defaultSuccess = -1;
+	int32* successfulSamples = &defaultSuccess;
+	int32 defaultReadSuccess = -1;
+	int32* successfulSamplesIn = &defaultReadSuccess;
+
+	//-------------------------------------------
+	// Configure NI tasks and channels
+	/*
+	// Digital Output
+	DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
+	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
+	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", samplingRate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, 348));
+
+	// Analog Input
+	DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
+	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
+	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync
+		DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
+
+
+	cout << "starting tasks...\n";
+
+	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
+	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, duration + 10, false, 0, DAQmx_Val_GroupByChannel, outputs, successfulSamples, NULL));
+	int start_offset = (int)((double)(CAM_INPUT_OFFSET + acquiOnset) / intPts);
+	//int32 DAQmxReadBinaryI16 (TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved);	
+	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, numPts, 0, DAQmx_Val_GroupByScanNumber, tmp_fp_memory, 4 * numPts, successfulSamplesIn, NULL));
+	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
+
+	cout << "started tasks...\n";
+	*/
+	
 	//-------------------------------------------
 	// Configure NI outputs and trigger
 				// config clock channel M series don't have internal clock for output.
@@ -248,7 +280,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	if (!taskHandle_out) {
 		DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
 		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
-		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI12", getIntPts(),
+		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", getIntPts(),
 			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));		//P
 	}
 	// External trigger:
@@ -259,26 +291,35 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	if (!taskHandle_in) {
 		DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
 		DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
-		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(),
-			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
+		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync
+			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size() - getAcquiOnset()));
+		//DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_in, "/Dev1/PFI2", DAQmx_Val_Rising));
 		DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
 	}
 	//-------------------------------------------
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
-	float64 *NI_ptr = tmp_fp_memory;
-	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, get_digital_output_size(), 0, 10.0, 
+	
+	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle_out, get_digital_output_size(), false, 0, 
 					DAQmx_Val_GroupByChannel, outputs, &total_written, NULL));
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
+
 	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
 	DAQmxErrChk(DAQmxStartTask(taskHandle_clk));
 	cout << "Total written: " << total_written << "\n\t Size of output: " << get_digital_output_size() << "\n";
 
+	/*
+	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, numPts, 10, // timeout: 10 seconds to wait for samples?
+		DAQmx_Val_GroupByScanNumber, tmp_fp_memory, 4 * numPts, successfulSamplesIn, NULL));
+	*/
+
+	
 	//-------------------------------------------
 	// Camera Acquisition loops
 	NI_openShutter(1);
 	Sleep(100);
+	int16* NI_ptr = tmp_fp_memory;
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
@@ -298,17 +339,16 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 			memcpy(privateMem, image, quadrantSize * sizeof(short) * superframe_factor);
 			privateMem += quadrantSize * superframe_factor; // stride to the next destination for this channel's memory	
 
-
 			if (ipdv == 0) {
 				long read;
 				int samplesSoFar = superframe_factor * (i + 1);
 				if (i == loops - 1) {
-					DAQmxReadAnalogF64(taskHandle_in, superframe_factor * (i + 1) - total_read, 5.0,
-						DAQmx_Val_GroupByScanNumber, NI_ptr, (samplesSoFar - total_read + 1) * NUM_BNC_CHANNELS, &read, NULL);
+					DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, superframe_factor * (i + 1) - total_read, 5.0,
+						DAQmx_Val_GroupByScanNumber, NI_ptr, (samplesSoFar - total_read + 1) * NUM_BNC_CHANNELS, &read, NULL));
 				}
 				else {
-					DAQmxReadAnalogF64(taskHandle_in, superframe_factor * (i + 1) - total_read, 0.0,
-						DAQmx_Val_GroupByScanNumber, NI_ptr, (samplesSoFar - total_read) * NUM_BNC_CHANNELS, &read, NULL);
+					DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, superframe_factor * (i + 1) - total_read, 0.01,
+						DAQmx_Val_GroupByScanNumber, NI_ptr, (samplesSoFar - total_read) * NUM_BNC_CHANNELS, &read, NULL));
 				}
 				NI_ptr += read * NUM_BNC_CHANNELS;
 
@@ -319,7 +359,6 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	}
 	Sleep(100);
 	NI_openShutter(0);
-
 	cout << "Total read: " << total_read << "\n";
 
 	//=============================================================================	
@@ -333,24 +372,11 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	// Image reassembly	
 	cam.reassembleImages(memory, numPts);
 
-
-	// Debug: print reassembled images out
-	
-	unsigned short* img = (unsigned short*)(memory);
-	img += 355 * quadrantSize * NUM_PDV_CHANNELS / 2; // stride to the full image (now 1/2 size due to CDS subtract)
-
-
-	std::string filename = "full-out355.txt";
-	cam.printFinishedImage(img, filename.c_str(), true);
-	cout << "\t This full image was located in MEMORY at offset " <<
-		(img - (unsigned short*)memory) / quadrantSize << " quadrant-sizes\n";
-	
-
 	//=============================================================================	
 	// FP reassembly
 	float64* dst_fp = fp_memory;
 	for (int i_bnc = 0; i_bnc < NUM_BNC_CHANNELS; i_bnc++) {
-		float64* src_fp = tmp_fp_memory + i_bnc;
+		int16* src_fp = tmp_fp_memory + i_bnc;
 		for (int m = 0; m < total_read; m++) {
 			*dst_fp++ = *src_fp;
 			src_fp += NUM_BNC_CHANNELS;
@@ -453,21 +479,22 @@ void Controller::fillPDOut(char realFlag)
 {
 	int i, j, k;
 	float start, end;
-	outputs = new uInt32[get_digital_output_size()];
-	const uInt32 shutter_mask = (1);		// digital out 0 based on virtual channel
-	const uInt32 sti1_mask = (1 << 1);			// digital out 2
-	const uInt32 sti2_mask = (1 << 2);			// digital out 3
+	outputs = new uInt8[get_digital_output_size()];
+	//const uInt32 shutter_mask = (1);		// digital out 0 based on virtual channel
+	const uInt32 sti1_mask = 1; // (1 << 2);			// digital out 2
+	const uInt32 sti2_mask = 0; // (1 << 3);			// digital out 3 - currently disabled
 	//--------------------------------------------------------------
 	// Reset the array
-	memset(outputs, 0, sizeof(uInt32) * get_digital_output_size());
+	memset(outputs, 0, sizeof(uInt8) * get_digital_output_size());
 	//--------------------------------------------------------------
 	// Shutter
+	/*
 	if (realFlag) {
 		start = shutter->getOnset();
 		end = (start + shutter->getDuration());
 		for (i = (int)start; i < end; i++)
 			outputs[i] |= shutter_mask;
-	}
+	}*/
 	//--------------------------------------------------------------
 	// Stimulator #1
 	cout << "\n\tNum bursts 1: " << numBursts1 << "\n\tNum Pulses 1: " << numPulses1 << "\n";

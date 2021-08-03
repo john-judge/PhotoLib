@@ -77,7 +77,7 @@ public:
 	char getScheduleRliFlag();
 
 	// Buffers for digital output
-	uInt32 *outputs;
+	uInt8 *outputs;
 
 	// RLI
 	int takeRli(unsigned short*);

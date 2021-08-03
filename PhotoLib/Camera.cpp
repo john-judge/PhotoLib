@@ -122,8 +122,7 @@ Camera::~Camera() {
 int Camera::open_channel(int ipdv) {
 	if (pdv_pt[ipdv])
 		pdv_close(pdv_pt[ipdv]);
-	//		if ((pdv_pt[ipdv] = pdv_open_channel(edt_devname, unit, channel)) == NULL)
-	//			return 1;
+
 	int unit = ipdv & 1; // last bit
 	int channel = (ipdv >> 1) & 1; // second-to-last bit
 	if ((pdv_pt[ipdv] = pdv_open_channel(EDT_INTERFACE, unit, channel)) == NULL)
@@ -136,7 +135,6 @@ int Camera::open_channel(int ipdv) {
 	// allocate ring buffers, 4 (per channel) is EDT's recommendation
 	pdv_multibuf(pdv_pt[ipdv], 4);
 
-	cout << " Camera open_channel size " << pdv_get_allocated_size(pdv_pt[ipdv]) << "\n";
 	return 0;
 }
 
@@ -338,15 +336,8 @@ void Camera::program(int p) {
 	m_program = p;
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		if (pdv_pt[ipdv]) {
-			//if (pdv_pt[ipdv]) {
-				//sprintf_s(buf, "@RCL %d\r", m_program);		// sending RCL first did not work!
-				//serial_write(buf);
-				//if (get_superframe_factor() > 1) {
 			if (pdv_setsize(pdv_pt[ipdv], width(), height() * get_superframe_factor()) < 0)
 				cout << "Enabling superframing via pdv_setsize failed! Camera::program()\n";
-			else
-				cout << "pdv_setsize called with \n\twidth: " << width() << "\n\theight: " << height() * get_superframe_factor() << "\n";
-			//} 
 		}
 	}
 }
@@ -496,8 +487,6 @@ void Camera::reassembleImages(unsigned short* images, int nImages) {
 		remapQuadrantsOneImage(tmpBuf, img, height(), width() / 2);
 		img += oneProcessedImageSize;
 		tmpBuf += oneProcessedImageSize;
-
-		if (i % 100 == 0) cout << "Image " << i << " of " << nImages << " done.\n";
 	}
 }
 
