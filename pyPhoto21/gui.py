@@ -277,7 +277,9 @@ class GUI:
     def set_digital_binning(self, **kwargs):
         binning = kwargs['values']
         while len(binning) > 0 and \
-                (not self.validate_numeric_input(binning) or len(binning) > 3):
+                (not self.validate_numeric_input(binning, max_val=min(self.data.get_display_width(),
+                                                                      self.data.get_display_height()) // 4) \
+                 or len(binning) > 3):
             binning = binning[:-1]
         if not self.validate_numeric_input(binning, non_zero=True):
             self.window['Digital Binning'].update('')

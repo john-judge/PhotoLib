@@ -95,7 +95,7 @@ public:
 	float getStimDuration(int ch);
 
 	// NI Digital Output: create stimulation patterns
-	void fillPDOut(char realFlag);
+	void NI_fillOutputs();
 
 	// Acquisition Control
 	int acqui(unsigned short*, float64*);
