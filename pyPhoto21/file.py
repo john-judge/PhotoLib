@@ -39,6 +39,23 @@ class File:
                self.pad_zero(self.current_location) + '-' + \
                self.pad_zero(self.current_run) + extension
 
+    def dump_python_object_to_pickle(self, filename, obj, extension='.pbz2'):
+        if len(extension) > 0 and extension[0] != '.':
+            extension = '.' + extension
+        if filename is None:
+            filename = self.get_filename(extension=extension)
+        with bz2.BZ2File(filename, 'w') as f:
+            cPickle.dump(obj, f)
+
+    @staticmethod
+    def retrieve_python_object_from_pickle(filename):
+        try:
+            data = bz2.BZ2File(filename, 'rb')
+            return cPickle.load(data)
+        except Exception as e:
+            print("could not load file:", filename)
+            print(e)
+
     def save_to_compressed_file(self):
         acqui_images = self.data.get_acqui_images()
         rli_images = self.data.get_rli_images()
@@ -64,13 +81,11 @@ class File:
             'fp': fp_data,
             'meta': metadata
         }
-        with bz2.BZ2File(fn, 'w') as f:
-            cPickle.dump(d, f)
+        self.dump_python_object_to_pickle(fn, d)
         print("File saved.")
 
     def load_from_compressed_file(self, filename):
-        data = bz2.BZ2File(filename, 'rb')
-        data = cPickle.load(data)
+        data = self.retrieve_python_object_from_pickle(filename)
         meta = data['meta']
 
         # Recording load
@@ -98,7 +113,7 @@ class File:
         file_ext = filename.split('.')[-1]
         if file_ext == 'zda':
             self.load_from_legacy_file(filename)
-        elif file_ext == 'pbz2':
+        elif file_ext == 'pbz2' or file_ext == 'roi':
             self.load_from_compressed_file(filename)
 
     def load_from_legacy_file(self, filename):

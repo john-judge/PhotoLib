@@ -15,6 +15,7 @@ from pyPhoto21.frame import FrameViewer
 from pyPhoto21.trace import TraceViewer
 from pyPhoto21.analysis.roi import ROI
 from pyPhoto21.layouts import *
+from pyPhoto21.event_mapping import EventMapping
 
 from mpl_interactions import image_segmenter
 from matplotlib.widgets import Slider
@@ -103,6 +104,7 @@ class GUI:
             else:
                 ev = self.event_mapping[event]
                 if event in values:
+                    ev['args']['window'] = window
                     ev['args']['values'] = values[event]
                     ev['args']['event'] = event
                 ev['function'](**ev['args'])
@@ -199,10 +201,10 @@ class GUI:
         wind.close()
 
     def choose_save_dir(self):
-        # Spawn a folder browser
+        # Spawn a folder browser for auto-save
         print("choose_save_dir not implemented")
 
-    def load_zda_file(self):
+    def browse_for_file(self, file_extensions):
         file_window = sg.Window('File Browser',
                                 self.layouts.create_file_browser(),
                                 finalize=True,
@@ -223,11 +225,28 @@ class GUI:
                     file_ext = file_ext[-1]
                 else:
                     file_ext = ''
-                if file_ext not in ['zda', 'pbz2']:
-                    self.notify_window("File Type", "Unsupported file type.\nSelect .zda or .pbz2")
+                if file_ext not in file_extensions:
+                    supported_file_str = " ".join(file_extensions)
+                    self.notify_window("File Type",
+                                       "Unsupported file type.\nSupported: " + supported_file_str)
                 else:
                     break
         file_window.close()
+        return file
+
+    def load_roi_file(self, **kwargs):
+        filename = self.browse_for_file(['roi'])
+        data_obj = self.file.retrieve_python_object_from_pickle(filename)
+        self.roi.load_roi_data(data_obj)
+
+    def save_roi_file(self, **kwargs):
+        data_obj, filename = self.roi.dump_roi_data()
+        self.file.dump_python_object_to_pickle(filename,
+                                               data_obj,
+                                               extension='roi')
+
+    def load_zda_file(self):
+        file = self.browse_for_file(['zda', 'pbz2'])
         self.data.clear_data_memory()
         print("Loading from file:", file, "\nThis will take a few seconds...")
         self.file.load_from_file(file)
@@ -240,19 +259,30 @@ class GUI:
 
     # Returns True if string s is a valid numeric input
     @staticmethod
-    def validate_numeric_input(s, non_zero=False, max_digits=None):
+    def validate_numeric_input(s, non_zero=False, max_digits=None, min_val=None, max_val=None, decimal=False):
+        if decimal:  # decimals: allow removing at most one decimal anywhere
+            if len(s) > 0 and s[0] == '.':
+                s = s[1:]
+            elif len(s) > 0 and s[-1] == '.':
+                s = s[:-1]
+            elif '.' in s:
+                s = s.replace('.', '')
         return type(s) == str \
                and s.isnumeric() \
                and (max_digits is None or len(s) <= max_digits) \
-               and (not non_zero or int(s) != 0)
+               and (not non_zero or int(s) != 0) \
+               and (min_val is None or int(s) >= min_val) \
+               and (max_val is None or int(s) <= max_val)
 
     def set_digital_binning(self, **kwargs):
         binning = kwargs['values']
+        while len(binning) > 0 and \
+                (not self.validate_numeric_input(binning) or len(binning) > 3):
+            binning = binning[:-1]
         if not self.validate_numeric_input(binning, non_zero=True):
             self.window['Digital Binning'].update('')
             return
-        elif len(binning) > 3:
-            binning = binning[:-1]
+        else:
             self.window['Digital Binning'].update(binning)
         binning = int(binning)
         self.fv.set_digital_binning(binning)
@@ -277,23 +307,23 @@ class GUI:
         v = kwargs['values']
         self.data.set_light_on_duration(v)
 
-    def set_acquisition_onset(self, **kwargs):
+    def set_acqui_onset(self, **kwargs):
         v = kwargs['values']
-        self.data.set_acquisition_onset(v)
+        self.data.set_acqui_onset(v)
 
-    def set_acquisition_duration(self, **kwargs):
+    def set_acqui_duration(self, **kwargs):
         v = kwargs['values']
-        self.data.set_acquisition_duration(v)
+        self.data.set_acqui_duration(v)
 
     def set_stimulator_onset(self, **kwargs):
         v = kwargs['values']
         ch = kwargs['channel']
-        self.data.set_stimulator_onset(v, ch)
+        self.data.set_stimulator_onset(ch, v)
 
     def set_stimulator_duration(self, **kwargs):
         v = kwargs['values']
         ch = kwargs['channel']
-        self.data.set_stimulator_duration(v, ch)
+        self.data.set_stimulator_duration(ch, v)
 
     def validate_and_pass(self, **kwargs):
         fn_to_call = kwargs['call']
@@ -305,7 +335,7 @@ class GUI:
 
     def launch_roi_settings(self, **kwargs):
         w = sg.Window('ROI Identification Settings',
-                      self.layouts.create_roi_settings_form(),
+                      self.layouts.create_roi_settings_form(self),
                       finalize=True,
                       element_justification='center',
                       resizable=True,
@@ -322,9 +352,42 @@ class GUI:
         self.fv.update_new_image()
 
     def set_cutoff(self, **kwargs):
+        form = kwargs['form']
+        v = kwargs['values']
+        window = kwargs['window']
+        max_val = None
+        min_val = None
+        if form == 'percentile':
+            max_val = 100.0
+            min_val = 0.0
+        while len(v) > 0 and not self.validate_numeric_input(v, min_val=min_val, max_val=max_val, decimal=True):
+            if form == 'percentile':
+                try:
+                    if float(v) > max_val:
+                        v = str(max_val)
+                        break
+                except Exception as e:
+                    v = v[:-1]
+                    print(e)
+            else:
+                v = v[:-1]
+
+        partner_field = None
+        partner_form = None
+        if form == 'Raw':
+            partner_form = 'Percentile'
+            partner_field = kwargs['event'].replace('Raw', 'Percentile')
+        else:
+            partner_form = 'Raw'
+            partner_field = kwargs['event'].replace('Percentile', 'Raw')
+
         self.roi.set_cutoff(kwargs['kind'],
-                            kwargs['form'],
-                            kwargs['values'])
+                            form,
+                            v)
+        partner_v = self.roi.get_cutoff(kwargs['kind'], partner_form)
+        window[partner_field].update(str(partner_v))
+        if len(v) == 0 or float(v) != kwargs['values']:
+            window[kwargs['event']].update(v)
 
     def toggle_auto_save(self, **kwargs):
         self.set_is_auto_save_enabled(kwargs['values'])
@@ -334,239 +397,62 @@ class GUI:
 
     def set_roi_time_window(self, **kwargs):
         v = kwargs['values']
+        form = kwargs['form']
+        kind = kwargs['kind']
+        index = kwargs['index']
         partner_field = None
         partner_v = None
         if form == 'ms':
-            v = float(v)
-            partner_v = int(v / self.data.get_int_pts())
             partner_field = kwargs['event'].replace('(ms)', 'frames')
         else:
-            v = int(v)
-            partner_v = float(v * self.data.get_int_pts())
             partner_field = kwargs['event'].replace('frames', '(ms)')
 
+        # if possible, trim input of invalid characters
+        while len(v) > 0 and not self.validate_numeric_input(v):
+            v = v[:-1]
+
         if self.validate_numeric_input(v):
-
-            kind = kwargs['kind']
-            index = kwargs['index']
-
-            form = kwargs['form']
-
+            if form == 'ms':
+                v = float(v)
+                partner_v = int(v / self.data.get_int_pts())
+            else:
+                v = int(v)
+                partner_v = float(v * self.data.get_int_pts())
 
             self.window[partner_field].update(str(partner_v))
             self.roi.set_time_window(kind, index, v)
         else:
+            self.roi.set_time_window(kind, index, None)
             self.window[partner_field].update('')
             self.window[kwargs['event']].update('')
 
     def select_time_window_workflow(self):
         pass
 
+    def set_roi_k_clusters(self, **kwargs):
+        k = kwargs['values']
+        while len(k) > 0 and not self.validate_numeric_input(k,
+                                                             non_zero=True,
+                                                             max_digits=3,
+                                                             min_val=0,
+                                                             max_val=None,
+                                                             decimal=False):
+            k = k[:-1]
+        if kwargs['values'] != k:
+            kwargs['window'][kwargs['event']].update(k)
+        if len(k) == 0:
+            k = None
+        else:
+            k = int(k)
+        self.roi.set_k_clusters(k)
+
+    def view_roi_plot(self, **kwargs):
+        plot_type = kwargs['type']
+        self.roi.launch_cluster_score_plot(plot_type)
+
     def define_event_mapping(self):
         if self.event_mapping is None:
-            self.event_mapping = {
-                'Record': {
-                    'function': self.record,
-                    'args': {}
-                },
-                'Take RLI': {
-                    'function': self.take_rli,
-                    'args': {}
-                },
-                'Save': {
-                    'function': self.file.save_to_compressed_file,
-                    'args': {}
-                },
-                'Auto Save': {
-                    'function': self.toggle_auto_save,
-                    'args': {}
-                },
-                'Auto RLI': {
-                    'function': self.toggle_auto_rli,
-                    'args': {}
-                },
-                'Launch Hyperslicer': {
-                    'function': self.launch_hyperslicer,
-                    'args': {},
-                },
-                "-CAMERA PROGRAM-": {
-                    'function': self.set_camera_program,
-                    'args': {},
-                },
-                "Show RLI": {
-                    'function': self.toggle_show_rli,
-                    'args': {},
-                },
-                "Open": {
-                    'function': self.load_zda_file,
-                    'args': {},
-                },
-                '-github-': {
-                    'function': self.launch_github_page,
-                    'args': {},
-                },
-                'Digital Binning': {
-                    'function': self.set_digital_binning,
-                    'args': {},
-                },
-                "Choose Save Directory": {
-                    'function': self.choose_save_dir,
-                    'args': {},
-                },
-                'Light On Onset': {
-                    'function': self.set_light_on_onset,
-                    'args': {},
-                },
-                'Light On Duration': {
-                    'function': self.set_light_on_duration,
-                    'args': {},
-                },
-                'Acquisition Onset': {
-                    'function': self.set_acquisition_onset,
-                    'args': {},
-                },
-                'Acquisition Duration': {
-                    'function': self.set_acquisition_duration,
-                    'args': {},
-                },
-                'Stimulator #1 Onset': {
-                    'function': self.set_stimulator_onset,
-                    'args': {'channel': 1},
-                },
-                'Stimulator #2 Onset': {
-                    'function': self.set_stimulator_onset,
-                    'args': {'channel': 2},
-                },
-                'num_pulses Stim #1': {
-                    'function': self.validate_and_pass,
-                    'args': {'channel': 1, 'call': self.data.hardware.set_num_pulses},
-                },
-                'num_pulses Stim #2': {
-                    'function': self.validate_and_pass,
-                    'args': {'channel': 2, 'call': self.data.hardware.set_num_pulses},
-                },
-                'int_pulses Stim #1': {
-                    'function': self.validate_and_pass,
-                    'args': {'channel': 1, 'call': self.data.hardware.set_int_pulses},
-                },
-                'int_pulses Stim #2': {
-                    'function': self.validate_and_pass,
-                    'args': {'channel': 2, 'call': self.data.hardware.set_int_pulses},
-                },
-                'num_bursts Stim #1': {
-                    'function': self.validate_and_pass,
-                    'args': {'channel': 1, 'call': self.data.hardware.set_num_bursts},
-                },
-                'num_bursts Stim #2': {
-                    'function': self.validate_and_pass,
-                    'args': {'channel': 2, 'call': self.data.hardware.set_num_bursts},
-                },
-                'int_bursts Stim #1': {
-                    'function': self.validate_and_pass,
-                    'args': {'channel': 1, 'call': self.data.hardware.set_int_bursts},
-                },
-                'int_bursts Stim #2': {
-                    'function': self.validate_and_pass,
-                    'args': {'channel': 2, 'call': self.data.hardware.set_int_bursts},
-                },
-                "ROI Identifier Config": {
-                    'function': self.launch_roi_settings,
-                    'args': {},
-                },
-                "Identify ROI": {
-                    'function': self.enable_roi_identification,
-                    'args': {}
-                },
-                'Pixel-wise SNR cutoff Value': {
-                    'function': self.set_cutoff,
-                    'args': {'form': 'value',
-                             'kind': 'pixel'}
-                },
-                'Pixel-wise SNR cutoff Percentile': {
-                    'function': self.set_cutoff,
-                    'args': {'form': 'percentile',
-                             'kind': 'pixel'}
-                },
-                'Cluster-wise SNR cutoff Value': {
-                    'function': self.set_cutoff,
-                    'args': {'form': 'value',
-                             'kind': 'cluster'}
-                },
-                'Cluster-wise SNR cutoff Percentile': {
-                    'function': self.set_cutoff,
-                    'args': {'form': 'percentile',
-                             'kind': 'cluster'}
-                },
-                'ROI-wise SNR cutoff Value': {
-                    'function': self.set_cutoff,
-                    'args': {'form': 'value',
-                             'kind': 'roi_snr'}
-                },
-                'ROI-wise SNR cutoff Percentile': {
-                    'function': self.set_cutoff,
-                    'args': {'form': 'percentile',
-                             'kind': 'roi_snr'}
-                },
-                'ROI-wise Amplitude cutoff Value': {
-                    'function': self.set_cutoff,
-                    'args': {'form': 'value',
-                             'kind': 'roi_amplitude'}
-                },
-                'ROI-wise Amplitude cutoff Percentile': {
-                    'function': self.set_cutoff,
-                    'args': {'form': 'percentile',
-                             'kind': 'roi_amplitude'}
-                },
-                "Time Window Start frames pre_stim": {
-                    'function': self.set_roi_time_window,
-                    'args': {'index': 0,
-                             'kind': 'pre_stim',
-                             'form': 'frames'}
-                },
-                "Time Window Start (ms) pre_stim": {
-                    'function': self.set_roi_time_window,
-                    'args': {'index': 0,
-                             'kind': 'pre_stim',
-                             'form': 'ms'}
-                },
-                "Time Window End frames pre_stim": {
-                    'function': self.set_roi_time_window,
-                    'args': {'index': 1,
-                             'kind': 'pre_stim',
-                             'form': 'frames'}
-                },
-                "Time Window End (ms) pre_stim": {
-                    'function': self.set_roi_time_window,
-                    'args': {'index': 1,
-                             'kind': 'pre_stim',
-                             'form': 'ms'}
-                },
-                "Time Window Start frames Stim": {
-                    'function': self.set_roi_time_window,
-                    'args': {'index': 0,
-                             'kind': 'stim',
-                             'form': 'frames'}
-                },
-                "Time Window Start (ms) stim": {
-                    'function': self.set_roi_time_window,
-                    'args': {'index': 0,
-                             'kind': 'stim',
-                             'form': 'ms'}
-                },
-                "Time Window End frames stim": {
-                    'function': self.set_roi_time_window,
-                    'args': {'index': 1,
-                             'kind': 'stim',
-                             'form': 'frames'}
-                },
-                "Time Window End (ms) stim": {
-                    'function': self.set_roi_time_window,
-                    'args': {'index': 1,
-                             'kind': 'stim',
-                             'form': 'ms'}
-                },
-            }
-
+            self.event_mapping = EventMapping(self).get_event_mapping()
 
 class Toolbar(NavigationToolbar2Tk):
     def __init__(self, *args, **kwargs):

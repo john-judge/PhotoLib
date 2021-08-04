@@ -67,7 +67,6 @@ class Hardware:
         p = kwargs['program']
         if type(p) != int or p < 0 or p > 7:
             return
-        print('setting hardware to camera program', kwargs['program'])
         self.lib.setCameraProgram(self.controller, kwargs['program'])
 
     def get_camera_program(self):

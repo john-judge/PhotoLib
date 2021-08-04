@@ -59,11 +59,15 @@ class ROI:
     def disable_roi_identification(self):
         pass  # do any cleanup needed here
 
-    def launch_silhouette_plot(self, fig):
-        print("launch_silhouette_plot not implemented")
-        # TO DO: The caller of this method
-        # in gui.py will create that window and pass a matplotlib as `fig` for
-        # this method to populate.
+    def launch_cluster_score_plot(self, plot_type):
+        if plot_type == 'silhouette':
+            print("silhouette plot not implemented")
+        elif plot_type == 'elbow':
+            print("elbow plot not implemented")
+
+        # we will need extra code in gui to launch this in a new window
+        # with a matplotlib fig and a button to pull in the best k_clusters
+        # We can do this later.
 
     def get_cutoff(self, kind, form):
         if kind in self.cutoff:
@@ -72,19 +76,28 @@ class ROI:
         return None
 
     def set_cutoff(self, kind, form, value):
+        print(self.cutoff, kind, form, value)
         if self.cutoff[kind][form] != value:
             pass
+            # Set the 'partner' form as well.
+            # e.g. if 'Raw' is updated, calculate
+            # the 'Percentile' if possible and set that.
+            # The GUI will then update both fields.
             # Maybe trigger an update event immediately?
             # Or if that's too performance-intensive, we can update only when
             # user is done filling out the form.
         print("Setting cutoff of", kind, form, "to:", value)
         self.cutoff[kind][form] = value
 
+    # Validation and setting the partner field is handled by the
+    # GUI, because there we have access to interval between points
     def get_time_window(self, kind):
         if kind in self.time_window:
             return self.time_window[kind]
         return None
 
+    # Validation and setting the partner field is handled by the
+    # GUI, because there we have access to interval between points
     def set_time_window(self, kind, index, value):
         if index == 0 or index == 1:
             self.time_window[kind][index] = value
@@ -99,15 +112,16 @@ class ROI:
     #  it will be written to a compressed file (pickle)
     def dump_roi_data(self):
         print("dump_roi_data not implemented")
+        filename = None
         data = {}
-        return data
+        return data, filename
 
     #  restore data from file to this object
     #  and any other ancillary tasks to put the user right
     #  back where they left off.
     #  The file_data is returned to you exactly as you stored it
     #  from dump_roi_data
-    def load_roi_data(self, file_data):
+    def load_roi_data(self, data_obj):
         print("load_roi_data not implemented")
 
     # get and set clustering_type (hierarchical, k-means)?

@@ -406,3 +406,14 @@ class Data:
     def set_is_schedule_rli_enabled(self, value):
         self.schedule_rli_enabled = value
 
+    def set_stimulator_onset(self, ch, v):
+        self.hardware.set_stim_onset(channel=ch, value=v)
+
+    def get_stimulator_onset(self, ch):
+        self.hardware.get_stim_onset(channel=ch)
+
+    def set_stimulator_duration(self, ch, v):
+        self.hardware.set_stim_duration(channel=ch, value=v)
+
+    def get_stimulator_duration(self, ch):
+        self.hardware.get_stim_duration(channel=ch)
