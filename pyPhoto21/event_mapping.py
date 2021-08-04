@@ -69,12 +69,20 @@ class EventMapping:
                 'args': {},
             },
             'Stimulator #1 Onset': {
-                'function': gui.set_stimulator_onset,
-                'args': {'channel': 1},
+                'function': gui.validate_and_pass,
+                'args': {'channel': 1, 'call': gui.data.hardware.set_stim_onset},
             },
             'Stimulator #2 Onset': {
-                'function': gui.set_stimulator_onset,
-                'args': {'channel': 2},
+                'function': gui.validate_and_pass,
+                'args': {'channel': 2, 'call': gui.data.hardware.set_stim_onset},
+            },
+            'Stimulator #1 Duration': {
+                'function': gui.validate_and_pass,
+                'args': {'channel': 1, 'call': gui.data.hardware.set_stim_duration},
+            },
+            'Stimulator #2 Duration': {
+                'function': gui.validate_and_pass,
+                'args': {'channel': 2, 'call': gui.data.hardware.set_stim_duration},
             },
             'num_pulses Stim #1': {
                 'function': gui.validate_and_pass,

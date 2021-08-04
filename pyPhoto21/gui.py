@@ -317,16 +317,6 @@ class GUI:
         v = kwargs['values']
         self.data.set_acqui_duration(v)
 
-    def set_stimulator_onset(self, **kwargs):
-        v = kwargs['values']
-        ch = kwargs['channel']
-        self.data.set_stimulator_onset(ch, v)
-
-    def set_stimulator_duration(self, **kwargs):
-        v = kwargs['values']
-        ch = kwargs['channel']
-        self.data.set_stimulator_duration(ch, v)
-
     def validate_and_pass(self, **kwargs):
         fn_to_call = kwargs['call']
         v = kwargs['values']

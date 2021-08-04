@@ -280,7 +280,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	if (!taskHandle_out) {
 		DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
 		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0,Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
-		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", getIntPts(),
+		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI12", getIntPts(),
 			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));	
 	}
 
@@ -481,9 +481,8 @@ void Controller::NI_fillOutputs()
 	
 	float start, end;
 	size_t do_size = get_digital_output_size();
-	int num_DO_channels = 2; // number of DO channels in the DO task 
+	int num_DO_channels = 3; // number of DO channels in the DO task 
 	outputs = new uInt8[do_size * num_DO_channels];
-	uInt8* out_ptr = outputs;
 
 	//--------------------------------------------------------------
 	// Reset the array
@@ -505,7 +504,7 @@ void Controller::NI_fillOutputs()
 
 	// Assuming BNC ratio == 1:
 	for (int i = 0; i < do_size; i++) {
-		*out_ptr++ = trigger_voltage;
+		outputs[i] = trigger_voltage;
 	}
 
 	// Stimulator #1
@@ -518,26 +517,28 @@ void Controller::NI_fillOutputs()
 		{
 			start = sti1->getOnset() + j * intPulses1 + k * intBursts1;
 			end = (start + sti1->getDuration());
+			cout << "start1: " << start << "\tend1: " << end << "\n";
 			for (int i = (int)start; i < end; i++)
 				outputs[i + do_size] = 1;
 		}
 	}
 	//--------------------------------------------------------------
 	// Stimulator #2
-	/*
 	for (int k = 0; k < numBursts2; k++)
 	{
 		for (int j = 0; j < numPulses2; j++)
 		{
 			start = sti2->getOnset() + j * intPulses2 + k * intBursts2;
 			end = (start + sti2->getDuration());
+			cout << "start2: " << start << "\tend2: " << end << "\n";
 			for (int i = (int)start; i < end; i++)
 				outputs[i + 2 * do_size] = 1;
 		}
-	}*/
+	}
 
 	// Debug
-	//for (i = 0; i < get_digital_output_size(); i++) cout << outputs[i] << "\n";
+	for (int i = 0; i < get_digital_output_size() * num_DO_channels; i++) 
+		if (outputs[i] > 0) cout << outputs[i] << "\n";
 
 	// Future developers (or hackers): Add new stimulators or stimulation features and patterns here
 

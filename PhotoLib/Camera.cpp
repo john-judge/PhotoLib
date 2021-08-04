@@ -232,7 +232,7 @@ void Camera::init_cam()				// entire module based on code from Chun - sm_init_ca
 	system(command);
 
 	Sleep(50);
-	sprintf(command, "@TXC 0"); // external control from DO.0 (line 0 -- black sync)
+	sprintf(command, "@TXC 1"); // external control from DO.0 (line 0 -- black sync)
 	serial_write(command);
 	sprintf(command, "@SEQ 1"); // start 
 	serial_write(command);
