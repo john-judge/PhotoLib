@@ -85,8 +85,9 @@ class ROI:
             return self.time_window[kind]
         return None
 
-    def set_time_window(self, kind, value):
-        self.time_window[kind] = value
+    def set_time_window(self, kind, index, value):
+        if index == 0 or index == 1:
+            self.time_window[kind][index] = value
 
     def get_k_clusters(self):
         return self.k_clusters

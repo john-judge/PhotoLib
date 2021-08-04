@@ -104,6 +104,7 @@ class GUI:
                 ev = self.event_mapping[event]
                 if event in values:
                     ev['args']['values'] = values[event]
+                    ev['args']['event'] = event
                 ev['function'](**ev['args'])
         if history_debug:
             print("**** History of Events ****\n", events)
@@ -331,6 +332,36 @@ class GUI:
     def toggle_auto_rli(self, **kwargs):
         self.set_is_schedule_rli_enabled(kwargs['values'])
 
+    def set_roi_time_window(self, **kwargs):
+        v = kwargs['values']
+        partner_field = None
+        partner_v = None
+        if form == 'ms':
+            v = float(v)
+            partner_v = int(v / self.data.get_int_pts())
+            partner_field = kwargs['event'].replace('(ms)', 'frames')
+        else:
+            v = int(v)
+            partner_v = float(v * self.data.get_int_pts())
+            partner_field = kwargs['event'].replace('frames', '(ms)')
+
+        if self.validate_numeric_input(v):
+
+            kind = kwargs['kind']
+            index = kwargs['index']
+
+            form = kwargs['form']
+
+
+            self.window[partner_field].update(str(partner_v))
+            self.roi.set_time_window(kind, index, v)
+        else:
+            self.window[partner_field].update('')
+            self.window[kwargs['event']].update('')
+
+    def select_time_window_workflow(self):
+        pass
+
     def define_event_mapping(self):
         if self.event_mapping is None:
             self.event_mapping = {
@@ -485,9 +516,56 @@ class GUI:
                     'function': self.set_cutoff,
                     'args': {'form': 'percentile',
                              'kind': 'roi_amplitude'}
-                }
+                },
+                "Time Window Start frames pre_stim": {
+                    'function': self.set_roi_time_window,
+                    'args': {'index': 0,
+                             'kind': 'pre_stim',
+                             'form': 'frames'}
+                },
+                "Time Window Start (ms) pre_stim": {
+                    'function': self.set_roi_time_window,
+                    'args': {'index': 0,
+                             'kind': 'pre_stim',
+                             'form': 'ms'}
+                },
+                "Time Window End frames pre_stim": {
+                    'function': self.set_roi_time_window,
+                    'args': {'index': 1,
+                             'kind': 'pre_stim',
+                             'form': 'frames'}
+                },
+                "Time Window End (ms) pre_stim": {
+                    'function': self.set_roi_time_window,
+                    'args': {'index': 1,
+                             'kind': 'pre_stim',
+                             'form': 'ms'}
+                },
+                "Time Window Start frames Stim": {
+                    'function': self.set_roi_time_window,
+                    'args': {'index': 0,
+                             'kind': 'stim',
+                             'form': 'frames'}
+                },
+                "Time Window Start (ms) stim": {
+                    'function': self.set_roi_time_window,
+                    'args': {'index': 0,
+                             'kind': 'stim',
+                             'form': 'ms'}
+                },
+                "Time Window End frames stim": {
+                    'function': self.set_roi_time_window,
+                    'args': {'index': 1,
+                             'kind': 'stim',
+                             'form': 'frames'}
+                },
+                "Time Window End (ms) stim": {
+                    'function': self.set_roi_time_window,
+                    'args': {'index': 1,
+                             'kind': 'stim',
+                             'form': 'ms'}
+                },
             }
-
 
 
 class Toolbar(NavigationToolbar2Tk):

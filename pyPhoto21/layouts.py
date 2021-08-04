@@ -78,32 +78,59 @@ class Layouts:
              sg.Button("Save Processed", button_color=('black', 'green'), size=button_size),
              sg.Button("Save", button_color=('black', 'green'), size=button_size)]]
 
-        t_window = self.data.core.get_time_window()
-        if t_window[1] == -1:
-            t_window[1] = self.data.get_num_pts()
+        t_pre_stim = gui.roi.get_time_window('pre_stim')
+        t_stim = gui.roi.get_time_window('stim')
+        if t_pre_stim[1] == -1:
+            t_pre_stim[1] = self.data.get_num_pts()
+        if t_stim[1] == -1:
+            t_stim[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
         analysis_tab_layout = [
-            [sg.Button("Select Time Window",
+            [sg.Button("Select Pre-Stim Window",
                        button_color=('black', 'orange'),
                        size=long_button_size),
-             sg.InputText(key="Time Window Start",
-                          default_text=str(t_window[0]),
+             sg.InputText(key="Time Window Start frames pre_stim",
+                          default_text=str(t_pre_stim[0]),
                           enable_events=True,
                           size=button_size),
              sg.Text(" to "),
-             sg.InputText(key="Time Window End",
-                          default_text=str(t_window[1]),
+             sg.InputText(key="Time Window End frames pre_stim",
+                          default_text=str(t_pre_stim[1]),
                           enable_events=True,
                           size=button_size),
              sg.Text(" frames")],
             [sg.Text("", size=long_button_size),
-             sg.InputText(key="Time Window Start (ms)",
-                          default_text=str(t_window[0] * int_pts),
+             sg.InputText(key="Time Window Start (ms) pre_stim",
+                          default_text=str(t_pre_stim[0] * int_pts),
                           enable_events=True,
                           size=button_size),
              sg.Text(" to "),
-             sg.InputText(key="Time Window End (ms)",
-                          default_text=str(t_window[1] * int_pts),
+             sg.InputText(key="Time Window End (ms) pre_stim",
+                          default_text=str(t_pre_stim[1] * int_pts),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" ms")],
+            [sg.Button("Select Stim Window",
+                       button_color=('black', 'orange'),
+                       size=long_button_size),
+             sg.InputText(key="Time Window Start frames stim",
+                          default_text=str(t_stim[0]),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Time Window End frames stim",
+                          default_text=str(t_stim[1]),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" frames")],
+            [sg.Text("", size=long_button_size),
+             sg.InputText(key="Time Window Start (ms) stim",
+                          default_text=str(t_stim[0] * int_pts),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Time Window End (ms) stim",
+                          default_text=str(t_stim[1] * int_pts),
                           enable_events=True,
                           size=button_size),
              sg.Text(" ms")],
