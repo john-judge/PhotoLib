@@ -279,8 +279,12 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	// Stimulator outputs (line2) and Clock for synchronizing tasks w camera (line0)
 	if (!taskHandle_out) {
 		DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
-		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0,Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
-		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI12", getIntPts(),
+
+		// To write a clock to trigger camera, open line0 channel also: "Dev1/port0/line0,Dev1/port0/line2" (and see NI_fillOutputs)
+		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
+
+		// Change this to "/Dev1/PFI12" for external trigger. But for now, trigger DO tasks from camera clock (PFI0)
+		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", getIntPts(),
 			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));	
 	}
 
@@ -481,7 +485,7 @@ void Controller::NI_fillOutputs()
 	
 	float start, end;
 	size_t do_size = get_digital_output_size();
-	int num_DO_channels = 3; // number of DO channels in the DO task 
+	int num_DO_channels = 1; // number of DO channels in the DO task 
 	outputs = new uInt8[do_size * num_DO_channels];
 
 	//--------------------------------------------------------------
@@ -497,7 +501,10 @@ void Controller::NI_fillOutputs()
 			outputs[i] |= shutter_mask;
 	}*/
 	//--------------------------------------------------------------
-	// clock to trigger camera
+
+
+	// If we want a clock to trigger camera, write this to line0
+	/*
 	uInt8 resting_voltage = 1;
 	uInt8 trigger_voltage = 0;
 	// If BNC_ratio > 1, the resting/triggering voltages are switched
@@ -505,7 +512,7 @@ void Controller::NI_fillOutputs()
 	// Assuming BNC ratio == 1:
 	for (int i = 0; i < do_size; i++) {
 		outputs[i] = trigger_voltage;
-	}
+	}*/
 
 	// Stimulator #1
 	cout << "\n\tNum bursts 1: " << numBursts1 << "\n\tNum Pulses 1: " << numPulses1 << "\n";
@@ -519,11 +526,12 @@ void Controller::NI_fillOutputs()
 			end = (start + sti1->getDuration());
 			cout << "start1: " << start << "\tend1: " << end << "\n";
 			for (int i = (int)start; i < end; i++)
-				outputs[i + do_size] = 1;
+				outputs[i] = 1;
 		}
 	}
 	//--------------------------------------------------------------
 	// Stimulator #2
+	/*
 	for (int k = 0; k < numBursts2; k++)
 	{
 		for (int j = 0; j < numPulses2; j++)
@@ -532,13 +540,13 @@ void Controller::NI_fillOutputs()
 			end = (start + sti2->getDuration());
 			cout << "start2: " << start << "\tend2: " << end << "\n";
 			for (int i = (int)start; i < end; i++)
-				outputs[i + 2 * do_size] = 1;
+				outputs[i + do_size] = 1;
 		}
-	}
+	}*/
 
 	// Debug
-	for (int i = 0; i < get_digital_output_size() * num_DO_channels; i++) 
-		if (outputs[i] > 0) cout << outputs[i] << "\n";
+	//for (int i = 0; i < get_digital_output_size() * num_DO_channels; i++) 
+	//	if (outputs[i] > 0) cout << outputs[i] << "\n";
 
 	// Future developers (or hackers): Add new stimulators or stimulation features and patterns here
 
