@@ -9,18 +9,13 @@ class Data:
     def __init__(self, hardware):
         self.hardware = hardware
         self.num_trials = 5
-        self.int_trials = 10  # seconds
-        self.num_pulses = 5
-        self.interval_pulses = 15
-        self.num_bursts = 0
-        self.interval_bursts = 0
-        self.duration = 267  # Is this really needed?
-        self.acqui_onset = 0  # Is this really needed?
+        self.int_trials = 10  # ms
+        self.num_records = 1
+        self.int_records = 15  # seconds
+
         self.num_fp_pts = None  # will default to 4 unless loaded from file
-        self.stimulator_onset = {
-            1: 300,
-            2: 300,
-        }
+
+        self.file_metadata = {}
 
         # Little Dave reference data
         self.display_widths = [2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024]
@@ -50,9 +45,9 @@ class Data:
         self.auto_save_enabled = False
         self.schedule_rli_enabled = False
 
-        self.sync_settings_from_hardware()
+        self.sync_defaults_into_hardware()
 
-    def sync_settings_from_hardware(self):
+    def sync_defaults_into_hardware(self):
         if self.get_is_loaded_from_file():
             print("Settings loaded from data file will be overwritten with currnet hardware settings.")
             self.set_is_loaded_from_file(False)
@@ -105,12 +100,14 @@ class Data:
                                 dtype=np.float64)
 
     def set_camera_program(self, program, force_resize=False):
-        if force_resize or self.program != program:
-            self.program = program
+        curr_program = self.hardware.get_camera_program()
+        if force_resize or curr_program != program:
             self.hardware.set_camera_program(program=program)
             self.resize_image_memory()
 
     def get_camera_program(self):
+        if self.get_is_loaded_from_file():
+            return self.file_metadata['camera_program']
         return self.hardware.get_camera_program()
 
     def resize_image_memory(self):
@@ -315,11 +312,21 @@ class Data:
     # This is the allocated memory size, not necessarily the current camera state
     # However, the Hardware class should be prepared to init camera to this width
     def get_display_width(self):
+        if self.get_is_loaded_from_file():
+            w = self.file_metadata['raw_width']
+            if w < 1:
+                w = self.get_acqui_images().shape[-2]
+            return w
         return self.display_widths[self.get_camera_program()]
 
     # This is the allocated memory size, not necessarily the current camera state
     # However, the Hardware class should be prepared to init camera to this height
     def get_display_height(self):
+        if self.get_is_loaded_from_file():
+            h = self.file_metadata['raw_height']
+            if h < 1:
+                h = self.get_acqui_images().shape[-1]
+            return h
         return self.display_heights[self.get_camera_program()]
 
     ''' Attributes controlled at Data level '''
@@ -333,12 +340,16 @@ class Data:
         self.num_fp_pts = value
 
     def get_num_trials(self):
+        if self.get_is_loaded_from_file() and 'num_trials' in self.file_metadata:
+            return self.file_metadata['num_trials']
         return self.num_trials
 
     def set_num_trials(self, value):
         self.num_trials = value
 
     def get_int_trials(self):
+        if self.get_is_loaded_from_file() and 'int_trials' in self.file_metadata:
+            return self.file_metadata['int_trials']
         return self.int_trials
 
     def set_int_trials(self, value):
@@ -365,6 +376,8 @@ class Data:
     ''' Attributes controlled at Hardware level '''
 
     def get_int_pts(self):
+        if self.get_is_loaded_from_file() and 'int_pts' in self.file_metadata:
+            return self.file_metadata['int_pts']
         return self.hardware.get_int_pts()
 
     # Is this even needed?
@@ -375,22 +388,37 @@ class Data:
         return self.hardware.get_acqui_duration()
 
     def get_num_pts(self):
+        if self.get_is_loaded_from_file():
+            return self.file_metadata['points_per_trace']
         return self.hardware.get_num_pts()
 
     def get_num_rli_pts(self):
+        if self.get_is_loaded_from_file():
+            if 'rli_pts_dark' in self.file_metadata and 'rli_pts_light' in self.file_metadata:
+                return self.file_metadata['rli_pts_dark'] + self.file_metadata['rli_pts_light']
+            else:
+                return 3  # legacy ZDA format
         return self.hardware.get_num_dark_rli() + self.hardware.get_num_light_rli()
 
     def get_num_pulses(self, ch):
-        return self.hardware.get_num_pulses()
+        return self.hardware.get_num_pulses(channel=ch)
 
     def set_acqui_onset(self, v):
         self.hardware.set_acqui_onset(v)
 
     def get_acqui_onset(self):
+        if self.get_is_loaded_from_file():
+            return self.file_metadata['acquisition_onset']
         return self.hardware.get_acqui_onset()
 
     def get_stim_onset(self, ch):
-        self.hardware.get_stim_onset(channel=ch)
+        if ch == 1 or ch == 2:
+            if self.get_is_loaded_from_file():
+                return self.file_metadata['stimulation' + str(ch) +'_onset']
+            return self.hardware.get_stim_onset(channel=ch)
 
     def get_stim_duration(self, ch):
-        self.hardware.get_stim_duration(channel=ch)
+        if ch == 1 or ch == 2:
+            if self.get_is_loaded_from_file():
+                return self.file_metadata['stimulation' + str(ch) +'_duration']
+            return self.hardware.get_stim_duration(channel=ch)

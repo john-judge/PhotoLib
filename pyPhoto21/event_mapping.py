@@ -37,7 +37,7 @@ class EventMapping:
                 'args': {},
             },
             "Open": {
-                'function': gui.load_zda_file,
+                'function': gui.load_data_file,
                 'args': {},
             },
             '-github-': {
@@ -226,7 +226,7 @@ class EventMapping:
             },
             'num_trials': {
                 'function': gui.validate_and_pass_int,
-                'args': {'call': gui.data.set_num_trials},
+                'args': {'call': gui.data.set_num_trials, 'max_val': 20},
             },
             'int_trials': {
                 'function': gui.validate_and_pass_int,

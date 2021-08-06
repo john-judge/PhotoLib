@@ -72,8 +72,8 @@ class File:
             'num_trials': self.data.get_num_trials(),
             'num_pts': self.data.get_num_pts(),
             'int_pts': self.data.get_int_pts(),
-            'rli_pts_dark': self.data.dark_rli,
-            'rli_pts_light': self.data.light_rli
+            #'rli_pts_dark': self.data.dark_rli,
+            #'rli_pts_light': self.data.light_rli
         }
         d = {
             'acqui': acqui_images,
@@ -88,6 +88,9 @@ class File:
         data = self.retrieve_python_object_from_pickle(filename)
         meta = data['meta']
 
+        if meta is not None:
+            self.data.file_metadata = meta
+
         # Recording load
         self.data.set_acqui_images(data['acqui'], from_file=True)
 
@@ -96,18 +99,6 @@ class File:
 
         # FP data load
         self.data.set_fp_data(data['fp'])
-
-        if meta is not None:
-            self.data.set_num_fp(meta['num_fp'])
-            self.current_slice = meta['slice_no']
-            self.current_location = meta['location_no']
-            self.current_run = meta['run_no']
-            self.data.set_num_trials(meta['num_trials'])
-            self.data.set_num_pts(meta['num_pts'])
-            self.data.set_num_dark_rli(meta['rli_pts_dark'])
-            self.data.set_num_light_rli(meta['rli_pts_light'])
-
-        return data['meta']
 
     def load_from_file(self, filename):
         file_ext = filename.split('.')[-1]
@@ -120,6 +111,7 @@ class File:
         ds = Dataset(filename)
         # Set meta data
         meta = ds.get_meta()
+        self.data.file_metadata = meta
 
         # Recording load
         images = ds.get_data()

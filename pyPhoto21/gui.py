@@ -181,6 +181,7 @@ class GUI:
         program_name = kwargs['values']
         program_index = self.data.display_camera_programs.index(program_name)
         self.data.set_camera_program(program_index)
+        self.window["Acquisition Duration"].update(self.data.get_acqui_duration())
 
     def launch_hyperslicer(self):
         self.fv.launch_hyperslicer()
@@ -247,13 +248,29 @@ class GUI:
                                                data_obj,
                                                extension='roi')
 
-    def load_zda_file(self):
+    def load_data_file(self):
         file = self.browse_for_file(['zda', 'pbz2'])
         self.data.clear_data_memory()
         print("Loading from file:", file, "\nThis will take a few seconds...")
         self.file.load_from_file(file)
+        # Sync GUI
+        self.file_gui_fields_sync()
         print("File Loaded.")
         self.fv.update_new_image()
+
+    # Pull all file-based data from Data and sync GUI fields
+    def file_gui_fields_sync(self):
+        w = self.window
+        w['Number of Points'].update(self.data.get_num_pts())
+        w['int_trials'].update(self.data.get_int_trials())
+        w['num_trials'].update(self.data.get_num_trials())
+        w['Acquisition Onset'].update(self.data.get_acqui_onset())
+        w['Acquisition Duration'].update(self.data.get_acqui_duration())
+        w['Stimulator #1 Onset'].update(self.data.get_stim_onset(1))
+        w['Stimulator #2 Onset'].update(self.data.get_stim_onset(2))
+        w['Stimulator #1 Duration'].update(self.data.get_stim_duration(1))
+        w['Stimulator #2 Duration'].update(self.data.get_stim_duration(2))
+
 
     @staticmethod
     def launch_github_page():
