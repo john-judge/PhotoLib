@@ -72,8 +72,13 @@ class File:
             'num_trials': self.data.get_num_trials(),
             'num_pts': self.data.get_num_pts(),
             'int_pts': self.data.get_int_pts(),
-            #'rli_pts_dark': self.data.dark_rli,
-            #'rli_pts_light': self.data.light_rli
+            'acquisition_onset': self.data.get_acqui_onset(),
+            'stimulation1_onset': self.data.get_stim_onset(1),
+            'stimulation2_onset': self.data.get_stim_onset(2),
+            'stimulation1_duration': self.data.get_stim_duration(1),
+            'stimulation2_duration': self.data.get_stim_duration(2),
+            'rli_pts_dark': self.data.hardware.get_num_dark_rli(),
+            'rli_pts_light': self.data.hardware.get_num_light_rli(),
         }
         d = {
             'acqui': acqui_images,
@@ -86,10 +91,7 @@ class File:
 
     def load_from_compressed_file(self, filename):
         data = self.retrieve_python_object_from_pickle(filename)
-        meta = data['meta']
-
-        if meta is not None:
-            self.data.file_metadata = meta
+        self.data.file_metadata = data['meta']
 
         # Recording load
         self.data.set_acqui_images(data['acqui'], from_file=True)

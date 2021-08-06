@@ -198,17 +198,23 @@ class Data:
 
     # Returns the full (x2) memory for hardware to use
     def get_acqui_memory(self, trial=None):
+        if self.acqui_images is None:
+            self.allocate_image_memory()
         if trial is None:
             return self.acqui_images
         return self.acqui_images[trial, :, :, :, :]
 
     # Returns the full (x2) memory for hardware to use
     def get_rli_memory(self, trial=None):
+        if self.rli_images is None:
+            self.allocate_image_memory()
         if trial is None:
             return self.rli_images
         return self.rli_images[trial, :, :, :, :]
 
     def get_fp_data(self, trial=None):
+        if self.fp_data is None:
+            self.allocate_image_memory()
         if self.fp_data is None:
             self.fp_data = np.zeros((self.get_num_trials(),
                                      self.get_num_pts(),
@@ -219,6 +225,8 @@ class Data:
         return self.fp_data[trial, :, :]
 
     def get_acqui_images(self, trial=None):
+        if self.acqui_images is None:
+            return None
         if self.get_is_loaded_from_file():
             if trial is None:
                 return self.acqui_images[:, :, :, :]
@@ -231,6 +239,8 @@ class Data:
             return self.acqui_images[trial, 0, :, :, :]
 
     def get_rli_images(self):
+        if self.rli_images is None:
+            return None
         if self.get_is_loaded_from_file():
             return self.rli_images[:, :, :]
         return self.rli_images[0, :, :, :]
@@ -333,7 +343,8 @@ class Data:
 
     def get_num_fp(self):
         if self.get_is_loaded_from_file():
-            return self.num_fp_pts
+            if 'num_fp' in self.file_metadata:
+                return self.file_metadata['num_fp']
         return 4  # Little Dave: Fixed at 4 field potential measurements with NI-USB
 
     def set_num_fp(self, value):
@@ -389,7 +400,10 @@ class Data:
 
     def get_num_pts(self):
         if self.get_is_loaded_from_file():
-            return self.file_metadata['points_per_trace']
+            if 'points_per_trace' in self.file_metadata:
+                return self.file_metadata['points_per_trace']
+            elif 'num_pts' in self.file_metadata:
+                return self.file_metadata['num_pts']
         return self.hardware.get_num_pts()
 
     def get_num_rli_pts(self):

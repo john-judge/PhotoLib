@@ -24,9 +24,6 @@
 // #pragma comment(lib,".\\lib\\NIDAQmx.lib")  Chun suggested it but turns out not to make any difference
 using namespace std;
 
-/* hacky way of synchronizing things, but it seems to work and nothing better
- * was found
- */
 #define CAM_INPUT_OFFSET 10
 #define NUM_BNC_CHANNELS 4
 #define DAQmxErrChk(functionCall)  if( DAQmxFailed(error=(functionCall))) NiErrorDump(error); else
@@ -76,8 +73,6 @@ Controller::Controller()
 	numBursts2 = 1;
 	intBursts2 = 200;
 
-	// Set Duration
-	setDuration();
 }
 
 
@@ -218,7 +213,6 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	int16* tmp_fp_memory = new(std::nothrow) int16[numPts * NUM_BNC_CHANNELS];
 	memset(tmp_fp_memory, 0, numPts * NUM_BNC_CHANNELS * sizeof(int16));
 	float64 samplingRate = 1000.0 / getIntPts(); 
-	setDuration();
 	NI_fillOutputs();
 
 	//-------------------------------------------
@@ -520,9 +514,8 @@ void Controller::NI_fillOutputs()
 		{
 			start = sti1->getOnset() + j * intPulses1 + k * intBursts1;
 			end = (start + sti1->getDuration());
-			cout << "start1: " << start << "\tend1: " << end << "\n";
 			for (int i = (int)start; i < end; i++)
-				outputs[i] = 1;
+				outputs[i] = (uInt8)1;
 		}
 	}
 	//--------------------------------------------------------------
@@ -539,10 +532,6 @@ void Controller::NI_fillOutputs()
 				outputs[i + do_size] = 1;
 		}
 	}*/
-
-	// Debug
-	//for (int i = 0; i < get_digital_output_size() * num_DO_channels; i++) 
-	//	if (outputs[i] > 0) cout << outputs[i] << "\n";
 
 	// Future developers (or hackers): Add new stimulators or stimulation features and patterns here
 
@@ -579,6 +568,7 @@ void Controller::resetCamera()
 	}
 }
 
+/*
 //=============================================================================
 void Controller::setDuration()
 {
@@ -611,9 +601,8 @@ void Controller::setDuration()
 		return;
 	}
 }
-
+*/
 float Controller::getDuration() {
-	setDuration();
 	return duration;
 }
 

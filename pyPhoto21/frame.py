@@ -74,9 +74,10 @@ class FrameViewer:
         self.smax = Slider(axmax, 'Frame Selector', 0, np.max(self.num_frames), valinit=self.ind)
 
         self.refresh_current_frame()
-        self.im = self.ax.imshow(self.current_frame,
-                                 aspect='auto',
-                                 cmap='jet')
+        if self.current_frame is not None:
+            self.im = self.ax.imshow(self.current_frame,
+                                     aspect='auto',
+                                     cmap='jet')
 
 
     def get_slider_max(self):
@@ -194,9 +195,10 @@ class FrameViewer:
 
     def update(self, update_hyperslicer=True):
         self.refresh_current_frame()
-        self.im.set_data(self.current_frame)
-        self.im.set_clim(vmin=np.min(self.current_frame),
-                         vmax=np.max(self.current_frame))
+        if self.current_frame is not None:
+            self.im.set_data(self.current_frame)
+            self.im.set_clim(vmin=np.min(self.current_frame),
+                             vmax=np.max(self.current_frame))
 
         #self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw_idle()

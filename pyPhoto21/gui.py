@@ -153,33 +153,48 @@ class GUI:
         toolbar.update()
         figure_canvas_agg.get_tk_widget().pack(fill='none', expand=False)
 
+    def freeze_hardware_settings(self, v=True, include_buttons=True):
+        if type(v) == bool:
+            self.freeze_input = v
+            events_to_control = self.layouts.list_hardware_settings()
+            if include_buttons:
+                events_to_control += self.layouts.list_hardware_events()
+            for ev in events_to_control:
+                self.window[ev].update(disabled=v)
+
+    def unfreeze_hardware_settings(self):
+        self.freeze_hardware_settings(v=False, include_buttons=True)
+
     def record_in_background(self):
-        sleep_sec = self.data.get_int_trials() / 1000.0
+        sleep_sec = self.data.get_int_trials()
         if self.get_is_schedule_rli_enabled():
             sleep_sec = max(0, sleep_sec - .12)  # attempt to shorten by 120 ms, rough lower bound on time to take RLI
         if self.data.get_is_loaded_from_file():
             self.data.sync_settings_from_hardware()
             self.data.resize_image_memory()
+        self.data.set_is_loaded_from_file(False)
         # TO DO: loop over trials similar to MainController::acqui
-        for trial in self.data.get_num_trials():
+        for trial in range(self.data.get_num_trials()):
             if self.get_is_schedule_rli_enabled():
                 self.take_rli()
             self.hardware.record(images=self.data.get_acqui_memory(trial=trial), fp_data=self.data.get_fp_data())
-            self.fv.update_new_image()
-            self.data.set_is_loaded_from_file(False)
-            time.sleep(sleep_sec)
+            self.fv.update()
+            print("Took trial", trial+1, "of", self.data.get_num_trials())
+            if trial != self.data.get_num_trials() - 1:
+                print("\t", sleep_sec, "seconds until next trial...")
+                time.sleep(sleep_sec)
         if self.get_is_auto_save_enabled():
-            # self.file.save_to_compressed_file()
+            self.file.save_to_compressed_file()
             self.file.increment_run()
         # done recording
-        self.freeze_input = False
+        self.unfreeze_hardware_settings()
+
 
     def record(self, **kwargs):
-
         # we spawn a new thread to acquire in the background.
         # meanwhile the original thread returns and keeps handling GUI clicks
         # but updates to Data/Hardware fields will be frozen
-        self.freeze_input = True
+        self.freeze_hardware_settings()
         threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
 
     def take_rli(self, **kwargs):
@@ -248,6 +263,10 @@ class GUI:
                                        "Unsupported file type.\nSupported: " + supported_file_str)
                 else:
                     break
+        if self.freeze_input:
+            file = None
+            self.notify_window("File Input Error",
+                               "Cannot load file during acquisition")
         file_window.close()
         return file
 
@@ -262,15 +281,24 @@ class GUI:
                                                data_obj,
                                                extension='roi')
 
-    def load_data_file(self):
-        file = self.browse_for_file(['zda', 'pbz2'])
-        self.data.clear_data_memory()
-        print("Loading from file:", file, "\nThis will take a few seconds...")
+    def load_data_file_in_background(self, file):
         self.file.load_from_file(file)
         # Sync GUI
         self.file_gui_fields_sync()
+        # Freeze input fields to hardware
+
         print("File Loaded.")
         self.fv.update_new_image()
+
+    def load_data_file(self):
+        file = self.browse_for_file(['zda', 'pbz2'])
+        if file is not None:
+
+            self.freeze_hardware_settings(include_buttons=False)
+            print("Loading from file:", file, "\nThis will take a few seconds...")
+
+            threading.Thread(target=self.load_data_file_in_background, args=(file,), daemon=True).start()
+
 
     # Pull all file-based data from Data and sync GUI fields
     def file_gui_fields_sync(self):
@@ -285,6 +313,13 @@ class GUI:
         w['Stimulator #1 Duration'].update(self.data.get_stim_duration(1))
         w['Stimulator #2 Duration'].update(self.data.get_stim_duration(2))
 
+    # disable file-viewing mode, allowing acquisition to resume
+    def unload_file(self):
+        if self.data.get_is_loaded_from_file():
+            self.unfreeze_hardware_settings()
+            self.data.set_is_loaded_from_file(value=False)
+            self.data.clear_data_memory()
+            self.fv.update_new_image()
 
     @staticmethod
     def launch_github_page():
@@ -406,7 +441,7 @@ class GUI:
             window[kwargs['event']].update(v)
             print("called:", fn_to_call)
         else:
-            fn_to_call(value=None, channel=ch)
+            fn_to_call(value=0, channel=ch)
             window[kwargs['event']].update('')
 
     def launch_roi_settings(self, **kwargs):

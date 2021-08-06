@@ -235,7 +235,11 @@ class EventMapping:
             'Number of Points': {
                 'function': gui.set_num_pts,
                 'args': {}
-            }
+            },
+            'Unload File': {
+                'function': gui.unload_file,
+                'args': {}
+            },
         }
 
     def get_event_mapping(self):

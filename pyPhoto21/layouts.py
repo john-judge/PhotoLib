@@ -22,7 +22,7 @@ class Layouts:
 
     def create_menu(self):
         menu_def = [['Photo21 LilDave', ['Help', 'About']],
-                    ['File', ['Open', 'Save', 'Choose Save Directory', 'Exit']],
+                    ['File', ['Open', 'Choose Save Directory', 'Exit']],
                     ['Preference', ['Paste', ['Special', 'Normal', ], 'Undo'], ],
                     ['Toolbar', ['---', 'Command 1', 'Command 2',
                                  '---', 'Command 3', 'Command 4']]]
@@ -76,7 +76,7 @@ class Layouts:
             [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
                          size=checkbox_size),
              sg.Button("Save Processed", button_color=('black', 'green'), size=button_size),
-             sg.Button("Save", button_color=('black', 'green'), size=button_size)]]
+             sg.Button("Unload File", button_color=('black', 'green'), size=button_size)]]
 
         t_pre_stim = gui.roi.get_time_window('pre_stim')
         t_stim = gui.roi.get_time_window('stim')
@@ -292,7 +292,7 @@ class Layouts:
                        sg.Text("", size=cell_size)],
                       [sg.Text("Interval between Trials:", size=double_cell_size),
                        sg.InputText(key="int_trials",
-                                    default_text=str(self.data.get_num_trials()),
+                                    default_text=str(self.data.get_int_trials()),
                                     enable_events=True,
                                     size=cell_size),
                        sg.Text(" s", size=cell_size)],
@@ -304,7 +304,36 @@ class Layouts:
         ]])]
         return [tab_group_right]
 
-    def create_roi_settings_form(self, gui):
+    @staticmethod
+    def list_hardware_settings():
+        return ['Number of Points',
+               'Acquisition Onset',
+               "Acquisition Duration",
+               "Stimulator #1 Onset",
+               "Stimulator #2 Onset",
+               "Stimulator #1 Duration",
+               "Stimulator #2 Duration",
+               "-CAMERA PROGRAM-",
+               "num_pulses Stim #1",
+               "num_pulses Stim #2",
+               "int_pulses Stim #1",
+               "int_pulses Stim #2",
+               "num_bursts Stim #1",
+               "num_bursts Stim #2",
+               "int_bursts Stim #1",
+               "int_bursts Stim #2",
+               "num_trials",
+               "int_trials",
+                "Auto RLI",
+                "Auto Save"
+                ]
+
+    @staticmethod
+    def list_hardware_events():
+        return ["Live Feed", "Take RLI", "Live Feed", "Record"]
+
+    @staticmethod
+    def create_roi_settings_form(gui):
         cell_size = (10, 1)
         double_cell_size = (20, 1)
         return [
