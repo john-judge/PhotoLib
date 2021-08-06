@@ -55,7 +55,6 @@ private:
 	char stopFlag;
 	char ltpIndFlag;
 	char scheduleFlag;
-	char scheduleRliFlag;
 
 public:
 	// Constructors

@@ -52,14 +52,6 @@ class EventMapping:
                 'function': gui.choose_save_dir,
                 'args': {},
             },
-            'Light On Onset': {
-                'function': gui.set_light_on_onset,
-                'args': {},
-            },
-            'Light On Duration': {
-                'function': gui.set_light_on_duration,
-                'args': {},
-            },
             'Acquisition Onset': {
                 'function': gui.set_acqui_onset,
                 'args': {},
@@ -69,51 +61,51 @@ class EventMapping:
                 'args': {},
             },
             'Stimulator #1 Onset': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 1, 'call': gui.data.hardware.set_stim_onset},
             },
             'Stimulator #2 Onset': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 2, 'call': gui.data.hardware.set_stim_onset},
             },
             'Stimulator #1 Duration': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 1, 'call': gui.data.hardware.set_stim_duration},
             },
             'Stimulator #2 Duration': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 2, 'call': gui.data.hardware.set_stim_duration},
             },
             'num_pulses Stim #1': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 1, 'call': gui.data.hardware.set_num_pulses},
             },
             'num_pulses Stim #2': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 2, 'call': gui.data.hardware.set_num_pulses},
             },
             'int_pulses Stim #1': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 1, 'call': gui.data.hardware.set_int_pulses},
             },
             'int_pulses Stim #2': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 2, 'call': gui.data.hardware.set_int_pulses},
             },
             'num_bursts Stim #1': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 1, 'call': gui.data.hardware.set_num_bursts},
             },
             'num_bursts Stim #2': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 2, 'call': gui.data.hardware.set_num_bursts},
             },
             'int_bursts Stim #1': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 1, 'call': gui.data.hardware.set_int_bursts},
             },
             'int_bursts Stim #2': {
-                'function': gui.validate_and_pass,
+                'function': gui.validate_and_pass_channel,
                 'args': {'channel': 2, 'call': gui.data.hardware.set_int_bursts},
             },
             "ROI Identifier Config": {
@@ -232,6 +224,18 @@ class EventMapping:
                 'function': gui.save_roi_file,
                 'args': {'type': 'elbow'}
             },
+            'num_trials': {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.data.set_num_trials},
+            },
+            'int_trials': {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.data.set_int_trials},
+            },
+            'Number of Points': {
+                'function': gui.set_num_pts,
+                'args': {}
+            }
         }
 
     def get_event_mapping(self):

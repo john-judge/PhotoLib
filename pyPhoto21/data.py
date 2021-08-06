@@ -10,25 +10,19 @@ class Data:
         self.hardware = hardware
         self.num_trials = 5
         self.int_trials = 10  # seconds
-        self.light_rli = 200
-        self.dark_rli = 280
-        self.num_pts = 2000
-        self.interval_pts = 0.5
         self.num_pulses = 5
         self.interval_pulses = 15
-        self.num_bursts = 5
-        self.interval_bursts = 15
-        self.duration = 200
-        self.acqui_onset = 50
-        self.acqui_duration = 267
-        self.program = 7
-        self.num_fp_pts = 4
-        self.light_on_onset = 0
-        self.light_on_duration = 1200
+        self.num_bursts = 0
+        self.interval_bursts = 0
+        self.duration = 267  # Is this really needed?
+        self.acqui_onset = 0  # Is this really needed?
+        self.num_fp_pts = None  # will default to 4 unless loaded from file
         self.stimulator_onset = {
             1: 300,
             2: 300,
         }
+
+        # Little Dave reference data
         self.display_widths = [2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024]
         self.display_heights = [1024, 100, 320, 160, 160, 80, 60, 40]
         self.display_camera_programs = ["200 Hz   2048x1024",
@@ -40,6 +34,7 @@ class Data:
                                         "5000 Hz  1024x60",
                                         "7500 Hz  1024x40"]
 
+        # Management and Automation
         self.schedule_rli_flag = False  # TO DO: include take RLI and division
         self.auto_save_data = False
 
@@ -55,38 +50,39 @@ class Data:
         self.auto_save_enabled = False
         self.schedule_rli_enabled = False
 
-        # synchronize defaults into hardware
-        self.set_camera_program(self.program,
-                                force_resize=True)
-        self.set_num_pts(num_pts=self.num_pts,
-                         force_resize=True)
-        self.set_num_dark_rli(dark_rli=self.dark_rli,
-                              force_resize=True)
-        self.set_num_light_rli(light_rli=self.light_rli,
-                               force_resize=True)
+        self.sync_settings_from_hardware()
 
-        self.hardware.set_num_pulses(value=self.num_pulses,
+    def sync_settings_from_hardware(self):
+        if self.get_is_loaded_from_file():
+            print("Settings loaded from data file will be overwritten with currnet hardware settings.")
+            self.set_is_loaded_from_file(False)
+
+        # Settings that don't matter to File
+        self.set_camera_program(7, force_resize=True)
+        self.set_num_dark_rli(280, force_resize=True)
+        self.set_num_light_rli(200, force_resize=True)
+
+        self.hardware.set_num_pulses(value=1,
                                      channel=1)
-        self.hardware.set_num_pulses(value=self.num_pulses,
+        self.hardware.set_num_pulses(value=1,
                                      channel=2)
 
-        self.hardware.set_int_pulses(value=self.interval_pulses,
+        self.hardware.set_int_pulses(value=15,
                                      channel=1)
-        self.hardware.set_int_pulses(value=self.interval_pulses,
+        self.hardware.set_int_pulses(value=15,
                                      channel=2)
 
-        self.hardware.set_num_bursts(value=self.num_bursts,
+        self.hardware.set_num_bursts(value=1,
                                      channel=1)
-        self.hardware.set_num_bursts(value=self.num_bursts,
+        self.hardware.set_num_bursts(value=1,
                                      channel=2)
 
-        self.hardware.set_int_bursts(value=self.interval_bursts,
+        self.hardware.set_int_bursts(value=15,
                                      channel=1)
-        self.hardware.set_int_bursts(value=self.interval_bursts,
+        self.hardware.set_int_bursts(value=15,
                                      channel=2)
 
-        self.hardware.set_schedule_rli_flag(schedule_rli_flag=self.schedule_rli_flag)
-        self.hardware.set_acqui_onset(acqui_onset=self.acqui_onset)
+        self.hardware.set_acqui_onset(acqui_onset=0)
 
     # We allocate twice the memory since C++ needs room for CDS subtraction
     def allocate_image_memory(self):
@@ -115,7 +111,7 @@ class Data:
             self.resize_image_memory()
 
     def get_camera_program(self):
-        return self.program
+        return self.hardware.get_camera_program()
 
     def resize_image_memory(self):
         w = self.get_display_width()
@@ -123,12 +119,12 @@ class Data:
         if self.rli_images is not None and self.acqui_images is not None:
 
             self.rli_images = np.resize(self.rli_images, (2,
-                                        (self.light_rli + self.dark_rli + 1),
+                                        (self.get_num_rli_pts() + 1),
                                         h,
                                         w))
             self.acqui_images = np.resize(self.acqui_images, (2,
                                           self.get_num_trials(),
-                                          (self.num_pts + 1),
+                                          (self.get_num_pts() + 1),
                                           h,
                                           w))
             self.fp_data = np.resize(self.fp_data,
@@ -276,10 +272,11 @@ class Data:
     def set_fp_data(self, data):
         self.fp_data = data
 
-    def set_num_pts(self, num_pts, force_resize=False):
-        tmp = self.num_pts
-        self.num_pts = num_pts
-        if force_resize or tmp != num_pts:
+    def set_num_pts(self, value=1, force_resize=False):
+        if type(value) != type or value < 1:
+            return
+        tmp = self.get_num_pts()
+        if force_resize or tmp != value:
             w = self.get_display_width()
             h = self.get_display_height()
             np.resize(self.acqui_images, (self.get_num_trials(),
@@ -291,27 +288,25 @@ class Data:
                                      (self.get_num_trials(),
                                       self.get_num_fp(),
                                       self.get_num_pts()))
-            self.hardware.set_num_pts(value=num_pts)
+            self.hardware.set_num_pts(value=value)
 
     def set_num_dark_rli(self, dark_rli, force_resize=False):
-        tmp = self.dark_rli
-        self.dark_rli = dark_rli
+        tmp = self.hardware.get_num_dark_rli()
         if force_resize or tmp != dark_rli:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (self.light_rli + self.dark_rli,
+            np.resize(self.rli_images, (self.get_num_rli_pts(),
                                         2,  # extra mem for C++ reassembly
                                         w,
                                         h))
             self.hardware.set_num_dark_rli(dark_rli=dark_rli)
 
     def set_num_light_rli(self, light_rli, force_resize=False):
-        tmp = self.light_rli
-        self.light_rli = light_rli
+        tmp = self.hardware.get_num_light_rli()
         if force_resize or tmp != light_rli:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (self.light_rli + self.dark_rli,
+            np.resize(self.rli_images, (self.get_num_rli_pts(),
                                         2,  # extra mem for C++ reassembly
                                         w,
                                         h))
@@ -327,36 +322,12 @@ class Data:
     def get_display_height(self):
         return self.display_heights[self.get_camera_program()]
 
-    def get_stim_onset(self, channel):
-        if channel == 1 or channel == 2:
-            return self.stimulator_onset[channel]
-
-    def set_stim_onset(self, channel, value):
-        if channel == 1 or channel == 2:
-            self.stimulator_onset[channel] = value
-
-    def get_duration(self):
-        return self.duration
-
-    def get_acqui_duration(self):
-        return self.acqui_duration
-
-    def get_num_pts(self):
-        return self.num_pts
-
-    def get_num_rli_pts(self):
-        return self.dark_rli + self.light_rli
-
-    def get_int_pts(self):
-        return self.interval_pts
+    ''' Attributes controlled at Data level '''
 
     def get_num_fp(self):
         if self.get_is_loaded_from_file():
             return self.num_fp_pts
         return 4  # Little Dave: Fixed at 4 field potential measurements with NI-USB
-
-    def get_num_pulses(self, ch):
-        return self.num_pulses
 
     def set_num_fp(self, value):
         self.num_fp_pts = value
@@ -364,35 +335,20 @@ class Data:
     def get_num_trials(self):
         return self.num_trials
 
-    def set_num_trials(self, num_trials):
-        self.num_trials = num_trials
+    def set_num_trials(self, value):
+        self.num_trials = value
 
     def get_int_trials(self):
         return self.int_trials
 
-    def set_int_trials(self, int_trials):
-        self.int_trials = int_trials
+    def set_int_trials(self, value):
+        self.int_trials = value
 
     def get_is_loaded_from_file(self):
         return self.is_loaded_from_file
 
     def set_is_loaded_from_file(self, value):
         self.is_loaded_from_file = value
-
-    def set_light_on_onset(self, v):
-        self.light_on_onset = v
-
-    def set_light_on_duration(self, v):
-        self.light_on_duration = v
-
-    def set_acqui_onset(self, v):
-        self.acqui_onset = v
-
-    def set_acqui_duration(self, v):
-        self.acqui_duration = v
-
-    def get_acqui_onset(self):
-        return self.acqui_onset
 
     def get_is_auto_save_enabled(self):
         return self.auto_save_enabled
@@ -406,8 +362,35 @@ class Data:
     def set_is_schedule_rli_enabled(self, value):
         self.schedule_rli_enabled = value
 
-    def get_stimulator_onset(self, ch):
+    ''' Attributes controlled at Hardware level '''
+
+    def get_int_pts(self):
+        return self.hardware.get_int_pts()
+
+    # Is this even needed?
+    def get_duration(self):
+        return self.hardware.get_duration()
+
+    def get_acqui_duration(self):
+        return self.hardware.get_acqui_duration()
+
+    def get_num_pts(self):
+        return self.hardware.get_num_pts()
+
+    def get_num_rli_pts(self):
+        return self.hardware.get_num_dark_rli() + self.hardware.get_num_light_rli()
+
+    def get_num_pulses(self, ch):
+        return self.hardware.get_num_pulses()
+
+    def set_acqui_onset(self, v):
+        self.hardware.set_acqui_onset(v)
+
+    def get_acqui_onset(self):
+        return self.hardware.get_acqui_onset()
+
+    def get_stim_onset(self, ch):
         self.hardware.get_stim_onset(channel=ch)
 
-    def get_stimulator_duration(self, ch):
+    def get_stim_duration(self, ch):
         self.hardware.get_stim_duration(channel=ch)

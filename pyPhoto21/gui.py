@@ -155,6 +155,7 @@ class GUI:
         if self.get_is_schedule_rli_enabled():
             self.take_rli()
         if self.data.get_is_loaded_from_file():
+            self.data.sync_settings_from_hardware()
             self.data.resize_image_memory()
         # TO DO: loop over trials similar to MainController::acqui
         trial = 0
@@ -169,6 +170,7 @@ class GUI:
 
     def take_rli(self, **kwargs):
         if self.data.get_is_loaded_from_file():
+            self.data.sync_settings_from_hardware()
             self.data.resize_image_memory()
         self.hardware.take_rli(images=self.data.get_rli_memory())
         self.data.set_is_loaded_from_file(False)
@@ -301,29 +303,80 @@ class GUI:
     def set_is_schedule_rli_enabled(self, value):
         self.data.set_is_schedule_rli_enabled(value)
 
-    def set_light_on_onset(self, **kwargs):
-        v = kwargs['values']
-        self.data.set_light_on_onset(v)
-
-    def set_light_on_duration(self, **kwargs):
-        v = kwargs['values']
-        self.data.set_light_on_duration(v)
-
     def set_acqui_onset(self, **kwargs):
         v = kwargs['values']
         self.data.set_acqui_onset(v)
 
+    def set_num_pts(self, **kwargs):
+        v = kwargs['values']
+
+        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=15000):
+            v = v[:-1]
+        if len(v) > 0 and self.validate_numeric_input(v, decimal=True, max_val=15000):
+            acqui_duration = float(v) * self.data.get_int_pts()
+            self.data.hardware.set_num_pts(value=int(v))
+            kwargs['window'][kwargs['event']].update(v)
+            kwargs['window']["Acquisition Duration"].update(str(acqui_duration))
+        else:
+            self.data.hardware.set_num_pts(value=0)
+            kwargs['window'][kwargs['event']].update('')
+            kwargs['window']["Acquisition Duration"].update('')
+
     def set_acqui_duration(self, **kwargs):
         v = kwargs['values']
-        self.data.set_acqui_duration(v)
 
-    def validate_and_pass(self, **kwargs):
+        # looks at num_pts as well to validate.
+        def is_valid_acqui_duration(u, max_num_pts=15000):
+            return self.validate_numeric_input(u, decimal=True) \
+                and int(float(u) * self.data.get_int_pts()) <= max_num_pts
+
+        while len(v) > 0 and not is_valid_acqui_duration(v):
+            v = v[:-1]
+        if len(v) > 0 and is_valid_acqui_duration(v):
+            num_pts = int(float(v) // self.data.get_int_pts())
+            self.data.hardware.set_num_pts(value=num_pts)
+            kwargs['window'][kwargs['event']].update(v)
+            kwargs['window']["Number of Points"].update(str(num_pts))
+        else:
+            self.data.hardware.set_num_pts(value=0)
+            kwargs['window'][kwargs['event']].update('')
+            kwargs['window']["Number of Points"].update('')
+
+    def validate_and_pass_int(self, **kwargs):
+        max_val = None
+        if 'max_val' in kwargs:
+            max_val = kwargs['max_val']
+        fn_to_call = kwargs['call']
+        v = kwargs['values']
+        window = kwargs['window']
+        while len(v) > 0 and not self.validate_numeric_input(v, max_digits=5, max_val=max_val):
+            v = v[:-1]
+        if len(v) > 0 and self.validate_numeric_input(v, max_digits=5, max_val=max_val):
+            fn_to_call(value=int(v))
+            window[kwargs['event']].update(v)
+            print("called:", fn_to_call)
+            if 'call2' in kwargs:
+                kwargs['call2'](value=int(v))
+                print("called:", kwargs['call2'])
+        else:
+            fn_to_call(value=None)
+            window[kwargs['event']].update('')
+
+    # for passing to channel-based setters
+    def validate_and_pass_channel(self, **kwargs):
         fn_to_call = kwargs['call']
         v = kwargs['values']
         ch = kwargs['channel']
-        if self.validate_numeric_input(v, max_digits=6):
+        window = kwargs['window']
+        while len(v) > 0 and not self.validate_numeric_input(v, max_digits=6):
+            v = v[:-1]
+        if len(v) > 0 and self.validate_numeric_input(v, max_digits=6):
             fn_to_call(value=int(v), channel=ch)
+            window[kwargs['event']].update(v)
             print("called:", fn_to_call)
+        else:
+            fn_to_call(value=None, channel=ch)
+            window[kwargs['event']].update('')
 
     def launch_roi_settings(self, **kwargs):
         w = sg.Window('ROI Identification Settings',
@@ -441,6 +494,9 @@ class GUI:
     def view_roi_plot(self, **kwargs):
         plot_type = kwargs['type']
         self.roi.launch_cluster_score_plot(plot_type)
+
+    def set_num_trials(self, **kwargs):
+        v = kwargs['values']
 
     def define_event_mapping(self):
         if self.event_mapping is None:

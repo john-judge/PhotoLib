@@ -61,8 +61,6 @@ Controller::Controller()
 
 	// Flags
 	stopFlag = 0;
-	scheduleFlag = 0;
-	scheduleRliFlag = 0;
 
 	// Ch1
 	numPulses1 = 1;
@@ -423,7 +421,7 @@ Error:
 //=============================================================================
 int Controller::NI_openShutter(uInt8 on)
 {
-	uInt8       data[1] = { on };
+	uInt8       data[2] = { on };
 
 	if (!taskHandle_led) {
 		DAQmxErrChk(DAQmxCreateTask("LED", &taskHandle_led));
@@ -667,16 +665,6 @@ int Controller::getIntBursts(int ch) {
 int Controller::getIntPulses(int ch) {
 	if (ch == 1) return intPulses1;
 	return intPulses2;
-}
-
-//=============================================================================
-void Controller::setScheduleRliFlag(char p) {
-	scheduleRliFlag = p;
-}
-
-//=============================================================================
-char Controller::getScheduleRliFlag() {
-	return scheduleRliFlag;
 }
 
 //=============================================================================

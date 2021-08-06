@@ -98,16 +98,6 @@ extern "C"
 		return controller->getIntBursts(channel);
 	}
 
-	__declspec(dllexport) void setScheduleRliFlag(Controller* controller, char v)
-	{
-		controller->setScheduleRliFlag(v);
-	}
-
-	__declspec(dllexport) int getScheduleRliFlag(Controller* controller)
-	{
-		return controller->getScheduleRliFlag();
-	}
-
 	__declspec(dllexport) int getDuration(Controller* controller)
 	{
 		return controller->getDuration();

@@ -102,13 +102,13 @@ class FrameViewer:
 
     def onpress(self, event):
         if not self.press:
-            if event.button == 2:
+            if event.button == 1:
                 self.clear_waypoints()
                 self.add_waypoint(event)
             self.press = True
 
     def onmove(self, event):
-        if self.press and event.button == 2:  # middle mouse
+        if self.press and event.button == 1:  # left mouse
             self.add_waypoint(event)
             self.moving = True
 
@@ -119,7 +119,7 @@ class FrameViewer:
         if event.button == 3:  # right click
             self.tv.clear_traces()
             self.clear_shapes()
-        elif event.button == 2:  # left click
+        elif event.button == 1:  # left click
             self.ondrag(event)
 
     def get_next_color(self):
