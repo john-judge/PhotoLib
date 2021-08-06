@@ -184,7 +184,6 @@ int Controller::takeRli(unsigned short* memory) {
 		}
 		cam.end_images(ipdv);
 	}
-	Sleep(100);
 	NI_openShutter(0); // light off	
 	NI_stopTasks();
 	NI_clearTasks();
@@ -359,7 +358,6 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 		}
 		cam.end_images(ipdv);
 	}
-	Sleep(100);
 	NI_openShutter(0);
 	cout << "Total read: " << total_read << "\n";
 

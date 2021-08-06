@@ -71,10 +71,6 @@ public:
 	void NI_stopTasks();
 	void NI_clearTasks();
 
-	// Flags
-	void setScheduleRliFlag(char);
-	char getScheduleRliFlag();
-
 	// Buffers for digital output
 	uInt8 *outputs;
 

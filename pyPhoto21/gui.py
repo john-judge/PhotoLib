@@ -1,5 +1,7 @@
 import numpy as np
 import os.path
+import threading
+import time
 import PySimpleGUI as sg
 import matplotlib
 import sys
@@ -17,9 +19,8 @@ from pyPhoto21.analysis.roi import ROI
 from pyPhoto21.layouts import *
 from pyPhoto21.event_mapping import EventMapping
 
-from mpl_interactions import image_segmenter
+#from mpl_interactions import image_segmenter
 from matplotlib.widgets import Slider
-
 
 # import io
 
@@ -41,6 +42,7 @@ class GUI:
 
         # general state/settings
         self.title = "Photo21"
+        self.freeze_input = False  # whether to allow fields to be updated. Frozen during acquire (how about during file loaded?)
         self.event_mapping = None
         self.define_event_mapping()  # event callbacks used in event loops
         # kickoff workflow
@@ -151,22 +153,34 @@ class GUI:
         toolbar.update()
         figure_canvas_agg.get_tk_widget().pack(fill='none', expand=False)
 
-    def record(self, **kwargs):
+    def record_in_background(self):
+        sleep_sec = self.data.get_int_trials() / 1000.0
         if self.get_is_schedule_rli_enabled():
-            self.take_rli()
+            sleep_sec = max(0, sleep_sec - .12)  # attempt to shorten by 120 ms, rough lower bound on time to take RLI
         if self.data.get_is_loaded_from_file():
             self.data.sync_settings_from_hardware()
             self.data.resize_image_memory()
         # TO DO: loop over trials similar to MainController::acqui
-        trial = 0
-        if 'trial' in kwargs:
-            trial = kwargs['trial']
-        self.hardware.record(images=self.data.get_acqui_memory(trial=trial), fp_data=self.data.get_fp_data())
-        self.fv.update_new_image()
-        self.data.set_is_loaded_from_file(False)
+        for trial in self.data.get_num_trials():
+            if self.get_is_schedule_rli_enabled():
+                self.take_rli()
+            self.hardware.record(images=self.data.get_acqui_memory(trial=trial), fp_data=self.data.get_fp_data())
+            self.fv.update_new_image()
+            self.data.set_is_loaded_from_file(False)
+            time.sleep(sleep_sec)
         if self.get_is_auto_save_enabled():
             # self.file.save_to_compressed_file()
             self.file.increment_run()
+        # done recording
+        self.freeze_input = False
+
+    def record(self, **kwargs):
+
+        # we spawn a new thread to acquire in the background.
+        # meanwhile the original thread returns and keeps handling GUI clicks
+        # but updates to Data/Hardware fields will be frozen
+        self.freeze_input = True
+        threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
 
     def take_rli(self, **kwargs):
         if self.data.get_is_loaded_from_file():
