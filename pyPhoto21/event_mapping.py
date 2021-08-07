@@ -234,6 +234,14 @@ class EventMapping:
                 'function': gui.set_num_pts,
                 'args': {}
             },
+            'num_records': {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.data.set_num_records, 'max_val': 20},
+            },
+            'int_records': {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.data.set_int_records},
+            },
             'Unload File': {
                 'function': gui.unload_file,
                 'args': {}
@@ -302,6 +310,7 @@ class EventMapping:
                 'args': {'call': gui.set_slice,
                          'call2': gui.update_tracking_num_fields}
             },
+
         }
 
     def get_event_mapping(self):

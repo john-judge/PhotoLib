@@ -168,27 +168,46 @@ class GUI:
     def unfreeze_hardware_settings(self):
         self.freeze_hardware_settings(v=False, include_buttons=True)
 
-    def record_in_background(self):
+    def get_trial_sleep_time(self):
         sleep_sec = self.data.get_int_trials()
         if self.get_is_schedule_rli_enabled():
             sleep_sec = max(0, sleep_sec - .12)  # attempt to shorten by 120 ms, rough lower bound on time to take RLI
+        return sleep_sec
+
+    def get_record_sleep_time(self):
+        sleep_sec = self.data.get_int_records()
+        return sleep_sec - self.get_trial_sleep_time()
+
+    def record_in_background(self):
+        sleep_trial = self.get_trial_sleep_time()
+        sleep_record = self.get_record_sleep_time()
+
+        # resolve any hardware / file conflicting control of settings
         if self.data.get_is_loaded_from_file():
             self.data.sync_settings_from_hardware()
             self.data.resize_image_memory()
         self.data.set_is_loaded_from_file(False)
-        # TO DO: loop over trials similar to MainController::acqui
-        for trial in range(self.data.get_num_trials()):
-            if self.get_is_schedule_rli_enabled():
-                self.take_rli()
-            self.hardware.record(images=self.data.get_acqui_memory(trial=trial), fp_data=self.data.get_fp_data())
-            self.fv.update()
-            print("Took trial", trial + 1, "of", self.data.get_num_trials())
-            if trial != self.data.get_num_trials() - 1:
-                print("\t", sleep_sec, "seconds until next trial...")
-                time.sleep(sleep_sec)
-        if self.get_is_auto_save_enabled():
-            self.file.save_to_compressed_file()
-            self.file.increment_run()
+
+        for record_index in range(self.data.get_num_records()):
+
+            for trial in range(self.data.get_num_trials()):
+                if self.get_is_schedule_rli_enabled():
+                    self.take_rli()
+                self.hardware.record(images=self.data.get_acqui_memory(trial=trial),
+                                     fp_data=self.data.get_fp_data())
+                self.fv.update()
+                print("Took trial", trial + 1, "of", self.data.get_num_trials())
+                if trial != self.data.get_num_trials() - 1:
+                    print("\t", sleep_trial, "seconds until next trial...")
+                    time.sleep(sleep_trial)
+
+            if self.get_is_auto_save_enabled():
+                self.file.save_to_compressed_file()  # TO DO: launch this in the background 
+                self.file.increment_run()
+
+            if record_index != self.data.get_num_records() - 1:
+                time.sleep(sleep_record)
+
         # done recording
         self.unfreeze_hardware_settings()
 

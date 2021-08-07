@@ -118,14 +118,14 @@ class Data:
         if self.rli_images is not None and self.acqui_images is not None:
 
             self.rli_images = np.resize(self.rli_images, (2,
-                                        (self.get_num_rli_pts() + 1),
-                                        h,
-                                        w))
+                                                          (self.get_num_rli_pts() + 1),
+                                                          h,
+                                                          w))
             self.acqui_images = np.resize(self.acqui_images, (2,
-                                          self.get_num_trials(),
-                                          (self.get_num_pts() + 1),
-                                          h,
-                                          w))
+                                                              self.get_num_trials(),
+                                                              (self.get_num_pts() + 1),
+                                                              h,
+                                                              w))
             self.fp_data = np.resize(self.fp_data,
                                      (self.get_num_trials(),
                                       self.get_num_fp(),
@@ -289,7 +289,7 @@ class Data:
             w = self.get_display_width()
             h = self.get_display_height()
             np.resize(self.acqui_images, (self.get_num_trials(),
-                                          2, # extra mem for C++ reassembly
+                                          2,  # extra mem for C++ reassembly
                                           self.get_num_pts(),
                                           w,
                                           h))
@@ -368,6 +368,18 @@ class Data:
     def set_int_trials(self, value):
         self.int_trials = value
 
+    def get_num_records(self):
+        return self.num_records
+
+    def set_num_records(self, value):
+        self.num_records = value
+
+    def get_int_records(self):
+        return self.int_records
+
+    def set_int_records(self, value):
+        self.int_records = value
+
     def get_is_loaded_from_file(self):
         return self.is_loaded_from_file
 
@@ -430,13 +442,13 @@ class Data:
     def get_stim_onset(self, ch):
         if ch == 1 or ch == 2:
             if self.get_is_loaded_from_file():
-                return self.file_metadata['stimulation' + str(ch) +'_onset']
+                return self.file_metadata['stimulation' + str(ch) + '_onset']
             return self.hardware.get_stim_onset(channel=ch)
 
     def get_stim_duration(self, ch):
         if ch == 1 or ch == 2:
             if self.get_is_loaded_from_file():
-                return self.file_metadata['stimulation' + str(ch) +'_duration']
+                return self.file_metadata['stimulation' + str(ch) + '_duration']
             return self.hardware.get_stim_duration(channel=ch)
 
     def get_current_trial_index(self):
@@ -446,10 +458,9 @@ class Data:
         self.current_trial_index = v
 
     def increment_current_trial_index(self):
-        self.current_trial_index = min (self.current_trial_index + 1,
-                                        self.get_num_trials())
+        self.current_trial_index = min(self.current_trial_index + 1,
+                                       self.get_num_trials())
 
     def decrement_current_trial_index(self):
-        self.current_trial_index = max(0, self.current_trial_index - 1)
-
-
+        self.current_trial_index = max(self.current_trial_index - 1,
+                                       0)
