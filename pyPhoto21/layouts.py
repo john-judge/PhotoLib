@@ -55,17 +55,26 @@ class Layouts:
     @staticmethod
     def create_file_browser():
         return [[
-            sg.In(size=(25, 1), enable_events=True, key="-FOLDER-"),
+            sg.In(size=(25, 1), enable_events=True, key="-FILE-"),
             sg.FileBrowse(key="file_window.browse",
                           # file_types=(("Raw Data Files", "*.zda"))
                           )],
             [sg.Button("Open", key='file_window.open')]]
 
-    def create_left_column(self, gui):
+    @staticmethod
+    def create_folder_browser():
+        return [[
+            sg.In(size=(25, 1), enable_events=True, key="-FOLDER-"),
+            sg.FolderBrowse(key="folder_window.browse")],
+            [sg.Button("Open", key='folder_window.open')]]
+
+    def create_acquisition_tab(self, gui):
         button_size = (10, 1)
-        long_button_size = (20, 1)
+        field_size = (6, 1)
+        small_button_size = (3, 1)
+        long_button_size = (18, 1)
         checkbox_size = (6, 1)
-        acquisition_tab_layout = [
+        return [
             [sg.Text("Auto:", size=(8, 1)),
              sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
              sg.Button("Take RLI", button_color=('brown', 'gray'), size=button_size)],
@@ -75,9 +84,47 @@ class Layouts:
              sg.Button("Record", button_color=('black', 'red'), size=button_size)],
             [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
                          size=checkbox_size),
-             sg.Button("Save Processed", button_color=('black', 'green'), size=button_size),
-             sg.Button("Unload File", button_color=('black', 'green'), size=button_size)]]
+             sg.Button("Save Analysis", button_color=('black', 'green'), size=button_size),
+             sg.Button("Unload File", button_color=('black', 'green'), size=button_size)],
+            [sg.HorizontalSeparator()],
+            [sg.Text("File Name:", size=(8, 1)),
+             sg.InputText(key="File Name",
+                          default_text=str(gui.file.get_filename(no_path=True)),
+                          enable_events=True,
+                          size=long_button_size)],
+            [sg.Text("Slice:", size=(8, 1)),
+             sg.InputText(key="Slice Number",
+                          default_text=str(gui.file.get_slice_num()),
+                          enable_events=True,
+                          size=field_size),
+             sg.Button('<', key='Decrement Slice'),
+             sg.Button('>', key='Increment Slice'),
+             sg.Text("Location:", size=(8, 1)),
+             sg.InputText(key="Location Number",
+                          default_text=str(gui.file.get_location_num()),
+                          enable_events=True,
+                          size=field_size),
+             sg.Button('<', key='Decrement Location'),
+             sg.Button('>', key='Increment Location')],
+            [sg.Text("Record:", size=(8, 1)),
+             sg.InputText(key="Record Number",
+                          default_text=str(gui.file.get_record_num()),
+                          enable_events=True,
+                          size=field_size),
+             sg.Button('<', key='Decrement Record'),
+             sg.Button('>', key='Increment Record'),
+             sg.Text("Trial:", size=(8, 1)),
+             sg.InputText(key="Trial Number",
+                          default_text=str(gui.data.get_current_trial_index()),
+                          enable_events=True,
+                          size=field_size),
+             sg.Button('<', key='Decrement Trial'),
+             sg.Button('>', key='Increment Trial')],
+        ]
 
+    def create_analysis_tab(self, gui):
+        button_size = (6, 1)
+        long_button_size = (17, 1)
         t_pre_stim = gui.roi.get_time_window('pre_stim')
         t_stim = gui.roi.get_time_window('stim')
         if t_pre_stim[1] == -1:
@@ -85,8 +132,8 @@ class Layouts:
         if t_stim[1] == -1:
             t_stim[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
-        analysis_tab_layout = [
-            [sg.Button("Select Pre-Stim Window",
+        return [
+            [sg.Button("Pre-Stim Window",
                        button_color=('black', 'orange'),
                        size=long_button_size),
              sg.InputText(key="Time Window Start frames pre_stim",
@@ -110,7 +157,7 @@ class Layouts:
                           enable_events=True,
                           size=button_size),
              sg.Text(" ms")],
-            [sg.Button("Select Stim Window",
+            [sg.Button("Stim Window",
                        button_color=('black', 'orange'),
                        size=long_button_size),
              sg.InputText(key="Time Window Start frames stim",
@@ -147,7 +194,9 @@ class Layouts:
                          size=button_size)],
         ]
 
-        array_tab_layout = [
+    def create_array_tab(self, gui):
+        button_size = (10, 1)
+        return [
             [sg.Checkbox('Show RLI',
                          default=gui.fv.get_show_rli_flag(),
                          enable_events=True,
@@ -156,6 +205,11 @@ class Layouts:
             [sg.Button("Load Image", button_color=('gray', 'black'))],
             [sg.Text("Digital Binning:"), sg.InputText('1', key="Digital Binning", size=(5, 1), enable_events=True)]
         ]
+
+    def create_left_column(self, gui):
+        acquisition_tab_layout = self.create_acquisition_tab(gui)
+        analysis_tab_layout = self.create_analysis_tab(gui)
+        array_tab_layout = self.create_array_tab(gui)
 
         dsp_tab_layout = [[
             sg.Button("placeholder", button_color=('gray', 'black')),
@@ -307,25 +361,37 @@ class Layouts:
     @staticmethod
     def list_hardware_settings():
         return ['Number of Points',
-               'Acquisition Onset',
-               "Acquisition Duration",
-               "Stimulator #1 Onset",
-               "Stimulator #2 Onset",
-               "Stimulator #1 Duration",
-               "Stimulator #2 Duration",
-               "-CAMERA PROGRAM-",
-               "num_pulses Stim #1",
-               "num_pulses Stim #2",
-               "int_pulses Stim #1",
-               "int_pulses Stim #2",
-               "num_bursts Stim #1",
-               "num_bursts Stim #2",
-               "int_bursts Stim #1",
-               "int_bursts Stim #2",
-               "num_trials",
-               "int_trials",
+                'Acquisition Onset',
+                "Acquisition Duration",
+                "Stimulator #1 Onset",
+                "Stimulator #2 Onset",
+                "Stimulator #1 Duration",
+                "Stimulator #2 Duration",
+                "-CAMERA PROGRAM-",
+                "num_pulses Stim #1",
+                "num_pulses Stim #2",
+                "int_pulses Stim #1",
+                "int_pulses Stim #2",
+                "num_bursts Stim #1",
+                "num_bursts Stim #2",
+                "int_bursts Stim #1",
+                "int_bursts Stim #2",
+                "num_trials",
+                "int_trials",
                 "Auto RLI",
-                "Auto Save"
+                "Auto Save",
+                "Increment Trial",
+                "Decrement Trial",
+                "Increment Record",
+                "Decrement Record",
+                "Increment Location",
+                "Decrement Location",
+                "Increment Slice",
+                "Decrement Slice",
+                "Trial Number",
+                "Location Number",
+                "Record Number",
+                "Slice Number",
                 ]
 
     @staticmethod

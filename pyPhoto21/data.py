@@ -13,6 +13,8 @@ class Data:
         self.num_records = 1
         self.int_records = 15  # seconds
 
+        self.current_trial_index = 0
+
         self.num_fp_pts = None  # will default to 4 unless loaded from file
 
         self.file_metadata = {}
@@ -436,3 +438,18 @@ class Data:
             if self.get_is_loaded_from_file():
                 return self.file_metadata['stimulation' + str(ch) +'_duration']
             return self.hardware.get_stim_duration(channel=ch)
+
+    def get_current_trial_index(self):
+        return self.current_trial_index
+
+    def set_current_trial_index(self, v):
+        self.current_trial_index = v
+
+    def increment_current_trial_index(self):
+        self.current_trial_index = min (self.current_trial_index + 1,
+                                        self.get_num_trials())
+
+    def decrement_current_trial_index(self):
+        self.current_trial_index = max(0, self.current_trial_index - 1)
+
+

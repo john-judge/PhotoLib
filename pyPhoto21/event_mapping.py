@@ -1,5 +1,3 @@
-
-
 class EventMapping:
 
     def __init__(self, gui):
@@ -239,6 +237,70 @@ class EventMapping:
             'Unload File': {
                 'function': gui.unload_file,
                 'args': {}
+            },
+            'File Name': {
+                'function': gui.change_save_filename,
+                'args': {}
+            },
+            "Increment Trial": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.data.increment_current_trial_index,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Decrement Trial": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.data.decrement_current_trial_index,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Increment Record": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.file.increment_record,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Decrement Record": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.file.decrement_record,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Increment Location": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.file.increment_location,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Decrement Location": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.file.decrement_location,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Increment Slice": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.file.increment_slice,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Decrement Slice": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.file.decrement_slice,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Trial Number": {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.set_current_trial_index,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Location Number": {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.set_location,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Record Number": {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.set_record,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Slice Number": {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.set_slice,
+                         'call2': gui.update_tracking_num_fields}
             },
         }
 

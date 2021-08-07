@@ -11,21 +11,75 @@ class File:
     def __init__(self, data):
         self.data = data
         self.save_dir = os.getcwd()
+        self.override_filename = None
         self.current_slice = 0
         self.current_location = 0
-        self.current_run = 0
+        self.current_record = 0
 
-    def increment_slice(self):
-        self.current_slice += 1
+    def set_override_filename(self, fn):
+        self.override_filename = fn
+
+    def get_slice_num(self):
+        return self.current_slice
+
+    def get_location_num(self):
+        return self.current_location
+
+    def get_record_num(self):
+        return self.current_record
+
+    def increment_slice(self, num=1):
+        self.current_slice += num
         self.current_location = 0
-        self.current_run = 0
+        self.current_record = 0
+        self.data.set_current_trial_index(0)
 
-    def increment_location(self):
-        self.current_location += 1
-        self.current_run = 0
+    def increment_location(self, num=1):
+        self.current_location += num
+        self.current_record = 0
+        self.data.set_current_trial_index(0)
 
-    def increment_run(self):
-        self.current_run += 1
+    def increment_record(self, num=1):
+        self.current_record += num
+        self.data.set_current_trial_index(0)
+
+    def decrement_slice(self, num=1):
+        self.current_slice -= num
+        if self.current_slice >= 0:
+            self.current_location = 0
+            self.current_record = 0
+            self.data.set_current_trial_index(0)
+        else:
+            self.current_slice = 0
+
+    def decrement_location(self, num=1):
+        self.current_location -= num
+        if self.current_location >= 0:
+            self.current_record = 0
+            self.data.set_current_trial_index(0)
+        else:
+            self.current_location = 0
+
+    def decrement_record(self, num=1):
+        self.current_record -= 1
+
+    def set_slice(self, v):
+        if v > self.current_slice:
+            self.increment_slice(v - self.current_slice)
+        elif v < self.current_slice:
+            self.decrement_slice(self.current_slice - v)
+
+    def set_record(self, v):
+        if v > self.current_record:
+            self.increment_record(v - self.current_record)
+        elif v < self.current_record:
+            self.decrement_record(self.current_record - v)
+
+    def set_location(self, v):
+        if v > self.current_location:
+            self.increment_location(v - self.current_location)
+        if v < self.current_location:
+            self.decrement_location(self.current_location - v)
 
     @staticmethod
     def pad_zero(i, dst_len=2):
@@ -34,10 +88,17 @@ class File:
             return '0' + s
         return s
 
-    def get_filename(self, extension='.pbz2'):
-        return self.pad_zero(self.current_slice) + '-' + \
-               self.pad_zero(self.current_location) + '-' + \
-               self.pad_zero(self.current_run) + extension
+    def get_filename(self, extension='.pbz2', no_path=False):
+        fn = ''
+        if self.override_filename is not None:
+            fn = self.override_filename
+        else:
+            fn = self.pad_zero(self.get_slice_num()) + '-' + \
+                 self.pad_zero(self.get_location_num()) + '-' + \
+                 self.pad_zero(self.get_record_num()) + extension
+        if no_path:
+            return fn
+        return self.get_save_dir() + '/' + fn
 
     def dump_python_object_to_pickle(self, filename, obj, extension='.pbz2'):
         if len(extension) > 0 and extension[0] != '.':
@@ -60,15 +121,15 @@ class File:
         acqui_images = self.data.get_acqui_images()
         rli_images = self.data.get_rli_images()
         fp_data = self.data.get_fp_data()
-        fn = self.get_save_dir() + '/' + self.get_filename()
+        fn = self.get_filename()
 
         print("Saving to file " + fn + "...")
-        metadata ={
+        metadata = {
             'version': 6,  # Little Dave version
             'num_fp': self.data.get_num_fp(),
             'slice_no': self.current_slice,
             'location_no': self.current_location,
-            'run_no': self.current_run,
+            'run_no': self.current_record,
             'num_trials': self.data.get_num_trials(),
             'num_pts': self.data.get_num_pts(),
             'int_pts': self.data.get_int_pts(),
@@ -136,7 +197,7 @@ class File:
         if meta is not None:
             self.current_slice = ds.slice_number
             self.current_location = ds.location_number
-            self.current_run = ds.record_number
+            self.current_record = ds.record_number
             self.data.set_num_trials(ds.number_of_trials)
             new_num_pts = ds.points_per_trace
             if new_num_pts < 1 or new_num_pts is None:

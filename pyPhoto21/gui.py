@@ -2,6 +2,7 @@ import numpy as np
 import os.path
 import threading
 import time
+import string
 import PySimpleGUI as sg
 import matplotlib
 import sys
@@ -19,8 +20,9 @@ from pyPhoto21.analysis.roi import ROI
 from pyPhoto21.layouts import *
 from pyPhoto21.event_mapping import EventMapping
 
-#from mpl_interactions import image_segmenter
+# from mpl_interactions import image_segmenter
 from matplotlib.widgets import Slider
+
 
 # import io
 
@@ -86,6 +88,7 @@ class GUI:
                                 element_justification='center',
                                 resizable=True,
                                 font='Helvetica 18')
+        self.window.Maximize()
         self.plot_trace()
         self.plot_frame()
         self.main_workflow_loop()
@@ -179,7 +182,7 @@ class GUI:
                 self.take_rli()
             self.hardware.record(images=self.data.get_acqui_memory(trial=trial), fp_data=self.data.get_fp_data())
             self.fv.update()
-            print("Took trial", trial+1, "of", self.data.get_num_trials())
+            print("Took trial", trial + 1, "of", self.data.get_num_trials())
             if trial != self.data.get_num_trials() - 1:
                 print("\t", sleep_sec, "seconds until next trial...")
                 time.sleep(sleep_sec)
@@ -188,7 +191,6 @@ class GUI:
             self.file.increment_run()
         # done recording
         self.unfreeze_hardware_settings()
-
 
     def record(self, **kwargs):
         # we spawn a new thread to acquire in the background.
@@ -232,9 +234,20 @@ class GUI:
                 break
         wind.close()
 
-    def choose_save_dir(self):
+    def change_save_filename(self, **kwargs):
         # Spawn a folder browser for auto-save
-        print("choose_save_dir not implemented")
+        v = kwargs['values']
+        if len(v) < 1:
+            return
+        valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+        v = ''.join(c for c in v if c in valid_chars)
+        kwargs['window'][kwargs['event']].update(v)
+        self.file.set_override_filename(v)
+
+    def choose_save_dir(self, **kwargs):
+        folder = self.browse_for_folder()
+        self.file.set_save_dir(folder)
+        print("New save location:", folder)
 
     def browse_for_file(self, file_extensions):
         file_window = sg.Window('File Browser',
@@ -270,6 +283,30 @@ class GUI:
         file_window.close()
         return file
 
+    def browse_for_folder(self):
+        folder_window = sg.Window('File Browser',
+                                  self.layouts.create_folder_browser(),
+                                  finalize=True,
+                                  element_justification='center',
+                                  resizable=True,
+                                  font='Helvetica 18')
+        file = None
+        # file browser event loop
+        while True:
+            event, values = folder_window.read()
+            if event == sg.WIN_CLOSED or event == "Exit":
+                folder_window.close()
+                return
+            elif event == "folder_window.open":
+                file = values["folder_window.browse"]
+                break
+        if self.freeze_input:
+            file = None
+            self.notify_window("Folder Input Error",
+                               "Cannot change save location during acquisition")
+        folder_window.close()
+        return file
+
     def load_roi_file(self, **kwargs):
         filename = self.browse_for_file(['roi'])
         data_obj = self.file.retrieve_python_object_from_pickle(filename)
@@ -293,12 +330,10 @@ class GUI:
     def load_data_file(self):
         file = self.browse_for_file(['zda', 'pbz2'])
         if file is not None:
-
             self.freeze_hardware_settings(include_buttons=False)
             print("Loading from file:", file, "\nThis will take a few seconds...")
 
             threading.Thread(target=self.load_data_file_in_background, args=(file,), daemon=True).start()
-
 
     # Pull all file-based data from Data and sync GUI fields
     def file_gui_fields_sync(self):
@@ -394,7 +429,7 @@ class GUI:
         # looks at num_pts as well to validate.
         def is_valid_acqui_duration(u, max_num_pts=15000):
             return self.validate_numeric_input(u, decimal=True) \
-                and int(float(u) * self.data.get_int_pts()) <= max_num_pts
+                   and int(float(u) * self.data.get_int_pts()) <= max_num_pts
 
         while len(v) > 0 and not is_valid_acqui_duration(v):
             v = v[:-1]
@@ -407,6 +442,12 @@ class GUI:
             self.data.hardware.set_num_pts(value=0)
             kwargs['window'][kwargs['event']].update('')
             kwargs['window']["Number of Points"].update('')
+
+    @staticmethod
+    def pass_no_arg_calls(**kwargs):
+        for key in kwargs:
+            if key.startswith('call'):
+                kwargs[key]()
 
     def validate_and_pass_int(self, **kwargs):
         max_val = None
@@ -563,10 +604,39 @@ class GUI:
 
     def set_num_trials(self, **kwargs):
         v = kwargs['values']
+        self.data.set_num_trials(int(v))
 
     def define_event_mapping(self):
         if self.event_mapping is None:
             self.event_mapping = EventMapping(self).get_event_mapping()
+
+    def update_tracking_num_fields(self):
+        self.window["Slice Number"].update(self.file.get_slice_num())
+        self.window["Location Number"].update(self.file.get_location_num())
+        self.window["Record Number"].update(self.file.get_record_num())
+        self.window["Trial Number"].update(self.data.get_current_trial_index())
+
+    def set_current_trial_index(self, **kwargs):
+        if 'value' in kwargs:
+            value = int(kwargs['value'])
+            self.data.set_current_trial_index(value)
+            self.fv.update_new_image()
+
+    def set_slice(self, **kwargs):
+        value = int(kwargs['value'])
+        self.file.set_slice(value)
+        self.fv.update_new_image()
+
+    def set_record(self, **kwargs):
+        value = int(kwargs['value'])
+        self.file.set_record(value)
+        self.fv.update_new_image()
+
+    def set_location(self, **kwargs):
+        value = int(kwargs['value'])
+        self.file.set_location(value)
+        self.fv.update_new_image()
+
 
 class Toolbar(NavigationToolbar2Tk):
     def __init__(self, *args, **kwargs):
