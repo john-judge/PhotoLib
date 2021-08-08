@@ -462,5 +462,4 @@ class Data:
                                        self.get_num_trials())
 
     def decrement_current_trial_index(self):
-        self.current_trial_index = max(self.current_trial_index - 1,
-                                       0)
+        self.current_trial_index = max(self.current_trial_index - 1, 0)

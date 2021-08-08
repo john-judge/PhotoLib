@@ -310,6 +310,10 @@ class EventMapping:
                 'args': {'call': gui.set_slice,
                          'call2': gui.update_tracking_num_fields}
             },
+            "STOP!": {
+                'function': gui.hardware.set_stop_flag,
+                'args': {}
+            }
 
         }
 

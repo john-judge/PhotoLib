@@ -19,6 +19,7 @@ class Hardware:
                   "in analysis mode without access to hardware for data acquisition.")
             print(e)
             self.hardware_enabled = False
+        self.stop_flag = False
 
     def __del__(self):
         if self.hardware_enabled:
@@ -360,3 +361,10 @@ class Hardware:
                                  + os.environ['PATH']
             self.lib = ctypes.cdll.LoadLibrary(dll_path + 'PhotoLib.dll')
 
+    def set_stop_flag(self, v=True):
+        if v:
+            print("Sending stop signal to daemon...")
+        self.stop_flag = v
+
+    def get_stop_flag(self):
+        return self.stop_flag

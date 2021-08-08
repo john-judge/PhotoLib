@@ -16,6 +16,21 @@ class File:
         self.current_location = 0
         self.current_record = 0
 
+    # gets a filename to save to, avoiding overwrites
+    def get_filename_to_write(self):
+        fn = self.get_filename()
+        while self.file_exists(fn):
+            self.set_override_filename(None)
+            self.increment_record()
+            fn = self.get_filename()
+        return fn
+
+    def file_exists(self, filename):
+        return filename in self.get_filenames_in_folder()
+
+    def get_filenames_in_folder(self):
+        return os.listdir(self.get_save_dir())
+
     def set_override_filename(self, fn):
         self.override_filename = fn
 

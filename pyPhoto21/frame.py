@@ -24,7 +24,6 @@ class FrameViewer:
         self.colors = ['red', 'green', 'cyan', 'magenta', 'yellow', 'black', 'blue']
         self.shapes = []
 
-        self.trial_index = 0
         self.smax = None
         self.show_rli = None
         self.set_show_rli_flag(show_rli)
@@ -40,11 +39,11 @@ class FrameViewer:
         self.update()
 
     def set_trial_index(self, i):
-        self.trial_index = i
+        self.data.set_current_trial_index(i)
         self.update_new_image()
 
     def get_trial_index(self):
-        return self.trial_index
+        return self.data.get_current_trial_index()
 
     def set_show_processed_data(self, v):
         self.show_processed_data = v
@@ -188,7 +187,7 @@ class FrameViewer:
 
     def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
-                                                         trial=self.trial_index,
+                                                         trial=self.get_trial_index(),
                                                          get_rli=self.show_rli,
                                                          binning=self.get_digital_binning(),
                                                          show_processed=self.get_show_processed_data())

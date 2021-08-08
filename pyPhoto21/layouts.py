@@ -92,28 +92,28 @@ class Layouts:
                           default_text=str(gui.file.get_filename(no_path=True)),
                           enable_events=True,
                           size=long_button_size)],
-            [sg.Text("Slice:", size=(8, 1)),
+            [sg.Text("Slice:", size=(8, 1), justification='right'),
              sg.InputText(key="Slice Number",
                           default_text=str(gui.file.get_slice_num()),
                           enable_events=True,
                           size=field_size),
              sg.Button('<', key='Decrement Slice'),
              sg.Button('>', key='Increment Slice'),
-             sg.Text("Location:", size=(8, 1)),
+             sg.Text("Location:", size=(8, 1), justification='right'),
              sg.InputText(key="Location Number",
                           default_text=str(gui.file.get_location_num()),
                           enable_events=True,
                           size=field_size),
              sg.Button('<', key='Decrement Location'),
              sg.Button('>', key='Increment Location')],
-            [sg.Text("Record:", size=(8, 1)),
+            [sg.Text("Record:", size=(8, 1), justification='right'),
              sg.InputText(key="Record Number",
                           default_text=str(gui.file.get_record_num()),
                           enable_events=True,
                           size=field_size),
              sg.Button('<', key='Decrement Record'),
              sg.Button('>', key='Increment Record'),
-             sg.Text("Trial:", size=(8, 1)),
+             sg.Text("Trial:", size=(8, 1), justification='right'),
              sg.InputText(key="Trial Number",
                           default_text=str(gui.data.get_current_trial_index()),
                           enable_events=True,
@@ -363,9 +363,6 @@ class Layouts:
                 [sg.Canvas(key='daq_canvas', size=self.plot_size)]]
 
     def create_right_column(self):
-        camera_programs = self.data.display_camera_programs
-        cell_size = (10, 1)
-        double_cell_size = (20, 1)
         trace_viewer_layout = [
             [sg.Canvas(key='trace_canvas_controls')],
             [sg.Canvas(key='trace_canvas', size=self.plot_size)]]
@@ -413,11 +410,17 @@ class Layouts:
                 "Location Number",
                 "Record Number",
                 "Slice Number",
+                'num_records',
+                'int_records'
                 ]
 
     @staticmethod
     def list_hardware_events():
         return ["Live Feed", "Take RLI", "Live Feed", "Record"]
+
+    @staticmethod
+    def list_file_events():
+        return ["Save Analysis", "Unload File"]
 
     @staticmethod
     def create_roi_settings_form(gui):

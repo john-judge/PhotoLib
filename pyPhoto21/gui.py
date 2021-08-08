@@ -162,6 +162,7 @@ class GUI:
             events_to_control = self.layouts.list_hardware_settings()
             if include_buttons:
                 events_to_control += self.layouts.list_hardware_events()
+                events_to_control += self.layouts.list_file_events()
             for ev in events_to_control:
                 self.window[ev].update(disabled=v)
 
@@ -176,9 +177,27 @@ class GUI:
 
     def get_record_sleep_time(self):
         sleep_sec = self.data.get_int_records()
-        return sleep_sec - self.get_trial_sleep_time()
+        return max(0, sleep_sec - self.get_trial_sleep_time())
+
+    def save_file_in_background(self):
+        self.file.save_to_compressed_file()
+        self.update_tracking_num_fields()
+
+    # returns True if stop flag is set
+    def sleep_and_check_stop_flag(self, sleep_time, interval=1):
+        elapsed = 0
+        while elapsed < sleep_time:
+            time.sleep(interval)
+            elapsed += interval
+            if self.hardware.get_stop_flag():
+                self.hardware.set_stop_flag(False)
+                return True
+        return False
 
     def record_in_background(self):
+        self.freeze_hardware_settings()
+        self.hardware.set_stop_flag(False)
+
         sleep_trial = self.get_trial_sleep_time()
         sleep_record = self.get_record_sleep_time()
 
@@ -187,27 +206,43 @@ class GUI:
             self.data.sync_settings_from_hardware()
             self.data.resize_image_memory()
         self.data.set_is_loaded_from_file(False)
+        exit_recording = False
 
+        if self.data.get_num_records() * self.data.get_num_trials() == 0:
+            print("Settings are such that no trials are recorded.")
+            return
+
+        # Note that record index may not necessarily match the record num for file saving
         for record_index in range(self.data.get_num_records()):
+            is_last_record = (record_index == self.data.get_num_records() - 1)
+            if exit_recording:
+                break
 
             for trial in range(self.data.get_num_trials()):
+                is_last_trial = (trial == self.data.get_num_trials() - 1)
                 if self.get_is_schedule_rli_enabled():
-                    self.take_rli()
+                    self.take_rli_core()
                 self.hardware.record(images=self.data.get_acqui_memory(trial=trial),
                                      fp_data=self.data.get_fp_data())
-                self.fv.update()
-                print("Took trial", trial + 1, "of", self.data.get_num_trials())
-                if trial != self.data.get_num_trials() - 1:
-                    print("\t", sleep_trial, "seconds until next trial...")
-                    time.sleep(sleep_trial)
+                self.data.set_current_trial_index(trial)
+                self.fv.update(update_hyperslicer=is_last_trial)  # send data to hs only once per record
+                print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
+                if not is_last_trial:
+                    print("\t\t", sleep_trial, "seconds until next trial...")
+                    exit_recording = self.sleep_and_check_stop_flag(sleep_time=sleep_trial)
+                if exit_recording:
+                    break
 
             if self.get_is_auto_save_enabled():
-                self.file.save_to_compressed_file()  # TO DO: launch this in the background 
-                self.file.increment_run()
+                threading.Thread(target=self.save_file_in_background, args=(), daemon=True).start()
+            if exit_recording:
+                break
+            print("Took recording set", record_index + 1, "of", self.data.get_num_records())
+            if not is_last_record:
+                print("\t", sleep_record, "seconds until next recording set...")
+                exit_recording = self.sleep_and_check_stop_flag(sleep_time=sleep_record)
 
-            if record_index != self.data.get_num_records() - 1:
-                time.sleep(sleep_record)
-
+        print("Recording ended.")
         # done recording
         self.unfreeze_hardware_settings()
 
@@ -215,17 +250,25 @@ class GUI:
         # we spawn a new thread to acquire in the background.
         # meanwhile the original thread returns and keeps handling GUI clicks
         # but updates to Data/Hardware fields will be frozen
-        self.freeze_hardware_settings()
         threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
 
-    def take_rli(self, **kwargs):
-        if self.data.get_is_loaded_from_file():
-            self.data.sync_settings_from_hardware()
-            self.data.resize_image_memory()
+    def take_rli_core(self):
         self.hardware.take_rli(images=self.data.get_rli_memory())
         self.data.set_is_loaded_from_file(False)
         if self.fv.get_show_rli_flag():
             self.fv.update_new_image()
+
+    def take_rli_in_background(self):
+        self.freeze_hardware_settings()
+        self.hardware.set_stop_flag(False)
+        if self.data.get_is_loaded_from_file():
+            self.data.sync_settings_from_hardware()
+            self.data.resize_image_memory()
+        self.take_rli_core()
+        self.unfreeze_hardware_settings()
+
+    def take_rli(self, **kwargs):
+        threading.Thread(target=self.take_rli_in_background, args=(), daemon=True).start()
 
     def set_camera_program(self, **kwargs):
         program_name = kwargs['values']
@@ -629,7 +672,7 @@ class GUI:
         if self.event_mapping is None:
             self.event_mapping = EventMapping(self).get_event_mapping()
 
-    def update_tracking_num_fields(self):
+    def update_tracking_num_fields(self, **kwargs):
         self.window["Slice Number"].update(self.file.get_slice_num())
         self.window["Location Number"].update(self.file.get_location_num())
         self.window["Record Number"].update(self.file.get_record_num())
