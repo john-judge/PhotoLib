@@ -20,8 +20,56 @@ class AnalysisCore:
         self.clustered = None
         self.cluster_indices_by_snr = None
 
+        # Filtering settings
+        self.is_temporal_filer_enabled = False
+        self.temporal_filter_radius = 25.0
+        self.temporal_filter_type_index = 0
+        self.temporal_filter_options = [
+            'Gaussian',
+            'Binomial',
+            'Mov Avg',
+            'Binomial-8',
+            'Binomial-6',
+            'Binomial-4',
+        ]
+        self.is_spatial_filer_enabled = False
+        self.spatial_filter_sigma = 1.0
+
         self.time_window = [0, -1]
         self.current_processed_frame = None
+
+    def set_is_temporal_filter_enabled(self, v):
+        self.is_temporal_filer_enabled = v
+
+    def get_is_temporal_filter_enabled(self):
+        return self.is_temporal_filer_enabled
+
+    def get_temporal_filter_radius(self):
+        return self.temporal_filter_radius
+
+    def set_temporal_filter_radius(self, v):
+        self.temporal_filter_radius = v
+
+    def get_temporal_filter_options(self):
+        return self.temporal_filter_options
+
+    def get_temporal_filter_index(self):
+        return self.temporal_filter_type_index
+
+    def set_temporal_filter_index(self):
+        return self.temporal_filter_type_index
+
+    def set_is_spatial_filter_enabled(self, v):
+        self.is_spatial_filer_enabled = v
+
+    def get_is_spatial_filter_enabled(self):
+        return self.is_spatial_filer_enabled
+
+    def set_spatial_filter_sigma(self, v):
+        self.spatial_filter_sigma = v
+
+    def get_spatial_filter_sigma(self):
+        return self.spatial_filter_sigma
 
     def get_time_window(self):
         return self.time_window
@@ -147,7 +195,7 @@ class AnalysisCore:
         return downscale_local_mean(data, (binning_factor, binning_factor))
 
     @staticmethod
-    def filter_temporal(self, meta, raw_data, sigma_t=1.0):
+    def filter_temporal(raw_data, sigma_t=1.0):
         """ Temporal filtering: 1-d binomial 8 filter (approx. Gaussian) """
         filtered_data = np.zeros(raw_data.shape)
         for i in range(raw_data.shape[0]):
@@ -158,14 +206,17 @@ class AnalysisCore:
         return filtered_data
 
     @staticmethod
-    def filter_spatial(self, raw_data, sigma_s=1.0):
+    def filter_spatial(raw_data, sigma_s=1.0, filter_type='Gaussian'):
         """ Spatial filtering: Gaussian """
         filtered_data = np.zeros(raw_data.shape)
-        raw_data = raw_data
-        filter_size = int(sigma_s * 3.5)
-        for i in range(raw_data.shape[0]):
-            for t in range(raw_data.shape[1]):
-                filtered_data[i, t, :, :] = cv.GaussianBlur(raw_data[i, t, :, :].astype(np.float32),
-                                                            (filter_size,filter_size),
-                                                            sigma_s)
+        if filter_type == 'Gaussian':
+            filter_size = int(sigma_s * 3)
+            if filter_size % 2 == 0:
+                filter_size += 1
+
+            for i in range(raw_data.shape[0]):
+                for t in range(raw_data.shape[1]):
+                    filtered_data[i, t, :, :] = cv.GaussianBlur(raw_data[i, t, :, :].astype(np.float32),
+                                                                (filter_size, filter_size),
+                                                                sigma_s)
         return filtered_data

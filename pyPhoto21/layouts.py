@@ -85,7 +85,8 @@ class Layouts:
             [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
                          size=checkbox_size),
              sg.Button("Save Analysis", button_color=('black', 'green'), size=button_size),
-             sg.Button("Unload File", button_color=('black', 'green'), size=button_size)],
+             sg.Button("Unload File", button_color=('black', 'green'), size=button_size),
+             sg.Button("Save", button_color=('black', 'green'), size=button_size)],
             [sg.HorizontalSeparator()],
             [sg.Text("File Name:", size=(8, 1)),
              sg.InputText(key="File Name",
@@ -194,26 +195,85 @@ class Layouts:
                          size=button_size)],
         ]
 
+    @staticmethod
+    def get_background_options():
+        return ['None', 'Image', 'RLI', 'Max Amp',
+                'Spike Amp', '% Amp Latency', 'Max Amp Latency',
+                'EPSP Latency', 'MaxAmp/SD', ]
+
     def create_array_tab(self, gui):
         button_size = (10, 1)
+        background_options = self.get_background_options()
         return [
             [sg.Checkbox('Show RLI',
                          default=gui.fv.get_show_rli_flag(),
                          enable_events=True,
                          key="Show RLI",
-                         size=button_size)],
+                         size=button_size),
+             sg.Text("Background:", size=button_size),
+             sg.Combo(background_options,
+                      enable_events=True,
+                      default_value=background_options[gui.get_background_option_index()],
+                      key="Select Background")],
             [sg.Button("Load Image", button_color=('gray', 'black'))],
             [sg.Text("Digital Binning:"), sg.InputText('1', key="Digital Binning", size=(5, 1), enable_events=True)]
+        ]
+
+    def create_dsp_tab(self):
+        return [[
+            sg.Button("placeholder", button_color=('gray', 'black')),
+        ]]
+
+    def create_baseline_tab(self):
+        return [[
+            sg.Button("placeholder2", button_color=('gray', 'black')),
+        ]]
+
+    def create_filter_tab(self):
+        button_size = (10, 1)
+        slider_size = (20, 40)
+        t_filter_options = self.data.core.get_temporal_filter_options()
+        return [
+            [sg.Checkbox('T-Filter',
+                         default=self.data.core.get_is_temporal_filter_enabled(),
+                         enable_events=True,
+                         key='T-Filter',
+                         size=button_size),
+             sg.Combo(t_filter_options,
+                      enable_events=True,
+                      default_value=t_filter_options[self.data.core.get_temporal_filter_index()],
+                      key="Select Temporal Filter")],
+            [sg.Text("Radius (pt):", size=button_size, justification='right'),
+             sg.Slider(range=(0.5, 50.0),
+                       default_value=self.data.core.get_temporal_filter_radius(),
+                       resolution=1.0,
+                       enable_events=True,
+                       size=slider_size,
+                       orientation='horizontal',
+                       key="Temporal Filter Radius")],
+            [sg.Text('')],
+            [sg.Checkbox('S-Filter',
+                         default=self.data.core.get_is_spatial_filter_enabled(),
+                         enable_events=True,
+                         key='S-Filter',
+                         size=button_size)],
+            [sg.Text("Sigma (px):", size=button_size, justification='right'),
+             sg.Slider(range=(0.1, 2.0),
+                       default_value=self.data.core.get_spatial_filter_sigma(),
+                       resolution=.1,
+                       enable_events=True,
+                       size=slider_size,
+                       orientation='horizontal',
+                       key="Spatial Filter Sigma")]
         ]
 
     def create_left_column(self, gui):
         acquisition_tab_layout = self.create_acquisition_tab(gui)
         analysis_tab_layout = self.create_analysis_tab(gui)
         array_tab_layout = self.create_array_tab(gui)
-
-        dsp_tab_layout = [[
-            sg.Button("placeholder", button_color=('gray', 'black')),
-        ]]
+        dsp_tab_layout = self.create_dsp_tab()
+        filter_tab_layout = self.create_filter_tab()
+        baseline_tab_layout = self.create_baseline_tab()
 
         tab_group_basic = [sg.TabGroup([[
             sg.Tab('Acquisition', acquisition_tab_layout),
@@ -223,6 +283,8 @@ class Layouts:
         tab_group_advanced = [sg.TabGroup([[
             sg.Tab('Array', array_tab_layout),
             sg.Tab('DSP', dsp_tab_layout),
+            sg.Tab("Baseline", baseline_tab_layout),
+            sg.Tab("Filter", filter_tab_layout),
         ]])]
 
         frame_viewer_layout = [

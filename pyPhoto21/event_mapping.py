@@ -30,6 +30,10 @@ class EventMapping:
                 'function': gui.set_camera_program,
                 'args': {},
             },
+            "Select Background": {
+                'function': gui.set_background_option_index,
+                'args': {},
+            },
             "Show RLI": {
                 'function': gui.toggle_show_rli,
                 'args': {},
@@ -313,8 +317,27 @@ class EventMapping:
             "STOP!": {
                 'function': gui.hardware.set_stop_flag,
                 'args': {}
+            },
+            "Temporal Filter Radius": {
+                'function': gui.set_t_filter_radius,
+                'args': {}
+            },
+            "Spatial Filter Sigma": {
+                'function': gui.set_s_filter_sigma,
+                'args': {}
+            },
+            "Select Temporal Filter": {
+                'function': gui.set_temporal_filter_index,
+                'args': {},
+            },
+            'T-Filter': {
+                'function': gui.set_is_t_filter_enabled,
+                'args': {}
+            },
+            'S-Filter': {
+                'function': gui.set_is_s_filter_enabled,
+                'args': {}
             }
-
         }
 
     def get_event_mapping(self):

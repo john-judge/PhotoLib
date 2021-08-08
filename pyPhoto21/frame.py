@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from pyPhoto21.analysis.hyperslicer import HyperSlicer
 
+
 class FrameViewer:
     def __init__(self, data, tv, show_rli=True):
         self.data = data
@@ -68,7 +69,7 @@ class FrameViewer:
                 self.fp_axes[i].get_yaxis().set_visible(False)
 
         # Rest of the plot is the image
-        self.ax = self.fig.add_subplot(gs[1:-1, :]) # leaves last row blank -- for Slider
+        self.ax = self.fig.add_subplot(gs[1:-1, :])  # leaves last row blank -- for Slider
         axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
         self.smax = Slider(axmax, 'Frame Selector', 0, np.max(self.num_frames), valinit=self.ind)
 
@@ -77,7 +78,6 @@ class FrameViewer:
             self.im = self.ax.imshow(self.current_frame,
                                      aspect='auto',
                                      cmap='jet')
-
 
     def get_slider_max(self):
         return self.smax
@@ -113,14 +113,21 @@ class FrameViewer:
             self.moving = True
 
     def onclick(self, event):
-        #print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
-        #      ('double' if event.dblclick else 'single', event.button,
-        #       event.x, event.y, event.xdata, event.ydata))
+        print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+          ('double' if event.dblclick else 'single', event.button,
+           event.x, event.y, event.xdata, event.ydata))
         if event.button == 3:  # right click
             self.tv.clear_traces()
             self.clear_shapes()
         elif event.button == 1:  # left click
-            self.ondrag(event)
+            if event.inaxes == self.ax:
+                # clicked frame
+                self.ondrag(event)
+            else:
+                # clicked on a FP trace. Move to TraceViewer.
+                for i in range(len(self.fp_axes)):
+                    if event.inaxes == self.fp_axes[i]:
+                        self.tv.add_trace(fp_index=i)
 
     def get_next_color(self):
         return self.colors[(len(self.shapes) - 1) % len(self.colors)]
@@ -199,7 +206,7 @@ class FrameViewer:
             self.im.set_clim(vmin=np.min(self.current_frame),
                              vmax=np.max(self.current_frame))
 
-        #self.ax.set_ylabel('slice %s' % self.ind)
+        # self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw_idle()
         if self.hyperslicer is not None and update_hyperslicer:
             self.hyperslicer.update_data(show_rli=self.show_rli)
@@ -248,4 +255,3 @@ class FrameViewer:
 
     def launch_hyperslicer(self):
         self.hyperslicer = HyperSlicer(self.data, show_rli=self.show_rli)
-

@@ -46,6 +46,7 @@ class GUI:
         self.title = "Photo21"
         self.freeze_input = False  # whether to allow fields to be updated. Frozen during acquire (how about during file loaded?)
         self.event_mapping = None
+        self.background_option_index = 0
         self.define_event_mapping()  # event callbacks used in event loops
         # kickoff workflow
         if self.production_mode:
@@ -698,6 +699,43 @@ class GUI:
         value = int(kwargs['value'])
         self.file.set_location(value)
         self.fv.update_new_image()
+
+    def get_background_option_index(self):
+        return self.background_option_index
+
+    def set_background_option_index(self, **kwargs):
+        bg_name = kwargs['values']
+        bg_index = self.layouts.get_background_options().index(bg_name)
+        self.background_option_index = bg_index
+
+    def set_temporal_filter_index(self, **kwargs):
+        tf_name = kwargs['values']
+        tf_index = self.data.core.get_temporal_filter_options().index(tf_name)
+        self.data.core.set_temporal_filter_index(tf_index)
+
+    def set_t_filter_radius(self, **kwargs):
+        v = int(kwargs['values'])
+        self.data.core.set_temporal_filter_radius(v)
+        self.fv.clear_shapes()
+        self.tv.clear_traces()
+
+    def set_s_filter_sigma(self, **kwargs):
+        v = float(kwargs['values'])
+        self.data.core.set_spatial_filter_sigma(v)
+        self.fv.update_new_image()
+
+    def set_is_t_filter_enabled(self, **kwargs):
+        v = bool(kwargs['values'])
+        self.data.core.set_is_temporal_filter_enabled(v)
+        self.fv.clear_shapes()
+        self.tv.clear_traces()
+
+    def set_is_s_filter_enabled(self, **kwargs):
+        v = bool(kwargs['values'])
+        self.data.core.set_is_spatial_filter_enabled(v)
+        self.fv.update_new_image()
+
+
 
 
 class Toolbar(NavigationToolbar2Tk):

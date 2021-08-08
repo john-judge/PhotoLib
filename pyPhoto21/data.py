@@ -160,11 +160,23 @@ class Data:
         # digital binning
         ret_frame = self.core.create_binned_data(ret_frame, binning_factor=binning)
 
+        # spatial filtering
+        ret_frame = self.s_filter_frame(ret_frame)
+
         # crop out 1px borders
         ret_frame = ret_frame[1:-2, 1:-2]
         return ret_frame
 
-    def get_display_trace(self, index=None, trial=None):
+    def get_display_fp_trace(self, fp_index, trial=None):
+        traces = self.get_fp_data(trial=trial)
+        if trial is None:
+            traces = np.average(traces, axis=0)
+        return traces[:, fp_index]
+
+    def get_display_trace(self, index=None, trial=None, fp_index=None):
+        if fp_index is not None:
+            return self.get_display_fp_trace(fp_index, trial=trial)
+
         images = self.get_acqui_images()
         if images is None:
             print("get_display_trace: No images to display.")
@@ -196,7 +208,32 @@ class Data:
                 ret_trace = np.average(ret_trace, axis=1)
             else:
                 print("get_display_trace: drawn shape is empty:", index)
+
+        # temporal filtering
+        ret_trace = self.t_filter_trace(ret_trace)
+
         return ret_trace
+
+    def s_filter_frame(self, frame):
+        if self.core.get_is_spatial_filter_enabled():
+            s_filter_sigma = self.core.get_spatial_filter_sigma()
+            w, h = frame.shape
+            frame = frame.reshape(1, 1, w, h)
+            frame = self.core.filter_spatial(frame, sigma_s=s_filter_sigma)
+            frame = frame.reshape(w, h)
+        return frame
+
+    def t_filter_trace(self, trace):
+        if self.core.get_is_temporal_filter_enabled():
+            t_filter_type = self.core.get_temporal_filter_options()[self.core.get_temporal_filter_index()]
+            t_filter_radius = self.core.get_temporal_filter_radius()
+            trace = np.array(trace)
+            t = trace.shape[0]
+            trace = trace.reshape(1, t, 1, 1)
+            if t_filter_type == "Gaussian":
+                trace = self.core.filter_temporal(trace, sigma_t=t_filter_radius)
+            trace = trace.reshape(t)
+        return trace
 
     # Returns the full (x2) memory for hardware to use
     def get_acqui_memory(self, trial=None):
@@ -402,7 +439,9 @@ class Data:
 
     def get_int_pts(self):
         if self.get_is_loaded_from_file() and 'int_pts' in self.file_metadata:
-            return self.file_metadata['int_pts']
+            int_pts = self.file_metadata['int_pts']
+            if int_pts > 0:
+                return int_pts
         return self.hardware.get_int_pts()
 
     # Is this even needed?
@@ -414,10 +453,15 @@ class Data:
 
     def get_num_pts(self):
         if self.get_is_loaded_from_file():
+            num_pts = 0
             if 'points_per_trace' in self.file_metadata:
-                return self.file_metadata['points_per_trace']
+                num_pts = self.file_metadata['points_per_trace']
             elif 'num_pts' in self.file_metadata:
-                return self.file_metadata['num_pts']
+                num_pts = self.file_metadata['num_pts']
+            if num_pts > 0:
+                return num_pts
+            else:
+                return self.get_acqui_images().shape[-3]
         return self.hardware.get_num_pts()
 
     def get_num_rli_pts(self):
