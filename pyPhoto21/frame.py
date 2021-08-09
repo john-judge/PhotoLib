@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from pyPhoto21.analysis.hyperslicer import HyperSlicer
 
+
 class FrameViewer:
     def __init__(self, data, tv, show_rli=True):
         self.data = data
@@ -24,7 +25,6 @@ class FrameViewer:
         self.colors = ['red', 'green', 'cyan', 'magenta', 'yellow', 'black', 'blue']
         self.shapes = []
 
-        self.trial_index = 0
         self.smax = None
         self.show_rli = None
         self.set_show_rli_flag(show_rli)
@@ -40,11 +40,11 @@ class FrameViewer:
         self.update()
 
     def set_trial_index(self, i):
-        self.trial_index = i
+        self.data.set_current_trial_index(i)
         self.update_new_image()
 
     def get_trial_index(self):
-        return self.trial_index
+        return self.data.get_current_trial_index()
 
     def set_show_processed_data(self, v):
         self.show_processed_data = v
@@ -69,15 +69,15 @@ class FrameViewer:
                 self.fp_axes[i].get_yaxis().set_visible(False)
 
         # Rest of the plot is the image
-        self.ax = self.fig.add_subplot(gs[1:-1, :]) # leaves last row blank -- for Slider
+        self.ax = self.fig.add_subplot(gs[1:-1, :])  # leaves last row blank -- for Slider
         axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
         self.smax = Slider(axmax, 'Frame Selector', 0, np.max(self.num_frames), valinit=self.ind)
 
         self.refresh_current_frame()
-        self.im = self.ax.imshow(self.current_frame,
-                                 aspect='auto',
-                                 cmap='jet')
-
+        if self.current_frame is not None:
+            self.im = self.ax.imshow(self.current_frame,
+                                     aspect='auto',
+                                     cmap='jet')
 
     def get_slider_max(self):
         return self.smax
@@ -102,25 +102,32 @@ class FrameViewer:
 
     def onpress(self, event):
         if not self.press:
-            if event.button == 2:
+            if event.button == 1:
                 self.clear_waypoints()
                 self.add_waypoint(event)
             self.press = True
 
     def onmove(self, event):
-        if self.press and event.button == 2:  # middle mouse
+        if self.press and event.button == 1:  # left mouse
             self.add_waypoint(event)
             self.moving = True
 
     def onclick(self, event):
-        #print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
-        #      ('double' if event.dblclick else 'single', event.button,
-        #       event.x, event.y, event.xdata, event.ydata))
+        print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+          ('double' if event.dblclick else 'single', event.button,
+           event.x, event.y, event.xdata, event.ydata))
         if event.button == 3:  # right click
             self.tv.clear_traces()
             self.clear_shapes()
-        elif event.button == 2:  # left click
-            self.ondrag(event)
+        elif event.button == 1:  # left click
+            if event.inaxes == self.ax:
+                # clicked frame
+                self.ondrag(event)
+            else:
+                # clicked on a FP trace. Move to TraceViewer.
+                for i in range(len(self.fp_axes)):
+                    if event.inaxes == self.fp_axes[i]:
+                        self.tv.add_trace(fp_index=i)
 
     def get_next_color(self):
         return self.colors[(len(self.shapes) - 1) % len(self.colors)]
@@ -187,17 +194,19 @@ class FrameViewer:
 
     def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
-                                                         trial=self.trial_index,
+                                                         trial=self.get_trial_index(),
                                                          get_rli=self.show_rli,
+                                                         binning=self.get_digital_binning(),
                                                          show_processed=self.get_show_processed_data())
 
     def update(self, update_hyperslicer=True):
         self.refresh_current_frame()
-        self.im.set_data(self.current_frame)
-        self.im.set_clim(vmin=np.min(self.current_frame),
-                         vmax=np.max(self.current_frame))
+        if self.current_frame is not None:
+            self.im.set_data(self.current_frame)
+            self.im.set_clim(vmin=np.min(self.current_frame),
+                             vmax=np.max(self.current_frame))
 
-        #self.ax.set_ylabel('slice %s' % self.ind)
+        # self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw_idle()
         if self.hyperslicer is not None and update_hyperslicer:
             self.hyperslicer.update_data(show_rli=self.show_rli)
@@ -241,6 +250,8 @@ class FrameViewer:
             self.binning = binning
             self.update_new_image()
 
+    def get_digital_binning(self):
+        return self.binning
+
     def launch_hyperslicer(self):
         self.hyperslicer = HyperSlicer(self.data, show_rli=self.show_rli)
-

@@ -22,7 +22,7 @@ class Layouts:
 
     def create_menu(self):
         menu_def = [['Photo21 LilDave', ['Help', 'About']],
-                    ['File', ['Open', 'Save', 'Choose Save Directory', 'Exit']],
+                    ['File', ['Open', 'Choose Save Directory', 'Exit']],
                     ['Preference', ['Paste', ['Special', 'Normal', ], 'Undo'], ],
                     ['Toolbar', ['---', 'Command 1', 'Command 2',
                                  '---', 'Command 3', 'Command 4']]]
@@ -55,17 +55,26 @@ class Layouts:
     @staticmethod
     def create_file_browser():
         return [[
-            sg.In(size=(25, 1), enable_events=True, key="-FOLDER-"),
+            sg.In(size=(25, 1), enable_events=True, key="-FILE-"),
             sg.FileBrowse(key="file_window.browse",
                           # file_types=(("Raw Data Files", "*.zda"))
                           )],
             [sg.Button("Open", key='file_window.open')]]
 
-    def create_left_column(self, gui):
+    @staticmethod
+    def create_folder_browser():
+        return [[
+            sg.In(size=(25, 1), enable_events=True, key="-FOLDER-"),
+            sg.FolderBrowse(key="folder_window.browse")],
+            [sg.Button("Open", key='folder_window.open')]]
+
+    def create_acquisition_tab(self, gui):
         button_size = (10, 1)
-        long_button_size = (20, 1)
+        field_size = (6, 1)
+        small_button_size = (3, 1)
+        long_button_size = (18, 1)
         checkbox_size = (6, 1)
-        acquisition_tab_layout = [
+        return [
             [sg.Text("Auto:", size=(8, 1)),
              sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
              sg.Button("Take RLI", button_color=('brown', 'gray'), size=button_size)],
@@ -75,9 +84,48 @@ class Layouts:
              sg.Button("Record", button_color=('black', 'red'), size=button_size)],
             [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
                          size=checkbox_size),
-             sg.Button("Save Processed", button_color=('black', 'green'), size=button_size),
-             sg.Button("Save", button_color=('black', 'green'), size=button_size)]]
+             sg.Button("Save Analysis", button_color=('black', 'green'), size=button_size),
+             sg.Button("Unload File", button_color=('black', 'green'), size=button_size),
+             sg.Button("Save", button_color=('black', 'green'), size=button_size)],
+            [sg.HorizontalSeparator()],
+            [sg.Text("File Name:", size=(8, 1)),
+             sg.InputText(key="File Name",
+                          default_text=str(gui.file.get_filename(no_path=True)),
+                          enable_events=True,
+                          size=long_button_size)],
+            [sg.Text("Slice:", size=(8, 1), justification='right'),
+             sg.InputText(key="Slice Number",
+                          default_text=str(gui.file.get_slice_num()),
+                          enable_events=True,
+                          size=field_size),
+             sg.Button('<', key='Decrement Slice'),
+             sg.Button('>', key='Increment Slice'),
+             sg.Text("Location:", size=(8, 1), justification='right'),
+             sg.InputText(key="Location Number",
+                          default_text=str(gui.file.get_location_num()),
+                          enable_events=True,
+                          size=field_size),
+             sg.Button('<', key='Decrement Location'),
+             sg.Button('>', key='Increment Location')],
+            [sg.Text("Record:", size=(8, 1), justification='right'),
+             sg.InputText(key="Record Number",
+                          default_text=str(gui.file.get_record_num()),
+                          enable_events=True,
+                          size=field_size),
+             sg.Button('<', key='Decrement Record'),
+             sg.Button('>', key='Increment Record'),
+             sg.Text("Trial:", size=(8, 1), justification='right'),
+             sg.InputText(key="Trial Number",
+                          default_text=str(gui.data.get_current_trial_index()),
+                          enable_events=True,
+                          size=field_size),
+             sg.Button('<', key='Decrement Trial'),
+             sg.Button('>', key='Increment Trial')],
+        ]
 
+    def create_analysis_tab(self, gui):
+        button_size = (6, 1)
+        long_button_size = (17, 1)
         t_pre_stim = gui.roi.get_time_window('pre_stim')
         t_stim = gui.roi.get_time_window('stim')
         if t_pre_stim[1] == -1:
@@ -85,8 +133,8 @@ class Layouts:
         if t_stim[1] == -1:
             t_stim[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
-        analysis_tab_layout = [
-            [sg.Button("Select Pre-Stim Window",
+        return [
+            [sg.Button("Pre-Stim Window",
                        button_color=('black', 'orange'),
                        size=long_button_size),
              sg.InputText(key="Time Window Start frames pre_stim",
@@ -110,7 +158,7 @@ class Layouts:
                           enable_events=True,
                           size=button_size),
              sg.Text(" ms")],
-            [sg.Button("Select Stim Window",
+            [sg.Button("Stim Window",
                        button_color=('black', 'orange'),
                        size=long_button_size),
              sg.InputText(key="Time Window Start frames stim",
@@ -147,19 +195,105 @@ class Layouts:
                          size=button_size)],
         ]
 
-        array_tab_layout = [
+    @staticmethod
+    def get_background_options():
+        return ['None', 'Image', 'RLI', 'Max Amp',
+                'Spike Amp', '% Amp Latency', 'Max Amp Latency',
+                'EPSP Latency', 'MaxAmp/SD', ]
+
+    def create_array_tab(self, gui):
+        button_size = (10, 1)
+        background_options = self.get_background_options()
+        return [
             [sg.Checkbox('Show RLI',
                          default=gui.fv.get_show_rli_flag(),
                          enable_events=True,
                          key="Show RLI",
-                         size=button_size)],
+                         size=button_size),
+             sg.Text("Background:", size=button_size),
+             sg.Combo(background_options,
+                      enable_events=True,
+                      default_value=background_options[gui.get_background_option_index()],
+                      key="Select Background")],
             [sg.Button("Load Image", button_color=('gray', 'black'))],
             [sg.Text("Digital Binning:"), sg.InputText('1', key="Digital Binning", size=(5, 1), enable_events=True)]
         ]
 
-        dsp_tab_layout = [[
+    def create_dsp_tab(self):
+        return [[
             sg.Button("placeholder", button_color=('gray', 'black')),
         ]]
+
+    def create_baseline_tab(self):
+        button_size = (12, 1)
+        double_button_size = (20, 1)
+        slider_size = (20, 40)
+        baseline_correction_options = self.data.core.get_baseline_correction_options()
+        return [
+            [sg.Text('Baseline Correction:', size=double_button_size),
+             sg.Combo(baseline_correction_options,
+                      enable_events=True,
+                      default_value=baseline_correction_options[self.data.core.get_baseline_correction_type_index()],
+                      key="Select Baseline Correction")],
+            [sg.Text('')],
+            [sg.Text('Baseline Skip Window:', size=double_button_size)],
+            [sg.Text("Start Point:", size=button_size),
+             sg.InputText(key="Baseline Skip Window Start",
+                          default_text=str(self.data.core.get_skip_window_start()),
+                          enable_events=True,
+                          size=button_size)],
+            [sg.Text("Window Size:", size=button_size),
+             sg.InputText(key="Baseline Skip Window Size",
+                          default_text=str(self.data.core.get_skip_window_size()),
+                          enable_events=True,
+                          size=button_size)],
+        ]
+
+    def create_filter_tab(self):
+        button_size = (10, 1)
+        slider_size = (20, 40)
+        t_filter_options = self.data.core.get_temporal_filter_options()
+        return [
+            [sg.Checkbox('T-Filter',
+                         default=self.data.core.get_is_temporal_filter_enabled(),
+                         enable_events=True,
+                         key='T-Filter',
+                         size=button_size),
+             sg.Combo(t_filter_options,
+                      enable_events=True,
+                      default_value=t_filter_options[self.data.core.get_temporal_filter_index()],
+                      key="Select Temporal Filter")],
+            [sg.Text("Radius (pt):", size=button_size, justification='right'),
+             sg.Slider(range=(0.5, 50.0),
+                       default_value=self.data.core.get_temporal_filter_radius(),
+                       resolution=1.0,
+                       enable_events=True,
+                       size=slider_size,
+                       orientation='horizontal',
+                       key="Temporal Filter Radius")],
+            [sg.Text('')],
+            [sg.Checkbox('S-Filter',
+                         default=self.data.core.get_is_spatial_filter_enabled(),
+                         enable_events=True,
+                         key='S-Filter',
+                         size=button_size)],
+            [sg.Text("Sigma (px):", size=button_size, justification='right'),
+             sg.Slider(range=(0.1, 2.0),
+                       default_value=self.data.core.get_spatial_filter_sigma(),
+                       resolution=.1,
+                       enable_events=True,
+                       size=slider_size,
+                       orientation='horizontal',
+                       key="Spatial Filter Sigma")]
+        ]
+
+    def create_left_column(self, gui):
+        acquisition_tab_layout = self.create_acquisition_tab(gui)
+        analysis_tab_layout = self.create_analysis_tab(gui)
+        array_tab_layout = self.create_array_tab(gui)
+        dsp_tab_layout = self.create_dsp_tab()
+        filter_tab_layout = self.create_filter_tab()
+        baseline_tab_layout = self.create_baseline_tab()
 
         tab_group_basic = [sg.TabGroup([[
             sg.Tab('Acquisition', acquisition_tab_layout),
@@ -169,6 +303,8 @@ class Layouts:
         tab_group_advanced = [sg.TabGroup([[
             sg.Tab('Array', array_tab_layout),
             sg.Tab('DSP', dsp_tab_layout),
+            sg.Tab("Baseline", baseline_tab_layout),
+            sg.Tab("Filter", filter_tab_layout),
         ]])]
 
         frame_viewer_layout = [
@@ -185,120 +321,136 @@ class Layouts:
         return frame_viewer_layout + \
                [tab_group_basic + tab_group_advanced]
 
-    def create_right_column(self):
+    def create_daq_config_tab(self):
         camera_programs = self.data.display_camera_programs
         cell_size = (10, 1)
         double_cell_size = (20, 1)
+
+        return [[sg.Text("TTL Output Controls")],
+                [sg.Text('(ms)', size=cell_size),
+                 sg.Text('ONSET', size=cell_size),
+                 sg.Text('DURATION', size=cell_size)],
+                [sg.Text("Acquisition", size=cell_size),
+                 sg.InputText(key="Acquisition Onset",
+                              default_text=str(self.data.get_acqui_onset()),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.InputText(key="Acquisition Duration",
+                              default_text=str(self.data.get_acqui_duration()),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.Text(" ms", size=cell_size)],
+                [sg.Text("Stimulator #1", size=cell_size),
+                 sg.InputText(key="Stimulator #1 Onset",
+                              default_text=str(self.data.get_stim_onset(1)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.InputText(key="Stimulator #1 Duration",
+                              default_text=str(self.data.get_stim_duration(1)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.Text(" ms", size=cell_size)],
+                [sg.Text("Stimulator #2", size=cell_size),
+                 sg.InputText(key="Stimulator #2 Onset",
+                              default_text=str(self.data.get_stim_onset(2)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.InputText(key="Stimulator #2 Duration",
+                              default_text=str(self.data.get_stim_duration(2)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.Text(" ms", size=cell_size)],
+                [sg.Text("", size=double_cell_size)],
+                [sg.Text("Acquisition Controls")],
+                [sg.Text("Number of Points:", size=double_cell_size),
+                 sg.InputText(key="Number of Points",
+                              default_text=str(self.data.get_num_pts()),
+                              enable_events=True,
+                              size=cell_size)],
+                [sg.Text("Camera Program:", size=double_cell_size),
+                 sg.Combo(camera_programs,
+                          enable_events=True,
+                          default_value=camera_programs[self.data.get_camera_program()],
+                          key="-CAMERA PROGRAM-")],
+                [sg.Text("", size=double_cell_size)],
+                [sg.Text("", size=double_cell_size),
+                 sg.Text("Stimulator #1", size=cell_size),
+                 sg.Text("Stimulator #2", size=cell_size)],
+                [sg.Text("Number of pulses:", size=double_cell_size),
+                 sg.InputText(key="num_pulses Stim #1",
+                              default_text=str(self.data.hardware.get_num_pulses(channel=1)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.InputText(key="num_pulses Stim #2",
+                              default_text=str(self.data.hardware.get_num_pulses(channel=2)),
+                              enable_events=True,
+                              size=cell_size)],
+                [sg.Text("Interval between pulses:", size=double_cell_size),
+                 sg.InputText(key="int_pulses Stim #1",
+                              default_text=str(self.data.hardware.get_int_pulses(channel=1)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.InputText(key="int_pulses Stim #2",
+                              default_text=str(self.data.hardware.get_int_pulses(channel=2)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.Text(" ms", size=cell_size)],
+                [sg.Text("Number of bursts:", size=double_cell_size),
+                 sg.InputText(key="num_bursts Stim #1",
+                              default_text=str(self.data.hardware.get_num_bursts(channel=1)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.InputText(key="num_bursts Stim #2",
+                              default_text=str(self.data.hardware.get_num_bursts(channel=2)),
+                              enable_events=True,
+                              size=cell_size)],
+                [sg.Text("Interval between bursts:", size=double_cell_size),
+                 sg.InputText(key="int_bursts Stim #1",
+                              default_text=str(self.data.hardware.get_int_bursts(channel=1)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.InputText(key="int_bursts Stim #2",
+                              default_text=str(self.data.hardware.get_int_bursts(channel=2)),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.Text(" ms", size=cell_size)],
+                [sg.Text("", size=double_cell_size)],
+                [sg.Text("Trial Controls")],
+                [sg.Text("Number of Trials:", size=double_cell_size),
+                 sg.InputText(key="num_trials",
+                              default_text=str(self.data.get_num_trials()),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.Text("", size=cell_size)],
+                [sg.Text("Interval between Trials:", size=double_cell_size),
+                 sg.InputText(key="int_trials",
+                              default_text=str(self.data.get_int_trials()),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.Text(" s", size=cell_size)],
+                [sg.Text("", size=double_cell_size)],
+                [sg.Text("Record (Sets of Trials) Controls")],
+                [sg.Text("Number of Recordings:", size=double_cell_size),
+                 sg.InputText(key="num_records",
+                              default_text=str(self.data.get_num_records()),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.Text("", size=cell_size)],
+                [sg.Text("Interval between Record:", size=double_cell_size),
+                 sg.InputText(key="int_records",
+                              default_text=str(self.data.get_int_records()),
+                              enable_events=True,
+                              size=cell_size),
+                 sg.Text(" s", size=cell_size)],
+                [sg.Canvas(key='daq_canvas', size=self.plot_size)]]
+
+    def create_right_column(self):
         trace_viewer_layout = [
             [sg.Canvas(key='trace_canvas_controls')],
             [sg.Canvas(key='trace_canvas', size=self.plot_size)]]
 
         # plotting a small timeline of record/stim events
-        daq_layout = [[sg.Text("TTL Output Controls")],
-                      [sg.Text('(ms)', size=cell_size),
-                       sg.Text('ONSET', size=cell_size),
-                       sg.Text('DURATION', size=cell_size)],
-                      [sg.Text("Light On", size=cell_size),
-                       sg.InputText(key="Light On Onset",
-                                    default_text=str(self.data.light_on_onset),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.InputText(key="Light On Duration",
-                                    default_text=str(self.data.light_on_duration),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.Text(" ms", size=cell_size)],
-                      [sg.Text("Acquisition", size=cell_size),
-                       sg.InputText(key="Acquisition Onset",
-                                    default_text=str(self.data.get_acqui_onset()),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.InputText(key="Acquisition Duration",
-                                    default_text=str(self.data.get_acqui_duration()),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.Text(" ms", size=cell_size)],
-                      [sg.Text("Stimulator #1", size=cell_size),
-                       sg.InputText(key="Stimulator #1 Onset",
-                                    default_text=str(self.data.get_stim_onset(1)),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.Text(" ms", size=cell_size)],
-                      [sg.Text("Stimulator #2", size=cell_size),
-                       sg.InputText(key="Stimulator #2 Onset",
-                                    default_text=str(self.data.get_stim_onset(2)),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.Text(" ms", size=cell_size)],
-                      [sg.Text("", size=double_cell_size)],
-                      [sg.Text("Acquisition Controls")],
-                      [sg.Text("Number of Points:", size=double_cell_size),
-                       sg.InputText(key="Number of Points",
-                                    default_text=str(self.data.get_num_pts()),
-                                    enable_events=True,
-                                    size=cell_size)],
-                      [sg.Text("Camera Program:", size=double_cell_size),
-                       sg.Combo(camera_programs,
-                                enable_events=True,
-                                default_value=camera_programs[self.data.get_camera_program()],
-                                key="-CAMERA PROGRAM-")],
-                      [sg.Text("", size=double_cell_size)],
-                      [sg.Text("", size=double_cell_size),
-                       sg.Text("Stimulator #1", size=cell_size),
-                       sg.Text("Stimulator #2", size=cell_size)],
-                      [sg.Text("Number of pulses:", size=double_cell_size),
-                       sg.InputText(key="num_pulses Stim #1",
-                                    default_text=str(self.data.hardware.get_num_pulses(channel=1)),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.InputText(key="num_pulses Stim #2",
-                                    default_text=str(self.data.hardware.get_num_pulses(channel=2)),
-                                    enable_events=True,
-                                    size=cell_size)],
-                      [sg.Text("Interval between pulses:", size=double_cell_size),
-                       sg.InputText(key="int_pulses Stim #1",
-                                    default_text=str(self.data.hardware.get_int_pulses(channel=1)),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.InputText(key="int_pulses Stim #2",
-                                    default_text=str(self.data.hardware.get_int_pulses(channel=2)),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.Text(" ms", size=cell_size)],
-                      [sg.Text("Number of bursts:", size=double_cell_size),
-                       sg.InputText(key="num_bursts Stim #1",
-                                    default_text=str(self.data.hardware.get_num_bursts(channel=1)),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.InputText(key="num_bursts Stim #2",
-                                    default_text=str(self.data.hardware.get_num_bursts(channel=2)),
-                                    enable_events=True,
-                                    size=cell_size)],
-                      [sg.Text("Interval between bursts:", size=double_cell_size),
-                       sg.InputText(key="int_bursts Stim #1",
-                                    default_text=str(self.data.hardware.get_int_bursts(channel=1)),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.InputText(key="int_bursts Stim #2",
-                                    default_text=str(self.data.hardware.get_int_bursts(channel=2)),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.Text(" ms", size=cell_size)],
-                      [sg.Text("", size=double_cell_size)],
-                      [sg.Text("Trial Controls")],
-                      [sg.Text("Number of Trials:", size=double_cell_size),
-                       sg.InputText(key="num_records",
-                                    default_text=str(self.data.get_num_trials()),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.Text("", size=cell_size)],
-                      [sg.Text("Interval between Trials:", size=double_cell_size),
-                       sg.InputText(key="int_records",
-                                    default_text=str(self.data.get_num_trials()),
-                                    enable_events=True,
-                                    size=cell_size),
-                       sg.Text(" s", size=cell_size)],
-                      [sg.Canvas(key='daq_canvas', size=self.plot_size)]]
+        daq_layout = self.create_daq_config_tab()
 
         tab_group_right = [sg.TabGroup([[
             sg.Tab('Trace Viewer', trace_viewer_layout),
@@ -306,7 +458,54 @@ class Layouts:
         ]])]
         return [tab_group_right]
 
-    def create_roi_settings_form(self, gui):
+    @staticmethod
+    def list_hardware_settings():
+        return ['Number of Points',
+                'Acquisition Onset',
+                "Acquisition Duration",
+                "Stimulator #1 Onset",
+                "Stimulator #2 Onset",
+                "Stimulator #1 Duration",
+                "Stimulator #2 Duration",
+                "-CAMERA PROGRAM-",
+                "num_pulses Stim #1",
+                "num_pulses Stim #2",
+                "int_pulses Stim #1",
+                "int_pulses Stim #2",
+                "num_bursts Stim #1",
+                "num_bursts Stim #2",
+                "int_bursts Stim #1",
+                "int_bursts Stim #2",
+                "num_trials",
+                "int_trials",
+                "Auto RLI",
+                "Auto Save",
+                "Increment Trial",
+                "Decrement Trial",
+                "Increment Record",
+                "Decrement Record",
+                "Increment Location",
+                "Decrement Location",
+                "Increment Slice",
+                "Decrement Slice",
+                "Trial Number",
+                "Location Number",
+                "Record Number",
+                "Slice Number",
+                'num_records',
+                'int_records'
+                ]
+
+    @staticmethod
+    def list_hardware_events():
+        return ["Live Feed", "Take RLI", "Live Feed", "Record"]
+
+    @staticmethod
+    def list_file_events():
+        return ["Save Analysis", "Unload File"]
+
+    @staticmethod
+    def create_roi_settings_form(gui):
         cell_size = (10, 1)
         double_cell_size = (20, 1)
         return [

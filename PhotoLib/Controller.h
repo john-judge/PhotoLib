@@ -55,7 +55,6 @@ private:
 	char stopFlag;
 	char ltpIndFlag;
 	char scheduleFlag;
-	char scheduleRliFlag;
 
 public:
 	// Constructors
@@ -71,10 +70,6 @@ public:
 
 	void NI_stopTasks();
 	void NI_clearTasks();
-
-	// Flags
-	void setScheduleRliFlag(char);
-	char getScheduleRliFlag();
 
 	// Buffers for digital output
 	uInt8 *outputs;
@@ -95,7 +90,7 @@ public:
 	float getStimDuration(int ch);
 
 	// NI Digital Output: create stimulation patterns
-	void fillPDOut(char realFlag);
+	void NI_fillOutputs();
 
 	// Acquisition Control
 	int acqui(unsigned short*, float64*);

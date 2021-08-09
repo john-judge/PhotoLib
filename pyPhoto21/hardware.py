@@ -19,6 +19,7 @@ class Hardware:
                   "in analysis mode without access to hardware for data acquisition.")
             print(e)
             self.hardware_enabled = False
+        self.stop_flag = False
 
     def __del__(self):
         if self.hardware_enabled:
@@ -153,12 +154,6 @@ class Hardware:
             return
         return self.lib.getIntBursts(self.controller, kwargs['channel'])
 
-    def set_schedule_rli_flag(self, **kwargs):
-        if not self.hardware_enabled:
-            print("Hardware not enabled (analysis-only mode).")
-            return
-        self.lib.setScheduleRliFlag(self.controller, kwargs['schedule_rli_flag'])
-
     # get total acquisition OR stimulation duration, whichever is longer
     def get_duration(self):
         if not self.hardware_enabled:
@@ -240,13 +235,19 @@ class Hardware:
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
-        return self.lib.setStimOnset(self.controller, kwargs['channel'], kwargs['value'])
+        v = kwargs['value']
+        if v is None or type(v) != int:
+            v = 0
+        return self.lib.setStimOnset(self.controller, kwargs['channel'], v)
 
     def set_stim_duration(self, **kwargs):
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
-        return self.lib.setStimDuration(self.controller, kwargs['channel'], kwargs['value'])
+        v = kwargs['value']
+        if v is None or type(v) != int:
+            v = 0
+        return self.lib.setStimDuration(self.controller, kwargs['channel'], v)
 
     def define_c_types(self):
         if not self.hardware_enabled:
@@ -299,11 +300,6 @@ class Hardware:
         
         self.lib.getIntBursts.argtypes = [controller_handle, ctypes.c_int]
         self.lib.getIntBursts.restype = ctypes.c_int
-        
-        self.lib.setScheduleRliFlag.argtypes = [controller_handle, ctypes.c_int]
-        
-        self.lib.getScheduleRliFlag.argtypes = [controller_handle]
-        self.lib.getScheduleRliFlag.restype = ctypes.c_int
 
         self.lib.getDuration.argtypes = [controller_handle]
         self.lib.getDuration.restype = ctypes.c_int
@@ -365,3 +361,10 @@ class Hardware:
                                  + os.environ['PATH']
             self.lib = ctypes.cdll.LoadLibrary(dll_path + 'PhotoLib.dll')
 
+    def set_stop_flag(self, v=True):
+        if v:
+            print("Sending stop signal to daemon...")
+        self.stop_flag = v
+
+    def get_stop_flag(self):
+        return self.stop_flag

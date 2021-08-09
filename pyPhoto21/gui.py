@@ -1,5 +1,8 @@
 import numpy as np
 import os.path
+import threading
+import time
+import string
 import PySimpleGUI as sg
 import matplotlib
 import sys
@@ -17,7 +20,7 @@ from pyPhoto21.analysis.roi import ROI
 from pyPhoto21.layouts import *
 from pyPhoto21.event_mapping import EventMapping
 
-from mpl_interactions import image_segmenter
+# from mpl_interactions import image_segmenter
 from matplotlib.widgets import Slider
 
 
@@ -41,7 +44,9 @@ class GUI:
 
         # general state/settings
         self.title = "Photo21"
+        self.freeze_input = False  # whether to allow fields to be updated. Frozen during acquire (how about during file loaded?)
         self.event_mapping = None
+        self.background_option_index = 0
         self.define_event_mapping()  # event callbacks used in event loops
         # kickoff workflow
         if self.production_mode:
@@ -84,6 +89,7 @@ class GUI:
                                 element_justification='center',
                                 resizable=True,
                                 font='Helvetica 18')
+        self.window.Maximize()
         self.plot_trace()
         self.plot_frame()
         self.main_workflow_loop()
@@ -151,34 +157,125 @@ class GUI:
         toolbar.update()
         figure_canvas_agg.get_tk_widget().pack(fill='none', expand=False)
 
-    def record(self, **kwargs):
-        if self.get_is_schedule_rli_enabled():
-            self.take_rli()
-        if self.data.get_is_loaded_from_file():
-            self.data.resize_image_memory()
-        # TO DO: loop over trials similar to MainController::acqui
-        trial = 0
-        if 'trial' in kwargs:
-            trial = kwargs['trial']
-        self.hardware.record(images=self.data.get_acqui_memory(trial=trial), fp_data=self.data.get_fp_data())
-        self.fv.update_new_image()
-        self.data.set_is_loaded_from_file(False)
-        if self.get_is_auto_save_enabled():
-            # self.file.save_to_compressed_file()
-            self.file.increment_run()
+    def freeze_hardware_settings(self, v=True, include_buttons=True):
+        if type(v) == bool:
+            self.freeze_input = v
+            events_to_control = self.layouts.list_hardware_settings()
+            if include_buttons:
+                events_to_control += self.layouts.list_hardware_events()
+                events_to_control += self.layouts.list_file_events()
+            for ev in events_to_control:
+                self.window[ev].update(disabled=v)
 
-    def take_rli(self, **kwargs):
+    def unfreeze_hardware_settings(self):
+        self.freeze_hardware_settings(v=False, include_buttons=True)
+
+    def get_trial_sleep_time(self):
+        sleep_sec = self.data.get_int_trials()
+        if self.get_is_schedule_rli_enabled():
+            sleep_sec = max(0, sleep_sec - .12)  # attempt to shorten by 120 ms, rough lower bound on time to take RLI
+        return sleep_sec
+
+    def get_record_sleep_time(self):
+        sleep_sec = self.data.get_int_records()
+        return max(0, sleep_sec - self.get_trial_sleep_time())
+
+    def save_file_in_background(self):
+        self.file.save_to_compressed_file()
+        self.update_tracking_num_fields()
+
+    # returns True if stop flag is set
+    def sleep_and_check_stop_flag(self, sleep_time, interval=1):
+        elapsed = 0
+        while elapsed < sleep_time:
+            time.sleep(interval)
+            elapsed += interval
+            if self.hardware.get_stop_flag():
+                self.hardware.set_stop_flag(False)
+                return True
+        return False
+
+    def record_in_background(self):
+        self.freeze_hardware_settings()
+        self.hardware.set_stop_flag(False)
+
+        sleep_trial = self.get_trial_sleep_time()
+        sleep_record = self.get_record_sleep_time()
+
+        # resolve any hardware / file conflicting control of settings
         if self.data.get_is_loaded_from_file():
+            self.data.sync_settings_from_hardware()
             self.data.resize_image_memory()
+        self.data.set_is_loaded_from_file(False)
+        exit_recording = False
+
+        if self.data.get_num_records() * self.data.get_num_trials() == 0:
+            print("Settings are such that no trials are recorded.")
+            return
+
+        # Note that record index may not necessarily match the record num for file saving
+        for record_index in range(self.data.get_num_records()):
+            is_last_record = (record_index == self.data.get_num_records() - 1)
+            if exit_recording:
+                break
+
+            for trial in range(self.data.get_num_trials()):
+                is_last_trial = (trial == self.data.get_num_trials() - 1)
+                if self.get_is_schedule_rli_enabled():
+                    self.take_rli_core()
+                self.hardware.record(images=self.data.get_acqui_memory(trial=trial),
+                                     fp_data=self.data.get_fp_data())
+                self.data.set_current_trial_index(trial)
+                self.fv.update(update_hyperslicer=is_last_trial)  # send data to hs only once per record
+                print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
+                if not is_last_trial:
+                    print("\t\t", sleep_trial, "seconds until next trial...")
+                    exit_recording = self.sleep_and_check_stop_flag(sleep_time=sleep_trial)
+                if exit_recording:
+                    break
+
+            if self.get_is_auto_save_enabled():
+                threading.Thread(target=self.save_file_in_background, args=(), daemon=True).start()
+            if exit_recording:
+                break
+            print("Took recording set", record_index + 1, "of", self.data.get_num_records())
+            if not is_last_record:
+                print("\t", sleep_record, "seconds until next recording set...")
+                exit_recording = self.sleep_and_check_stop_flag(sleep_time=sleep_record)
+
+        print("Recording ended.")
+        # done recording
+        self.unfreeze_hardware_settings()
+
+    def record(self, **kwargs):
+        # we spawn a new thread to acquire in the background.
+        # meanwhile the original thread returns and keeps handling GUI clicks
+        # but updates to Data/Hardware fields will be frozen
+        threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
+
+    def take_rli_core(self):
         self.hardware.take_rli(images=self.data.get_rli_memory())
         self.data.set_is_loaded_from_file(False)
         if self.fv.get_show_rli_flag():
             self.fv.update_new_image()
 
+    def take_rli_in_background(self):
+        self.freeze_hardware_settings()
+        self.hardware.set_stop_flag(False)
+        if self.data.get_is_loaded_from_file():
+            self.data.sync_settings_from_hardware()
+            self.data.resize_image_memory()
+        self.take_rli_core()
+        self.unfreeze_hardware_settings()
+
+    def take_rli(self, **kwargs):
+        threading.Thread(target=self.take_rli_in_background, args=(), daemon=True).start()
+
     def set_camera_program(self, **kwargs):
         program_name = kwargs['values']
         program_index = self.data.display_camera_programs.index(program_name)
         self.data.set_camera_program(program_index)
+        self.window["Acquisition Duration"].update(self.data.get_acqui_duration())
 
     def launch_hyperslicer(self):
         self.fv.launch_hyperslicer()
@@ -200,9 +297,20 @@ class GUI:
                 break
         wind.close()
 
-    def choose_save_dir(self):
+    def change_save_filename(self, **kwargs):
         # Spawn a folder browser for auto-save
-        print("choose_save_dir not implemented")
+        v = kwargs['values']
+        if len(v) < 1:
+            return
+        valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+        v = ''.join(c for c in v if c in valid_chars)
+        kwargs['window'][kwargs['event']].update(v)
+        self.file.set_override_filename(v)
+
+    def choose_save_dir(self, **kwargs):
+        folder = self.browse_for_folder()
+        self.file.set_save_dir(folder)
+        print("New save location:", folder)
 
     def browse_for_file(self, file_extensions):
         file_window = sg.Window('File Browser',
@@ -231,7 +339,35 @@ class GUI:
                                        "Unsupported file type.\nSupported: " + supported_file_str)
                 else:
                     break
+        if self.freeze_input:
+            file = None
+            self.notify_window("File Input Error",
+                               "Cannot load file during acquisition")
         file_window.close()
+        return file
+
+    def browse_for_folder(self):
+        folder_window = sg.Window('File Browser',
+                                  self.layouts.create_folder_browser(),
+                                  finalize=True,
+                                  element_justification='center',
+                                  resizable=True,
+                                  font='Helvetica 18')
+        file = None
+        # file browser event loop
+        while True:
+            event, values = folder_window.read()
+            if event == sg.WIN_CLOSED or event == "Exit":
+                folder_window.close()
+                return
+            elif event == "folder_window.open":
+                file = values["folder_window.browse"]
+                break
+        if self.freeze_input:
+            file = None
+            self.notify_window("Folder Input Error",
+                               "Cannot change save location during acquisition")
+        folder_window.close()
         return file
 
     def load_roi_file(self, **kwargs):
@@ -245,13 +381,43 @@ class GUI:
                                                data_obj,
                                                extension='roi')
 
-    def load_zda_file(self):
-        file = self.browse_for_file(['zda', 'pbz2'])
-        self.data.clear_data_memory()
-        print("Loading from file:", file, "\nThis will take a few seconds...")
+    def load_data_file_in_background(self, file):
         self.file.load_from_file(file)
+        # Sync GUI
+        self.file_gui_fields_sync()
+        # Freeze input fields to hardware
+
         print("File Loaded.")
         self.fv.update_new_image()
+
+    def load_data_file(self):
+        file = self.browse_for_file(['zda', 'pbz2'])
+        if file is not None:
+            self.freeze_hardware_settings(include_buttons=False)
+            print("Loading from file:", file, "\nThis will take a few seconds...")
+
+            threading.Thread(target=self.load_data_file_in_background, args=(file,), daemon=True).start()
+
+    # Pull all file-based data from Data and sync GUI fields
+    def file_gui_fields_sync(self):
+        w = self.window
+        w['Number of Points'].update(self.data.get_num_pts())
+        w['int_trials'].update(self.data.get_int_trials())
+        w['num_trials'].update(self.data.get_num_trials())
+        w['Acquisition Onset'].update(self.data.get_acqui_onset())
+        w['Acquisition Duration'].update(self.data.get_acqui_duration())
+        w['Stimulator #1 Onset'].update(self.data.get_stim_onset(1))
+        w['Stimulator #2 Onset'].update(self.data.get_stim_onset(2))
+        w['Stimulator #1 Duration'].update(self.data.get_stim_duration(1))
+        w['Stimulator #2 Duration'].update(self.data.get_stim_duration(2))
+
+    # disable file-viewing mode, allowing acquisition to resume
+    def unload_file(self):
+        if self.data.get_is_loaded_from_file():
+            self.unfreeze_hardware_settings()
+            self.data.set_is_loaded_from_file(value=False)
+            self.data.clear_data_memory()
+            self.fv.update_new_image()
 
     @staticmethod
     def launch_github_page():
@@ -277,7 +443,9 @@ class GUI:
     def set_digital_binning(self, **kwargs):
         binning = kwargs['values']
         while len(binning) > 0 and \
-                (not self.validate_numeric_input(binning) or len(binning) > 3):
+                (not self.validate_numeric_input(binning, max_val=min(self.data.get_display_width(),
+                                                                      self.data.get_display_height()) // 4) \
+                 or len(binning) > 3):
             binning = binning[:-1]
         if not self.validate_numeric_input(binning, non_zero=True):
             self.window['Digital Binning'].update('')
@@ -299,39 +467,86 @@ class GUI:
     def set_is_schedule_rli_enabled(self, value):
         self.data.set_is_schedule_rli_enabled(value)
 
-    def set_light_on_onset(self, **kwargs):
-        v = kwargs['values']
-        self.data.set_light_on_onset(v)
-
-    def set_light_on_duration(self, **kwargs):
-        v = kwargs['values']
-        self.data.set_light_on_duration(v)
-
     def set_acqui_onset(self, **kwargs):
         v = kwargs['values']
         self.data.set_acqui_onset(v)
 
+    def set_num_pts(self, **kwargs):
+        v = kwargs['values']
+
+        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=15000):
+            v = v[:-1]
+        if len(v) > 0 and self.validate_numeric_input(v, decimal=True, max_val=15000):
+            acqui_duration = float(v) * self.data.get_int_pts()
+            self.data.hardware.set_num_pts(value=int(v))
+            kwargs['window'][kwargs['event']].update(v)
+            kwargs['window']["Acquisition Duration"].update(str(acqui_duration))
+        else:
+            self.data.hardware.set_num_pts(value=0)
+            kwargs['window'][kwargs['event']].update('')
+            kwargs['window']["Acquisition Duration"].update('')
+
     def set_acqui_duration(self, **kwargs):
         v = kwargs['values']
-        self.data.set_acqui_duration(v)
 
-    def set_stimulator_onset(self, **kwargs):
+        # looks at num_pts as well to validate.
+        def is_valid_acqui_duration(u, max_num_pts=15000):
+            return self.validate_numeric_input(u, decimal=True) \
+                   and int(float(u) * self.data.get_int_pts()) <= max_num_pts
+
+        while len(v) > 0 and not is_valid_acqui_duration(v):
+            v = v[:-1]
+        if len(v) > 0 and is_valid_acqui_duration(v):
+            num_pts = int(float(v) // self.data.get_int_pts())
+            self.data.hardware.set_num_pts(value=num_pts)
+            kwargs['window'][kwargs['event']].update(v)
+            kwargs['window']["Number of Points"].update(str(num_pts))
+        else:
+            self.data.hardware.set_num_pts(value=0)
+            kwargs['window'][kwargs['event']].update('')
+            kwargs['window']["Number of Points"].update('')
+
+    @staticmethod
+    def pass_no_arg_calls(**kwargs):
+        for key in kwargs:
+            if key.startswith('call'):
+                kwargs[key]()
+
+    def validate_and_pass_int(self, **kwargs):
+        max_val = None
+        if 'max_val' in kwargs:
+            max_val = kwargs['max_val']
+        fn_to_call = kwargs['call']
         v = kwargs['values']
-        ch = kwargs['channel']
-        self.data.set_stimulator_onset(ch, v)
+        window = kwargs['window']
+        while len(v) > 0 and not self.validate_numeric_input(v, max_digits=5, max_val=max_val):
+            v = v[:-1]
+        if len(v) > 0 and self.validate_numeric_input(v, max_digits=5, max_val=max_val):
+            fn_to_call(value=int(v))
+            window[kwargs['event']].update(v)
+            print("called:", fn_to_call)
+            if 'call2' in kwargs:
+                kwargs['call2'](value=int(v))
+                print("called:", kwargs['call2'])
+        else:
+            fn_to_call(value=None)
+            window[kwargs['event']].update('')
 
-    def set_stimulator_duration(self, **kwargs):
-        v = kwargs['values']
-        ch = kwargs['channel']
-        self.data.set_stimulator_duration(ch, v)
-
-    def validate_and_pass(self, **kwargs):
+    # for passing to channel-based setters
+    def validate_and_pass_channel(self, **kwargs):
         fn_to_call = kwargs['call']
         v = kwargs['values']
         ch = kwargs['channel']
-        if self.validate_numeric_input(v, max_digits=6):
+        window = kwargs['window']
+        while len(v) > 0 and not self.validate_numeric_input(v, max_digits=6):
+            v = v[:-1]
+        if len(v) > 0 and self.validate_numeric_input(v, max_digits=6):
             fn_to_call(value=int(v), channel=ch)
+            window[kwargs['event']].update(v)
             print("called:", fn_to_call)
+        else:
+            fn_to_call(value=0, channel=ch)
+            window[kwargs['event']].update('')
 
     def launch_roi_settings(self, **kwargs):
         w = sg.Window('ROI Identification Settings',
@@ -450,9 +665,85 @@ class GUI:
         plot_type = kwargs['type']
         self.roi.launch_cluster_score_plot(plot_type)
 
+    def set_num_trials(self, **kwargs):
+        v = kwargs['values']
+        self.data.set_num_trials(int(v))
+
     def define_event_mapping(self):
         if self.event_mapping is None:
             self.event_mapping = EventMapping(self).get_event_mapping()
+
+    def update_tracking_num_fields(self, **kwargs):
+        self.window["Slice Number"].update(self.file.get_slice_num())
+        self.window["Location Number"].update(self.file.get_location_num())
+        self.window["Record Number"].update(self.file.get_record_num())
+        self.window["Trial Number"].update(self.data.get_current_trial_index())
+
+    def set_current_trial_index(self, **kwargs):
+        if 'value' in kwargs:
+            value = int(kwargs['value'])
+            self.data.set_current_trial_index(value)
+            self.fv.update_new_image()
+
+    def set_slice(self, **kwargs):
+        value = int(kwargs['value'])
+        self.file.set_slice(value)
+        self.fv.update_new_image()
+
+    def set_record(self, **kwargs):
+        value = int(kwargs['value'])
+        self.file.set_record(value)
+        self.fv.update_new_image()
+
+    def set_location(self, **kwargs):
+        value = int(kwargs['value'])
+        self.file.set_location(value)
+        self.fv.update_new_image()
+
+    def get_background_option_index(self):
+        return self.background_option_index
+
+    def set_background_option_index(self, **kwargs):
+        bg_name = kwargs['values']
+        bg_index = self.layouts.get_background_options().index(bg_name)
+        self.background_option_index = bg_index
+
+    def set_temporal_filter_index(self, **kwargs):
+        tf_name = kwargs['values']
+        tf_index = self.data.core.get_temporal_filter_options().index(tf_name)
+        self.data.core.set_temporal_filter_index(tf_index)
+
+    def set_t_filter_radius(self, **kwargs):
+        v = int(kwargs['values'])
+        self.data.core.set_temporal_filter_radius(v)
+        self.fv.clear_shapes()
+        self.tv.clear_traces()
+
+    def set_s_filter_sigma(self, **kwargs):
+        v = float(kwargs['values'])
+        self.data.core.set_spatial_filter_sigma(v)
+        self.fv.update_new_image()
+
+    def set_is_t_filter_enabled(self, **kwargs):
+        v = bool(kwargs['values'])
+        self.data.core.set_is_temporal_filter_enabled(v)
+        self.fv.clear_shapes()
+        self.tv.clear_traces()
+
+    def set_is_s_filter_enabled(self, **kwargs):
+        v = bool(kwargs['values'])
+        self.data.core.set_is_spatial_filter_enabled(v)
+        self.fv.update_new_image()
+
+    def set_baseline_correction(self, **kwargs):
+        v = kwargs['values']
+        v = self.data.core.get_baseline_correction_options().index(v)
+        self.data.core.set_baseline_correction_type_index(v)
+        self.fv.clear_shapes()
+        self.tv.clear_traces()
+        self.fv.update_new_image()
+
+
 
 class Toolbar(NavigationToolbar2Tk):
     def __init__(self, *args, **kwargs):

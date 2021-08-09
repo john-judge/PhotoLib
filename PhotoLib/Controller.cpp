@@ -24,9 +24,6 @@
 // #pragma comment(lib,".\\lib\\NIDAQmx.lib")  Chun suggested it but turns out not to make any difference
 using namespace std;
 
-/* hacky way of synchronizing things, but it seems to work and nothing better
- * was found
- */
 #define CAM_INPUT_OFFSET 10
 #define NUM_BNC_CHANNELS 4
 #define DAQmxErrChk(functionCall)  if( DAQmxFailed(error=(functionCall))) NiErrorDump(error); else
@@ -61,8 +58,6 @@ Controller::Controller()
 
 	// Flags
 	stopFlag = 0;
-	scheduleFlag = 0;
-	scheduleRliFlag = 0;
 
 	// Ch1
 	numPulses1 = 1;
@@ -78,8 +73,6 @@ Controller::Controller()
 	numBursts2 = 1;
 	intBursts2 = 200;
 
-	// Set Duration
-	setDuration();
 }
 
 
@@ -186,7 +179,6 @@ int Controller::takeRli(unsigned short* memory) {
 		}
 		cam.end_images(ipdv);
 	}
-	Sleep(100);
 	NI_openShutter(0); // light off	
 	NI_stopTasks();
 	NI_clearTasks();
@@ -221,8 +213,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	int16* tmp_fp_memory = new(std::nothrow) int16[numPts * NUM_BNC_CHANNELS];
 	memset(tmp_fp_memory, 0, numPts * NUM_BNC_CHANNELS * sizeof(int16));
 	float64 samplingRate = 1000.0 / getIntPts(); 
-	setDuration();
-	fillPDOut(1);
+	NI_fillOutputs();
 
 	//-------------------------------------------
 	// Initialize variables for camera data management
@@ -276,13 +267,18 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 			DAQmx_Val_Seconds, DAQmx_Val_Low, 0.00, 0.50 / getIntPts(), 0.50 / getIntPts()));
 		DAQmxErrChk(DAQmxCfgImplicitTiming(taskHandle_clk, DAQmx_Val_ContSamps, get_digital_output_size()));
 	}
-	// Clock for synchronizing tasks
+	// Stimulator outputs (line2) and Clock for synchronizing tasks w camera (line0)
 	if (!taskHandle_out) {
 		DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
+
+		// To write a clock to trigger camera, open line0 channel also: "Dev1/port0/line0,Dev1/port0/line2" (and see NI_fillOutputs)
 		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
+
+		// Change this to "/Dev1/PFI12" for external trigger. But for now, trigger DO tasks from camera clock (PFI0)
 		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", getIntPts(),
-			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));		//P
+			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));	
 	}
+
 	// External trigger:
 	//DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_clk, "/Dev1/PFI1", DAQmx_Val_Rising));
 
@@ -291,7 +287,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	if (!taskHandle_in) {
 		DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
 		DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
-		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync
+		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync (cam clock) to trigger input
 			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size() - getAcquiOnset()));
 		//DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_in, "/Dev1/PFI2", DAQmx_Val_Rising));
 		DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
@@ -304,7 +300,6 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 					DAQmx_Val_GroupByChannel, outputs, &total_written, NULL));
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
-
 	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
 	DAQmxErrChk(DAQmxStartTask(taskHandle_clk));
 	cout << "Total written: " << total_written << "\n\t Size of output: " << get_digital_output_size() << "\n";
@@ -357,7 +352,6 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 		}
 		cam.end_images(ipdv);
 	}
-	Sleep(100);
 	NI_openShutter(0);
 	cout << "Total read: " << total_read << "\n";
 
@@ -419,31 +413,31 @@ Error:
 //=============================================================================
 int Controller::NI_openShutter(uInt8 on)
 {
-	uInt8       data[4] = { 0,on,0,0 };
+	uInt8       data[2] = { on };
 
 	if (!taskHandle_led) {
 		DAQmxErrChk(DAQmxCreateTask("LED", &taskHandle_led));
-		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_led, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));
+		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_led, "Dev1/port0/line1", "", DAQmx_Val_ChanForAllLines));
 		DAQmxErrChk(DAQmxStartTask(taskHandle_led));
 	}
 
 	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle_led, 1, 1, 10.0, DAQmx_Val_GroupByChannel, data, NULL, NULL));
-
+	/*
 	if (on == 0) {
 		DAQmxStopTask(taskHandle_led);
 		DAQmxClearTask(taskHandle_led);
 		taskHandle_led = NULL;
-	}
+	}*/
 	return 0;
 }
 
 //=============================================================================
 void Controller::NI_stopTasks()
 {
-	if(taskHandle_in) DAQmxErrChk(DAQmxStopTask(taskHandle_in));
-	if(taskHandle_out) DAQmxErrChk(DAQmxStopTask(taskHandle_out));
-	if(taskHandle_clk) DAQmxErrChk(DAQmxStopTask(taskHandle_clk));
-	if(taskHandle_led) DAQmxErrChk(DAQmxStopTask(taskHandle_led));
+	if (taskHandle_in) DAQmxErrChk(DAQmxStopTask(taskHandle_in));
+	if (taskHandle_out) DAQmxErrChk(DAQmxStopTask(taskHandle_out));
+	if (taskHandle_clk) DAQmxErrChk(DAQmxStopTask(taskHandle_clk));
+	if (taskHandle_led) DAQmxErrChk(DAQmxStopTask(taskHandle_led));
 }
 
 
@@ -459,10 +453,11 @@ int Controller::stop()
 //=============================================================================
 void Controller::NI_clearTasks()
 {
-	if (taskHandle_in) DAQmxClearTask(taskHandle_in);
-	if (taskHandle_out) DAQmxClearTask(taskHandle_out);
-	if (taskHandle_clk) DAQmxClearTask(taskHandle_clk);
-	if (taskHandle_led) DAQmxClearTask(taskHandle_led);
+	if (taskHandle_in) DAQmxErrChk(DAQmxClearTask(taskHandle_in));
+	if (taskHandle_out) DAQmxErrChk(DAQmxClearTask(taskHandle_out));
+	if (taskHandle_clk) DAQmxErrChk(DAQmxClearTask(taskHandle_clk));
+	if (taskHandle_led) DAQmxErrChk(DAQmxClearTask(taskHandle_led));
+
 	taskHandle_led = NULL;
 	taskHandle_clk = NULL;
 	taskHandle_in = NULL;
@@ -475,19 +470,19 @@ size_t Controller::get_digital_output_size() {
 }
 
 //=============================================================================
-void Controller::fillPDOut(char realFlag)
+void Controller::NI_fillOutputs()
 {
-	int i, j, k;
+	
 	float start, end;
-	outputs = new uInt8[get_digital_output_size()];
-	//const uInt32 shutter_mask = (1);		// digital out 0 based on virtual channel
-	const uInt32 sti1_mask = 1; // (1 << 2);			// digital out 2
-	const uInt32 sti2_mask = 0; // (1 << 3);			// digital out 3 - currently disabled
+	size_t do_size = get_digital_output_size();
+	int num_DO_channels = 1; // number of DO channels in the DO task 
+	outputs = new uInt8[do_size * num_DO_channels];
+
 	//--------------------------------------------------------------
 	// Reset the array
-	memset(outputs, 0, sizeof(uInt8) * get_digital_output_size());
+	memset(outputs, 0, sizeof(uInt8) * do_size * num_DO_channels);
 	//--------------------------------------------------------------
-	// Shutter
+	// Shutter (handled as a simple separate task, since exact sync not needed)
 	/*
 	if (realFlag) {
 		start = shutter->getOnset();
@@ -496,35 +491,47 @@ void Controller::fillPDOut(char realFlag)
 			outputs[i] |= shutter_mask;
 	}*/
 	//--------------------------------------------------------------
+
+
+	// If we want a clock to trigger camera, write this to line0
+	/*
+	uInt8 resting_voltage = 1;
+	uInt8 trigger_voltage = 0;
+	// If BNC_ratio > 1, the resting/triggering voltages are switched
+
+	// Assuming BNC ratio == 1:
+	for (int i = 0; i < do_size; i++) {
+		outputs[i] = trigger_voltage;
+	}*/
+
 	// Stimulator #1
 	cout << "\n\tNum bursts 1: " << numBursts1 << "\n\tNum Pulses 1: " << numPulses1 << "\n";
 	cout << "\n\tInt bursts 1: " << intBursts1 << "\n\tInt Pulses 1: " << intPulses1 << "\n";
 	cout << "\n\tOnset 1:" << sti1->getOnset() << "\n";
-	for (k = 0; k < numBursts1; k++)
+	for (int k = 0; k < numBursts1; k++)
 	{
-		for (j = 0; j < numPulses1; j++)
+		for (int j = 0; j < numPulses1; j++)
 		{
 			start = sti1->getOnset() + j * intPulses1 + k * intBursts1;
 			end = (start + sti1->getDuration());
-			for (i = (int)start; i < end; i++)
-				outputs[i] |= sti1_mask;
+			for (int i = (int)start; i < end; i++)
+				outputs[i] = (uInt8)1;
 		}
 	}
 	//--------------------------------------------------------------
 	// Stimulator #2
-	for (k = 0; k < numBursts2; k++)
+	/*
+	for (int k = 0; k < numBursts2; k++)
 	{
-		for (j = 0; j < numPulses2; j++)
+		for (int j = 0; j < numPulses2; j++)
 		{
 			start = sti2->getOnset() + j * intPulses2 + k * intBursts2;
 			end = (start + sti2->getDuration());
-			for (i = (int)start; i < end; i++)
-				outputs[i] |= sti2_mask;
+			cout << "start2: " << start << "\tend2: " << end << "\n";
+			for (int i = (int)start; i < end; i++)
+				outputs[i + do_size] = 1;
 		}
-	}
-
-	// Debug
-	//for (i = 0; i < get_digital_output_size(); i++) cout << outputs[i] << "\n";
+	}*/
 
 	// Future developers (or hackers): Add new stimulators or stimulation features and patterns here
 
@@ -561,6 +568,7 @@ void Controller::resetCamera()
 	}
 }
 
+/*
 //=============================================================================
 void Controller::setDuration()
 {
@@ -593,9 +601,8 @@ void Controller::setDuration()
 		return;
 	}
 }
-
+*/
 float Controller::getDuration() {
-	setDuration();
 	return duration;
 }
 
@@ -645,16 +652,6 @@ int Controller::getIntBursts(int ch) {
 int Controller::getIntPulses(int ch) {
 	if (ch == 1) return intPulses1;
 	return intPulses2;
-}
-
-//=============================================================================
-void Controller::setScheduleRliFlag(char p) {
-	scheduleRliFlag = p;
-}
-
-//=============================================================================
-char Controller::getScheduleRliFlag() {
-	return scheduleRliFlag;
 }
 
 //=============================================================================
