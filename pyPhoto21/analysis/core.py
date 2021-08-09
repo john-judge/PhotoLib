@@ -31,7 +31,7 @@ class AnalysisCore:
         self.baseline_correction_options = [
             'None',
             'Linear',
-            'Exponential',
+            # 'Exponential',
             'Polynomial-8th',
             'Quadratic',
             'Cubic'
@@ -164,10 +164,10 @@ class AnalysisCore:
                                                                 sigma_s)
         return filtered_data
 
-    def baseline_correct_noise(self, trace):
+    def baseline_correct_noise(self, trace, int_pts):
         """ subtract background drift off of single trace """
         n = len(trace)
-        t = np.linspace(0, n, num=n)
+        t = np.linspace(0, n * int_pts, num=n)
 
         fit_type = self.get_baseline_correction_options()[self.get_baseline_correction_type_index()]
 
@@ -182,22 +182,22 @@ class AnalysisCore:
             if fit_type == "Exponential":
                 min_val = np.min(trace)
                 if min_val <= 0:
-                    trace += (min_val + 0.01)   # make all positive
+                    trace += (-1 * min_val + 0.01)   # make all positive
                 trace = np.log(trace)
             trace = trace.reshape(-1, 1)
             reg = LinearRegression().fit(t, trace).predict(t)
             if fit_type == "Exponential":
                 reg = np.exp(reg)
                 if min_val <= 0:
-                    reg -= (min_val + 0.01)
+                    reg -= (-1 * min_val + 0.01)
         elif fit_type in poly_powers:
             power = poly_powers[fit_type]
             coeffs, stats = polynomial.polyfit(t, trace, power, full=True)
-            reg = polynomial.polyval(t, coeffs)
+            reg = np.array(polynomial.polyval(t, coeffs))
         else:
             return trace
 
-        trace = (trace.reshape(-1, 1) - reg).reshape(-1)
+        trace = (trace.reshape(-1, 1) - reg.reshape(-1, 1)).reshape(-1)
         return trace
 
     @staticmethod

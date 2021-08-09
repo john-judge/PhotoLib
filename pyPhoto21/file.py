@@ -17,12 +17,12 @@ class File:
         self.current_record = 0
 
     # gets a filename to save to, avoiding overwrites
-    def get_filename_to_write(self):
+    def get_filename_to_write(self, extension='.pbz2'):
         fn = self.get_filename()
         while self.file_exists(fn):
             self.set_override_filename(None)
             self.increment_record()
-            fn = self.get_filename()
+            fn = self.get_filename(extension=extension)
         return fn
 
     def file_exists(self, filename):
@@ -107,6 +107,8 @@ class File:
         fn = ''
         if self.override_filename is not None:
             fn = self.override_filename
+            if '.' not in fn:
+                fn += extension
         else:
             fn = self.pad_zero(self.get_slice_num()) + '-' + \
                  self.pad_zero(self.get_location_num()) + '-' + \
@@ -119,7 +121,7 @@ class File:
         if len(extension) > 0 and extension[0] != '.':
             extension = '.' + extension
         if filename is None:
-            filename = self.get_filename(extension=extension)
+            filename = self.get_filename_to_write(extension=extension)
         with bz2.BZ2File(filename, 'w') as f:
             cPickle.dump(obj, f)
 
@@ -136,7 +138,7 @@ class File:
         acqui_images = self.data.get_acqui_images()
         rli_images = self.data.get_rli_images()
         fp_data = self.data.get_fp_data()
-        fn = self.get_filename()
+        fn = self.get_filename_to_write()
 
         print("Saving to file " + fn + "...")
         metadata = {

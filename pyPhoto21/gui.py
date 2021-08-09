@@ -132,19 +132,16 @@ class GUI:
 
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
 
-        figure_canvas_agg.get_tk_widget().pack()  # fill="none", expand=False)
+        figure_canvas_agg.get_tk_widget().pack(fill="none", expand=True)
         # figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll) # currently scroll not used.
         figure_canvas_agg.mpl_connect('button_release_event', self.fv.onrelease)
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onpress)
         figure_canvas_agg.mpl_connect('motion_notify_event', self.fv.onmove)
-        # toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
-        # toolbar.update()
         figure_canvas_agg.draw_idle()
         s_max.on_changed(self.fv.change_frame)
 
     # include a matplotlib figure in a Tkinter canvas
-    @staticmethod
-    def draw_figure_w_toolbar(canvas, fig, canvas_toolbar):
+    def draw_figure_w_toolbar(self, canvas, fig, canvas_toolbar):
         if canvas.children:
             for child in canvas.winfo_children():
                 child.destroy()
@@ -152,10 +149,11 @@ class GUI:
             for child in canvas_toolbar.winfo_children():
                 child.destroy()
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
+        figure_canvas_agg.mpl_connect('button_press_event', self.tv.onpress)
         figure_canvas_agg.draw_idle()
         toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
         toolbar.update()
-        figure_canvas_agg.get_tk_widget().pack(fill='none', expand=False)
+        figure_canvas_agg.get_tk_widget().pack(fill='none', expand=True)
 
     def freeze_hardware_settings(self, v=True, include_buttons=True):
         if type(v) == bool:

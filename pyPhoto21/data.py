@@ -220,7 +220,7 @@ class Data:
                 print("get_display_trace: drawn shape is empty:", index)
 
         # baseline correction
-        ret_trace = self.core.baseline_correct_noise(ret_trace)
+        ret_trace = self.core.baseline_correct_noise(ret_trace, self.get_int_pts())
 
         # temporal filtering
         ret_trace = self.t_filter_trace(ret_trace)
