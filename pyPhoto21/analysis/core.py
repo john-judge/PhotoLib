@@ -55,6 +55,7 @@ class AnalysisCore:
 
         # Display frame cached by analysis submodules
         self.current_processed_frame = None
+        self.show_processed_data = False
 
     def set_is_temporal_filter_enabled(self, v):
         self.is_temporal_filer_enabled = v
@@ -121,6 +122,11 @@ class AnalysisCore:
     def set_skip_window_start(self, value=0):
         self.skip_window_start = value
 
+    def set_show_processed_data(self, v):
+        self.show_processed_data = v
+
+    def get_show_processed_data(self):
+        return self.show_processed_data
 
     def get_skip_window_size(self):
         return self.skip_window_size

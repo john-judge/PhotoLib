@@ -576,16 +576,10 @@ class GUI:
             max_val = 100.0
             min_val = 0.0
         while len(v) > 0 and not self.validate_numeric_input(v, min_val=min_val, max_val=max_val, decimal=True):
-            if form == 'percentile':
-                try:
-                    if float(v) > max_val:
-                        v = str(max_val)
-                        break
-                except Exception as e:
-                    v = v[:-1]
-                    print(e)
-            else:
-                v = v[:-1]
+            v = v[:-1]
+
+        if len(v) > 0 and form == 'percentile' and float(v) > max_val:
+            v = str(max_val)
 
         partner_field = None
         partner_form = None

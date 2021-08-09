@@ -197,9 +197,7 @@ class Layouts:
 
     @staticmethod
     def get_background_options():
-        return ['None', 'Image', 'RLI', 'Max Amp',
-                'Spike Amp', '% Amp Latency', 'Max Amp Latency',
-                'EPSP Latency', 'MaxAmp/SD', ]
+        return ['None', 'Image', 'RLI', 'Max Amp', 'MaxAmp/SD', ]
 
     def create_array_tab(self, gui):
         button_size = (10, 1)
