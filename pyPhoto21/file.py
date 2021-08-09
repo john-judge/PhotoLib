@@ -226,10 +226,12 @@ class File:
 
         return ds.get_meta()
 
-    def set_save_dir(self, dir):
-        self.save_dir = dir
+    def set_save_dir(self, directory):
+        self.save_dir = directory
 
     def get_save_dir(self):
+        if self.save_dir is None:
+            return os.getcwd()
         return self.save_dir
 
 
