@@ -209,8 +209,8 @@ class GUI:
         self.data.set_is_loaded_from_file(False)
         exit_recording = False
 
-        if self.data.get_num_records() * self.data.get_num_trials() == 0:
-            print("Settings are such that no trials are recorded.")
+        if self.data.get_num_records() * self.data.get_num_trials() * self.data.get_num_pts() == 0:
+            print("Settings are such that no trials or points are recorded. Ending recording session.")
             return
 
         # Note that record index may not necessarily match the record num for file saving
@@ -224,9 +224,9 @@ class GUI:
                 if self.get_is_schedule_rli_enabled():
                     self.take_rli_core()
                 self.hardware.record(images=self.data.get_acqui_memory(trial=trial),
-                                     fp_data=self.data.get_fp_data())
+                                     fp_data=self.data.get_fp_data(trial=trial))
                 self.data.set_current_trial_index(trial)
-                self.fv.update(update_hyperslicer=is_last_trial)  # send data to hs only once per record
+                self.fv.update_new_image()
                 print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
                 if not is_last_trial:
                     print("\t\t", sleep_trial, "seconds until next trial...")
@@ -469,7 +469,7 @@ class GUI:
 
     def set_acqui_onset(self, **kwargs):
         v = kwargs['values']
-        self.data.set_acqui_onset(v)
+        self.hardware.set_acqui_onset(acqui_onset=v)
 
     def set_num_pts(self, **kwargs):
         v = kwargs['values']
@@ -478,11 +478,11 @@ class GUI:
             v = v[:-1]
         if len(v) > 0 and self.validate_numeric_input(v, decimal=True, max_val=15000):
             acqui_duration = float(v) * self.data.get_int_pts()
-            self.data.hardware.set_num_pts(value=int(v))
+            self.data.set_num_pts(value=int(v))  # Data method resizes data
             kwargs['window'][kwargs['event']].update(v)
             kwargs['window']["Acquisition Duration"].update(str(acqui_duration))
         else:
-            self.data.hardware.set_num_pts(value=0)
+            self.data.set_num_pts(value=0)  # Data method resizes data
             kwargs['window'][kwargs['event']].update('')
             kwargs['window']["Acquisition Duration"].update('')
 
@@ -498,11 +498,11 @@ class GUI:
             v = v[:-1]
         if len(v) > 0 and is_valid_acqui_duration(v):
             num_pts = int(float(v) // self.data.get_int_pts())
-            self.data.hardware.set_num_pts(value=num_pts)
+            self.data.set_num_pts(value=num_pts)
             kwargs['window'][kwargs['event']].update(v)
             kwargs['window']["Number of Points"].update(str(num_pts))
         else:
-            self.data.hardware.set_num_pts(value=0)
+            self.data.set_num_pts(value=0)
             kwargs['window'][kwargs['event']].update('')
             kwargs['window']["Number of Points"].update('')
 

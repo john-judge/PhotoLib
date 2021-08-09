@@ -81,6 +81,15 @@ class Data:
 
         self.hardware.set_acqui_onset(acqui_onset=0)
 
+        self.hardware.set_stim_onset(value=0,
+                                     channel=1)
+        self.hardware.set_stim_onset(value=0,
+                                     channel=2)
+        self.hardware.set_stim_duration(value=1,
+                                        channel=1)
+        self.hardware.set_stim_duration(value=1,
+                                        channel=2)
+
     # We allocate twice the memory since C++ needs room for CDS subtraction
     def allocate_image_memory(self):
         w = self.get_display_width()
@@ -99,7 +108,7 @@ class Data:
         self.fp_data = np.zeros((self.get_num_trials(),
                                  self.get_num_pts(),
                                  self.get_num_fp()),
-                                dtype=np.float64)
+                                dtype=np.int16)
 
     def set_camera_program(self, program, force_resize=False):
         curr_program = self.hardware.get_camera_program()
@@ -173,7 +182,8 @@ class Data:
             traces = np.average(traces, axis=0)
         return traces[:, fp_index]
 
-    def get_display_trace(self, index=None, trial=None, fp_index=None):
+    def get_display_trace(self, index=None, fp_index=None):
+        trial = self.get_current_trial_index()
         if fp_index is not None:
             return self.get_display_fp_trace(fp_index, trial=trial)
 
@@ -261,7 +271,7 @@ class Data:
             self.fp_data = np.zeros((self.get_num_trials(),
                                      self.get_num_pts(),
                                      self.get_num_fp()),
-                                    dtype=np.float64)
+                                    dtype=np.int16)
         if trial is None:
             return self.fp_data
         return self.fp_data[trial, :, :]
@@ -322,7 +332,7 @@ class Data:
         self.fp_data = data
 
     def set_num_pts(self, value=1, force_resize=False):
-        if type(value) != type or value < 1:
+        if type(value) != int or value < 1:
             return
         tmp = self.get_num_pts()
         if force_resize or tmp != value:
@@ -477,9 +487,6 @@ class Data:
 
     def get_num_pulses(self, ch):
         return self.hardware.get_num_pulses(channel=ch)
-
-    def set_acqui_onset(self, v):
-        self.hardware.set_acqui_onset(v)
 
     def get_acqui_onset(self):
         if self.get_is_loaded_from_file():

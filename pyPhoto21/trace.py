@@ -10,9 +10,6 @@ class TraceViewer:
         self.traces = []
         self.trace_colors = []
 
-    def get_trial_no(self):
-        return 0  # replace with self.data data
-
     def get_fig(self):
         return self.fig
 
@@ -43,7 +40,6 @@ class TraceViewer:
 
     def add_trace(self, pixel_index=None, color='b', fp_index=None):
         trace = self.data.get_display_trace(index=pixel_index,
-                                            trial=self.get_trial_no(),
                                             fp_index=fp_index)
         if trace is not None:
             self.traces.append(trace)
