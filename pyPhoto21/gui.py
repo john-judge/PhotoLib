@@ -353,7 +353,7 @@ class GUI:
                                   element_justification='center',
                                   resizable=True,
                                   font='Helvetica 18')
-        file = None
+        folder = None
         # file browser event loop
         while True:
             event, values = folder_window.read()
@@ -361,14 +361,17 @@ class GUI:
                 folder_window.close()
                 return
             elif event == "folder_window.open":
-                file = values["folder_window.browse"]
+                folder = values["folder_window.browse"]
                 break
-        if self.freeze_input:
-            file = None
-            self.notify_window("Folder Input Error",
-                               "Cannot change save location during acquisition")
+        if self.freeze_input and not self.data.get_is_loaded_from_file():
+            folder = self.file.get_save_dir()
+            self.notify_window("Warning",
+                               "You are changing the save location during acquisition." +
+                               "I don't recommend scattering your files. " +
+                               "Keeping this save directory:\n" +
+                               folder)
         folder_window.close()
-        return file
+        return folder
 
     def load_roi_file(self, **kwargs):
         filename = self.browse_for_file(['roi'])
