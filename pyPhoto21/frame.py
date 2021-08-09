@@ -191,8 +191,7 @@ class FrameViewer:
         self.current_frame = self.data.get_display_frame(index=self.ind,
                                                          trial=self.get_trial_index(),
                                                          get_rli=self.show_rli,
-                                                         binning=self.get_digital_binning(),
-                                                         show_processed=self.data.core.get_show_processed_data())
+                                                         binning=self.get_digital_binning())
 
     def update(self, update_hyperslicer=True):
         self.refresh_current_frame()
