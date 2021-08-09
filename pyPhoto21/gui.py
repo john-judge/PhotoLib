@@ -735,6 +735,13 @@ class GUI:
         self.data.core.set_is_spatial_filter_enabled(v)
         self.fv.update_new_image()
 
+    def set_baseline_correction(self, **kwargs):
+        v = kwargs['values']
+        v = self.data.core.get_baseline_correction_options().index(v)
+        self.data.core.set_baseline_correction_type_index(v)
+        self.fv.clear_shapes()
+        self.tv.clear_traces()
+        self.fv.update_new_image()
 
 
 

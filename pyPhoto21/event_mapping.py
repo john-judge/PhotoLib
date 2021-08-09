@@ -337,6 +337,18 @@ class EventMapping:
             'S-Filter': {
                 'function': gui.set_is_s_filter_enabled,
                 'args': {}
+            },
+            "Select Baseline Correction": {
+                'function': gui.set_baseline_correction,
+                'args': {}
+            },
+            "Baseline Skip Window Size": {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.data.core.set_skip_window_start}
+            },
+            "Baseline Skip Window Start": {
+                'function': gui.validate_and_pass_int,
+                'args': {'call': gui.data.core.set_skip_window_size}
             }
         }
 

@@ -225,9 +225,29 @@ class Layouts:
         ]]
 
     def create_baseline_tab(self):
-        return [[
-            sg.Button("placeholder2", button_color=('gray', 'black')),
-        ]]
+        button_size = (12, 1)
+        double_button_size = (20, 1)
+        slider_size = (20, 40)
+        baseline_correction_options = self.data.core.get_baseline_correction_options()
+        return [
+            [sg.Text('Baseline Correction:', size=double_button_size),
+             sg.Combo(baseline_correction_options,
+                      enable_events=True,
+                      default_value=baseline_correction_options[self.data.core.get_baseline_correction_type_index()],
+                      key="Select Baseline Correction")],
+            [sg.Text('')],
+            [sg.Text('Baseline Skip Window:', size=double_button_size)],
+            [sg.Text("Start Point:", size=button_size),
+             sg.InputText(key="Baseline Skip Window Start",
+                          default_text=str(self.data.core.get_skip_window_start()),
+                          enable_events=True,
+                          size=button_size)],
+            [sg.Text("Window Size:", size=button_size),
+             sg.InputText(key="Baseline Skip Window Size",
+                          default_text=str(self.data.core.get_skip_window_size()),
+                          enable_events=True,
+                          size=button_size)],
+        ]
 
     def create_filter_tab(self):
         button_size = (10, 1)
