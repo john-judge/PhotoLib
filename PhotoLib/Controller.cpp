@@ -202,7 +202,7 @@ int Controller::takeRli(unsigned short* memory) {
 	return 0;
 }
 
-int Controller::acqui(unsigned short *memory, float64 *fp_memory)
+int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 {
 	Camera cam;
 	cam.setCamProgram(getCameraProgram());
@@ -210,8 +210,8 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//-------------------------------------------
 	// Initialize NI tasks
-	int16* tmp_fp_memory = new(std::nothrow) int16[numPts * NUM_BNC_CHANNELS];
-	memset(tmp_fp_memory, 0, numPts * NUM_BNC_CHANNELS * sizeof(int16));
+	//int16* tmp_fp_memory = new(std::nothrow) int16[numPts * NUM_BNC_CHANNELS];
+	//memset(tmp_fp_memory, 0, numPts * NUM_BNC_CHANNELS * sizeof(int16));
 	float64 samplingRate = 1000.0 / getIntPts(); 
 	NI_fillOutputs();
 
@@ -314,7 +314,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	// Camera Acquisition loops
 	NI_openShutter(1);
 	Sleep(100);
-	int16* NI_ptr = tmp_fp_memory;
+	int16* NI_ptr = fp_memory;
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
@@ -368,17 +368,19 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//=============================================================================	
 	// FP reassembly
-	float64* dst_fp = fp_memory;
+	/*
+	int16* dst_fp = fp_memory;
 	for (int i_bnc = 0; i_bnc < NUM_BNC_CHANNELS; i_bnc++) {
 		int16* src_fp = tmp_fp_memory + i_bnc;
 		for (int m = 0; m < total_read; m++) {
 			*dst_fp++ = *src_fp;
 			src_fp += NUM_BNC_CHANNELS;
 		}
-		dst_fp += numPts - (int)total_read; // skip to next FP trace start
+		dst_fp += numPts - total_read; // skip to next FP trace start (nonzero iff missing read)
 	}
+	*/
 
-	delete[] tmp_fp_memory;
+	//delete[] tmp_fp_memory;
 
 
 	return 0;
@@ -508,6 +510,7 @@ void Controller::NI_fillOutputs()
 	cout << "\n\tNum bursts 1: " << numBursts1 << "\n\tNum Pulses 1: " << numPulses1 << "\n";
 	cout << "\n\tInt bursts 1: " << intBursts1 << "\n\tInt Pulses 1: " << intPulses1 << "\n";
 	cout << "\n\tOnset 1:" << sti1->getOnset() << "\n";
+	cout << "\n\Duration 1:" << sti1->getDuration() << "\n";
 	for (int k = 0; k < numBursts1; k++)
 	{
 		for (int j = 0; j < numPulses1; j++)

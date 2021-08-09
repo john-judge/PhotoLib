@@ -93,7 +93,7 @@ public:
 	void NI_fillOutputs();
 
 	// Acquisition Control
-	int acqui(unsigned short*, float64*);
+	int acqui(unsigned short*, int16*);
 	int stop();
 	void resetCamera();
 
@@ -113,7 +113,6 @@ public:
 	float getIntPts();
 
 	// Duration of the whole Process
-	void setDuration();
 	float getDuration();
 
 	// Stimulator

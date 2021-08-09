@@ -54,12 +54,13 @@ class FrameViewer:
         self.fp_axes = []
 
         fp_data = self.data.get_fp_data(trial=self.get_trial_index())
-        t = [i * self.data.get_int_pts() for i in range(fp_data.shape[1])]
+        n = fp_data.shape[0]
+        t = np.linspace(0, n * self.data.get_int_pts(), num=n)
         for i in range(num_fp):
             self.fp_axes.append(self.fig.add_subplot(gs[0, i]))
-            self.fp_axes[i].plot(t, fp_data[i, :])
+            self.fp_axes[i].plot(t, fp_data[:, i])
             self.fp_axes[i].set_title("FP " + str(i))
-            if num_fp > 4 and i > 0:
+            if num_fp > 4 and i > 0:  # for many FP, only left-most plot needs labelled y-axis
                 self.fp_axes[i].get_yaxis().set_visible(False)
 
         # Rest of the plot is the image
@@ -190,8 +191,7 @@ class FrameViewer:
         self.current_frame = self.data.get_display_frame(index=self.ind,
                                                          trial=self.get_trial_index(),
                                                          get_rli=self.show_rli,
-                                                         binning=self.get_digital_binning(),
-                                                         show_processed=self.data.core.get_show_processed_data())
+                                                         binning=self.get_digital_binning())
 
     def update(self, update_hyperslicer=True):
         self.refresh_current_frame()
