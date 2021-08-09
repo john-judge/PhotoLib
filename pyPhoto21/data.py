@@ -146,7 +146,7 @@ class Data:
     # Based on system state, create/get the frame that should be displayed.
     # index can be an integer or a list of [start:end] over which to average
     def get_display_frame(self, index=None, trial=None, get_rli=False, binning=1):
-        if self.data.core.get_show_processed_data():
+        if self.core.get_show_processed_data():
             return self.core.get_processed_display_frame()
         if get_rli:
             images = self.get_rli_images()
