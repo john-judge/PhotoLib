@@ -43,9 +43,13 @@ class ROI:
         print(data.shape, "shape of data (trial, time, height, width)")
         print("enable_roi_identification not implemented")
         # compute the frame to display and store it to self.current_display_frame
-        # then call self.data.core.set_processed_display_frame(self.current_display_frame)
+        # then call:
+        #   self.data.core.set_show_processed_data(True)
+        #   self.data.core.set_processed_display_frame(self.current_display_frame)
+        #   (the order doesn't matter)
 
-        # Use the methods of FrameViewer (from frame.py) to manipulate display settings
+        # Use the methods of FrameViewer (in frame.py, called only from the GUI class)
+        # to manipulate display settings
         # and update the matplotlib plot by calling either:
         #  - update() if the data is the same size as previously, and the slider and
         #                   shaded regions don't need to be redrawn
@@ -57,7 +61,9 @@ class ROI:
         #   coordinates representing a polygon path
 
     def disable_roi_identification(self):
-        pass  # do any cleanup needed here
+        #   To turn off showing processed data:
+        #      self.data.core.set_show_processed_data(True)
+        pass  # do any other cleanup needed here
 
     def launch_cluster_score_plot(self, plot_type):
         if plot_type == 'silhouette':

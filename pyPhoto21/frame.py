@@ -46,12 +46,6 @@ class FrameViewer:
     def get_trial_index(self):
         return self.data.get_current_trial_index()
 
-    def set_show_processed_data(self, v):
-        self.show_processed_data = v
-
-    def get_show_processed_data(self):
-        return self.show_processed_data
-
     def populate_figure(self):
         # top row of Field Potential traces
         num_fp = min(9, self.data.get_num_fp())
@@ -197,7 +191,7 @@ class FrameViewer:
                                                          trial=self.get_trial_index(),
                                                          get_rli=self.show_rli,
                                                          binning=self.get_digital_binning(),
-                                                         show_processed=self.get_show_processed_data())
+                                                         show_processed=self.data.core.get_show_processed_data())
 
     def update(self, update_hyperslicer=True):
         self.refresh_current_frame()
