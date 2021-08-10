@@ -98,7 +98,8 @@ class Data:
     def allocate_image_memory(self):
         w = self.get_display_width()
         h = self.get_display_height()
-        self.rli_images = np.zeros((2,
+        self.rli_images = np.zeros((self.get_num_trials(),
+                                    2,
                                     self.get_num_rli_pts(),
                                     h,
                                     w,),
@@ -130,13 +131,14 @@ class Data:
         h = self.get_display_height()
         if self.rli_images is not None and self.acqui_images is not None:
 
-            self.rli_images = np.resize(self.rli_images, (2,
-                                                          (self.get_num_rli_pts() + 1),
+            self.rli_images = np.resize(self.rli_images, (self.get_num_trials(),
+                                                          2,
+                                                          self.get_num_rli_pts(),
                                                           h,
                                                           w))
-            self.acqui_images = np.resize(self.acqui_images, (2,
-                                                              self.get_num_trials(),
-                                                              (self.get_num_pts() + 1),
+            self.acqui_images = np.resize(self.acqui_images, (self.get_num_trials(),
+                                                              2,
+                                                              self.get_num_pts(),
                                                               h,
                                                               w))
             self.fp_data = np.resize(self.fp_data,
@@ -303,11 +305,15 @@ class Data:
             return self.acqui_images[trial, 0, :, :, :]
 
     def get_rli_images(self):
+        trial = self.get_current_trial_index()
         if self.rli_images is None:
             return None
         if self.get_is_loaded_from_file():
-            return self.rli_images[:, :, :]
-        return self.rli_images[0, :, :, :]
+            return self.rli_images[:, :, :, :]
+        if trial is None:
+            return self.rli_images[:, 0, :, :, :]
+        else:
+            return self.rli_images[trial, 0, :, :, :]
 
     def clear_data_memory(self):
         # deleting the refs may trigger garbage collection (ideally)
@@ -335,11 +341,12 @@ class Data:
 
     # trial is ignored if data is from file
     def set_rli_images(self, data, from_file=False):
+        trial = self.get_current_trial_index()
         self.set_is_loaded_from_file(from_file)
         if from_file:
-            self.rli_images = data
-        else:
-            self.rli_images[0, :, :, :] = data[:, :, :]
+            self.rli_images[:, 0, :, :, :] = data
+        elif trial is not None:
+            self.rli_images[trial, 0, :, :, :] = data[:, :, :]
 
     def set_fp_data(self, data):
         self.fp_data = data
@@ -401,8 +408,9 @@ class Data:
         if force_resize or tmp != dark_rli:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (self.get_num_rli_pts(),
-                                        2,  # extra mem for C++ reassembly
+            np.resize(self.rli_images, (self.get_num_trials(),
+                                        2,
+                                        self.get_num_rli_pts(),
                                         w,
                                         h))
             self.hardware.set_num_dark_rli(dark_rli=dark_rli)
@@ -412,8 +420,9 @@ class Data:
         if force_resize or tmp != light_rli:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (self.get_num_rli_pts(),
+            np.resize(self.rli_images, (self.get_num_trials(),
                                         2,  # extra mem for C++ reassembly
+                                        self.get_num_rli_pts(),
                                         w,
                                         h))
             self.hardware.set_num_light_rli(light_rli=light_rli)

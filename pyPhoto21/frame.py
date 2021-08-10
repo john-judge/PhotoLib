@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.figure as figure
 from matplotlib.widgets import Slider
+from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt
 
 from collections import defaultdict
 
@@ -35,6 +37,7 @@ class FrameViewer:
 
         self.current_frame = None
         self.im = None
+        self.livefeed_im = None
         self.populate_figure()
 
         self.update()
@@ -172,19 +175,38 @@ class FrameViewer:
 
     def update_new_image(self):
         self.fig.clf()
-        self.redraw_slider()
-        self.populate_figure()
-        self.update()
-        self.plot_all_shapes()
+        if self.data.get_is_livefeed_enabled():
+            self.start_livefeed_animation()
+        else:
+            self.redraw_slider()
+            self.populate_figure()
+            self.update()
+            self.plot_all_shapes()
 
     def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
                                                          get_rli=self.show_rli,
                                                          binning=self.get_digital_binning())
 
+
+
+    def start_livefeed_animation(self):
+        self.refresh_current_frame()
+        self.ax = self.fig.add_subplot(1, 1, 1)
+
+        self.livefeed_im = self.ax.imshow(self.current_frame,
+                                          aspect='auto',
+                                          cmap='jet')
+        self.fig.canvas.draw_idle()
+
     def update(self, update_hyperslicer=True):
         self.refresh_current_frame()
-        if self.current_frame is not None:
+
+        if self.data.get_is_livefeed_enabled():
+            self.livefeed_im.set_data(self.current_frame)
+            update_hyperslicer = False
+
+        elif self.current_frame is not None:
             self.im.set_data(self.current_frame)
             self.im.set_clim(vmin=np.min(self.current_frame),
                              vmax=np.max(self.current_frame))

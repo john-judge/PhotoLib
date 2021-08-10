@@ -106,14 +106,13 @@ class GUI:
             if event == exit_event or event == sg.WIN_CLOSED:
                 if self.is_recording():
                     print("Cleaning up hardware before exiting. Waiting until safe to exit (or at most 8 seconds)...")
-                    if self.data.get_is_livefeed_enabled():
-                        self.stop_livefeed()
-                    else:
-                        self.hardware.set_stop_flag()
-                        timeout = 8
-                        while self.hardware.get_stop_flag() and timeout > 0:
-                            time.sleep(1)
-                            timeout -= 1
+
+                    self.hardware.set_stop_flag(True)
+                    timeout = 8
+                    while self.hardware.get_stop_flag() and timeout > 0:
+                        time.sleep(1)
+                        timeout -= 1
+                        print(timeout, "seconds")
                 break
             elif event not in self.event_mapping or self.event_mapping[event] is None:
                 print("Not Implemented:", event)
@@ -193,7 +192,6 @@ class GUI:
 
     def save_file_in_background(self):
         self.file.save_to_compressed_file()
-        self.file.increment_record()
         self.update_tracking_num_fields()
 
     # returns True if stop flag is set
@@ -233,6 +231,7 @@ class GUI:
 
             for trial in range(self.data.get_num_trials()):
                 self.data.set_current_trial_index(trial)
+                self.update_tracking_num_fields()
                 is_last_trial = (trial == self.data.get_num_trials() - 1)
                 if self.get_is_schedule_rli_enabled():
                     self.take_rli_core()
@@ -283,6 +282,7 @@ class GUI:
         self.unfreeze_hardware_settings()
 
     def take_rli(self, **kwargs):
+        self.data.get_current_trial_index()
         threading.Thread(target=self.take_rli_in_background, args=(), daemon=True).start()
 
     ''' Live Feed Controller functions '''
@@ -294,38 +294,39 @@ class GUI:
         self.data.set_is_livefeed_enabled(True)
         lf_frame = self.data.get_livefeed_frame()
         if not self.hardware.start_livefeed(lf_frame):  # C++ DLL will keep pointer to lf_frame
-            self.hardware.reset_camera()
-            self.data.set_is_livefeed_enabled(False)
-            self.unfreeze_hardware_settings()
+            # Hardware not enabled
+            self.stop_livefeed()
+            return
         # launch live feed daemon
-        threading.Thread(target=self.continue_livefeed_in_background, args=(), daemon=True).start()
+        self.fv.update_new_image()
+        threading.Thread(target=self.continue_livefeed_in_background, args=(lf_frame,), daemon=True).start()
 
     # a continuous loop in background
-    def continue_livefeed_in_background(self, fps=30):
+    def continue_livefeed_in_background(self, lf_frame, fps=20):
         if not self.data.get_is_livefeed_enabled():
             return
         interval = 1.0 / float(fps)
         # C++ DLL has stored pointer to lf_frame, no need to keep passing
         while not self.hardware.get_stop_flag():
+            start = time.time()
             self.hardware.continue_livefeed()
-            self.fv.update_new_image()
+            end = time.time()
             time.sleep(interval)
+            self.fv.update()
+
+            print("Time to acquire:", end - start)
+            print("Slept", interval, "\tStop Flag:", self.hardware.get_stop_flag())
         # stop flag read
-        self.hardware.stop_livefeed()  # clean up
-        self.hardware.set_stop_flag(False)  # signal to GUI daemon that we've cleaned up
+        self.stop_livefeed()
+        print("Live Feed daemon exiting.")
 
     def stop_livefeed(self):
-        if not self.data.get_is_livefeed_enabled():
-            return
-        self.hardware.set_stop_flag(True)
-
-        # Wait for live feed daemon to recognize flag, act, and clear it
-        timeout = 8  # second timeout
-        while self.hardware.get_stop_flag() and timeout > 0:
-            time.sleep(1)
-            timeout -= 1
+        self.window["Live Feed"].update(button_color=('black', 'gray'))
+        self.hardware.stop_livefeed()  # clean up
         self.data.set_is_livefeed_enabled(False)
         self.unfreeze_hardware_settings()
+        self.hardware.set_stop_flag(False)  # signal to GUI daemon that we've cleaned up
+        self.fv.update_new_image()
 
     def set_camera_program(self, **kwargs):
         program_name = kwargs['values']
