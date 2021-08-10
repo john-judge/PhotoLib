@@ -77,16 +77,17 @@ class Layouts:
         return [
             [sg.Text("Auto:", size=(8, 1)),
              sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
-             sg.Button("Take RLI", button_color=('brown', 'gray'), size=button_size)],
+             sg.Button("Take RLI", button_color=('blue', 'white'), size=button_size),
+             sg.Button("Reset Cam", button_color=('brown', 'gray'), size=button_size),],
             [sg.Checkbox('RLI', default=self.data.get_is_schedule_rli_enabled(), enable_events=True, key="Auto RLI",
                          size=checkbox_size),
              sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size),
              sg.Button("Record", button_color=('black', 'red'), size=button_size)],
             [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
                          size=checkbox_size),
-             sg.Button("Save Analysis", button_color=('black', 'green'), size=button_size),
-             sg.Button("Unload File", button_color=('black', 'green'), size=button_size),
-             sg.Button("Save", button_color=('black', 'green'), size=button_size)],
+             sg.Button("Save Analysis", button_color=('white', 'green'), size=button_size),
+             sg.Button("Unload File", button_color=('white', 'brown'), size=button_size),
+             sg.Button("Save", button_color=('white', 'green'), size=button_size)],
             [sg.HorizontalSeparator()],
             [sg.Text("File Name:", size=(8, 1)),
              sg.InputText(key="File Name",
@@ -218,9 +219,19 @@ class Layouts:
         ]
 
     def create_dsp_tab(self):
-        return [[
-            sg.Button("placeholder", button_color=('gray', 'black')),
-        ]]
+        checkbox_size = (6, 1)
+        return [
+            [sg.Checkbox('RLI Division',
+                         default=self.data.get_is_rli_division_enabled(),
+                         enable_events=True,
+                         key="RLI Division",
+                         size=checkbox_size)],
+            [sg.Checkbox('Data Inverse',
+                         default=self.data.get_is_data_inverse_enabled(),
+                         enable_events=True,
+                         key='Data Inverse',
+                         size=checkbox_size)]
+        ]
 
     def create_baseline_tab(self):
         button_size = (12, 1)

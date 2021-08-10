@@ -349,6 +349,18 @@ class EventMapping:
             "Baseline Skip Window Start": {
                 'function': gui.validate_and_pass_int,
                 'args': {'call': gui.data.core.set_skip_window_size}
+            },
+            "Reset Cam": {
+                'function': gui.hardware.reset_camera,
+                'args': {}
+            },
+            'RLI Division': {
+                'function': gui.set_rli_division,
+                'args': {}
+            },
+            'Data Inverse': {
+                'function': gui.set_data_inverse,
+                'args': {}
             }
         }
 

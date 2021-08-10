@@ -39,13 +39,6 @@ class FrameViewer:
 
         self.update()
 
-    def set_trial_index(self, i):
-        self.data.set_current_trial_index(i)
-        self.update_new_image()
-
-    def get_trial_index(self):
-        return self.data.get_current_trial_index()
-
     def populate_figure(self):
         # top row of Field Potential traces
         num_fp = min(9, self.data.get_num_fp())
@@ -53,7 +46,7 @@ class FrameViewer:
         gs = self.fig.add_gridspec(num_rows, num_fp)
         self.fp_axes = []
 
-        fp_data = self.data.get_fp_data(trial=self.get_trial_index())
+        fp_data = self.data.get_fp_data()
         n = fp_data.shape[0]
         t = np.linspace(0, n * self.data.get_int_pts(), num=n)
         for i in range(num_fp):
@@ -189,7 +182,6 @@ class FrameViewer:
 
     def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
-                                                         trial=self.get_trial_index(),
                                                          get_rli=self.show_rli,
                                                          binning=self.get_digital_binning())
 

@@ -136,7 +136,11 @@ class File:
 
     def save_to_compressed_file(self):
         acqui_images = self.data.get_acqui_images()
-        rli_images = self.data.get_rli_images()
+        rli_images = {
+            'rli_low': self.data.calculate_dark_rli_frame(),
+            'rli_high': self.data.calculate_light_rli_frame(),
+            'rli_max': self.data.calculate_max_rli_frame(),
+        }
         fp_data = self.data.get_fp_data()
         fn = self.get_filename_to_write()
 
@@ -157,6 +161,8 @@ class File:
             'stimulation2_duration': self.data.get_stim_duration(2),
             'rli_pts_dark': self.data.hardware.get_num_dark_rli(),
             'rli_pts_light': self.data.hardware.get_num_light_rli(),
+            'raw_width': self.data.get_display_width(),
+            'raw_height': self.data.get_display_height(),
         }
         d = {
             'acqui': acqui_images,

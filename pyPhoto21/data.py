@@ -44,8 +44,10 @@ class Data:
         self.fp_data = None
         self.is_loaded_from_file = False
 
-        self.auto_save_enabled = False
+        self.auto_save_enabled = True
         self.schedule_rli_enabled = False
+        self.is_rli_division_enabled = True
+        self.is_data_inverse_enabled = True
 
         self.sync_defaults_into_hardware()
 
@@ -145,13 +147,14 @@ class Data:
 
     # Based on system state, create/get the frame that should be displayed.
     # index can be an integer or a list of [start:end] over which to average
-    def get_display_frame(self, index=None, trial=None, get_rli=False, binning=1):
-        if self.core.get_show_processed_data():
+    def get_display_frame(self, index=None, get_rli=False, binning=1, raw_override=False):
+        if self.core.get_show_processed_data() and not raw_override:
             return self.core.get_processed_display_frame()
+        images = None
         if get_rli:
             images = self.get_rli_images()
         else:
-            images = self.get_acqui_images(trial=trial)
+            images = self.get_acqui_images()
         if images is None:
             return None
         if len(images.shape) > 3:
@@ -166,18 +169,39 @@ class Data:
         else:
             ret_frame = np.average(images, axis=0)
 
+        # RLI division
+        if self.get_is_rli_division_enabled() and not get_rli:
+            rli = self.calculate_rli()
+            if rli is not None and rli.shape == ret_frame.shape:
+                ret_frame = ret_frame.astype(np.float32) / rli
+                ret_frame = ret_frame.astype(np.int32)
+                ret_frame = np.nan_to_num(ret_frame)
+                min_val = np.min(ret_frame)
+                if min_val < 0:
+                    ret_frame -= min_val  # make everything positive
+            elif rli.shape != ret_frame.shape:
+                print("RLI and data shapes don't match:",
+                      rli.shape,
+                      ret_frame.shape,
+                      "You may be using a legacy data file (or a converted legacy data file)?")
+
+        # TO DO: technically we should apply data inversing, baseline correction, and t-filter to
+        # data when computing the display frame...
+        # Would probably need to cache processed data to make it fast enough, so forego for now.
+
         # digital binning
         ret_frame = self.core.create_binned_data(ret_frame, binning_factor=binning)
 
         # spatial filtering
-        ret_frame = self.s_filter_frame(ret_frame)
+        ret_frame = self.core.filter_spatial(ret_frame)
 
         # crop out 1px borders
         ret_frame = ret_frame[1:-2, 1:-2]
         return ret_frame
 
-    def get_display_fp_trace(self, fp_index, trial=None):
-        traces = self.get_fp_data(trial=trial)
+    def get_display_fp_trace(self, fp_index):
+        trial = self.get_current_trial_index()
+        traces = self.get_fp_data()
         if trial is None:
             traces = np.average(traces, axis=0)
         return traces[:, fp_index]
@@ -185,16 +209,12 @@ class Data:
     def get_display_trace(self, index=None, fp_index=None):
         trial = self.get_current_trial_index()
         if fp_index is not None:
-            return self.get_display_fp_trace(fp_index, trial=trial)
+            return self.get_display_fp_trace(fp_index)
 
         images = self.get_acqui_images()
         if images is None:
             print("get_display_trace: No images to display.")
             return None
-        if trial is None:
-            images = np.average(images, axis=0)
-        else:
-            images = images[trial, :, :]
 
         ret_trace = None
         if index is None:
@@ -219,37 +239,21 @@ class Data:
             else:
                 print("get_display_trace: drawn shape is empty:", index)
 
+        # data inversing (BEFORE baseline correction)
+        if self.get_is_data_inverse_enabled():
+            ret_trace = 0 - ret_trace
+
         # baseline correction
         ret_trace = self.core.baseline_correct_noise(ret_trace, self.get_int_pts())
 
         # temporal filtering
-        ret_trace = self.t_filter_trace(ret_trace)
+        ret_trace = self.core.filter_temporal(ret_trace)
 
         return ret_trace
 
-    def s_filter_frame(self, frame):
-        if self.core.get_is_spatial_filter_enabled():
-            s_filter_sigma = self.core.get_spatial_filter_sigma()
-            w, h = frame.shape
-            frame = frame.reshape(1, 1, w, h)
-            frame = self.core.filter_spatial(frame, sigma_s=s_filter_sigma)
-            frame = frame.reshape(w, h)
-        return frame
-
-    def t_filter_trace(self, trace):
-        if self.core.get_is_temporal_filter_enabled():
-            t_filter_type = self.core.get_temporal_filter_options()[self.core.get_temporal_filter_index()]
-            t_filter_radius = self.core.get_temporal_filter_radius()
-            trace = np.array(trace)
-            t = trace.shape[0]
-            trace = trace.reshape(1, t, 1, 1)
-            if t_filter_type == "Gaussian":
-                trace = self.core.filter_temporal(trace, sigma_t=t_filter_radius)
-            trace = trace.reshape(t)
-        return trace
-
     # Returns the full (x2) memory for hardware to use
-    def get_acqui_memory(self, trial=None):
+    def get_acqui_memory(self):
+        trial = self.get_current_trial_index()
         if self.acqui_images is None:
             self.allocate_image_memory()
         if trial is None:
@@ -257,14 +261,16 @@ class Data:
         return self.acqui_images[trial, :, :, :, :]
 
     # Returns the full (x2) memory for hardware to use
-    def get_rli_memory(self, trial=None):
+    def get_rli_memory(self):
+        trial = self.get_current_trial_index()
         if self.rli_images is None:
             self.allocate_image_memory()
         if trial is None:
             return self.rli_images
         return self.rli_images[trial, :, :, :, :]
 
-    def get_fp_data(self, trial=None):
+    def get_fp_data(self):
+        trial = self.get_current_trial_index()
         if self.fp_data is None:
             self.allocate_image_memory()
         if self.fp_data is None:
@@ -276,7 +282,8 @@ class Data:
             return self.fp_data
         return self.fp_data[trial, :, :]
 
-    def get_acqui_images(self, trial=None):
+    def get_acqui_images(self):
+        trial = self.get_current_trial_index()
         if self.acqui_images is None:
             return None
         if self.get_is_loaded_from_file():
@@ -307,7 +314,8 @@ class Data:
         self.fp_data = None
 
     # trial is ignored if data is from file
-    def set_acqui_images(self, data, trial=None, from_file=False):
+    def set_acqui_images(self, data, from_file=False):
+        trial = self.get_current_trial_index()
         self.set_is_loaded_from_file(from_file)
         if from_file:
             self.acqui_images = data
@@ -348,6 +356,40 @@ class Data:
                                       self.get_num_fp(),
                                       self.get_num_pts()))
             self.hardware.set_num_pts(value=value)
+
+    def calculate_light_rli_frame(self, margins=40):
+        if self.get_is_loaded_from_file():
+            return self.get_rli_images()[1, :, :]
+        d = self.hardware.get_num_dark_rli()
+        n = self.get_num_rli_pts()
+        rli_light_frames = self.get_rli_images()[d+margins+1:n-1-margins, :, :]
+        if rli_light_frames is None:
+            return None
+        return np.average(rli_light_frames, axis=0)
+
+    def calculate_dark_rli_frame(self, margins=40):
+        if self.get_is_loaded_from_file():
+            return self.get_rli_images()[0, :, :]
+        d = self.hardware.get_num_dark_rli()
+        rli_dark_frames = self.get_rli_images()[margins+1:d-margins-1, :, :]
+        if rli_dark_frames is None:
+            return None
+        return np.average(rli_dark_frames, axis=0)
+
+    def calculate_max_rli_frame(self):
+        if self.get_is_loaded_from_file():
+            return self.get_rli_images()[2, :, :]
+        rli_frames = self.get_rli_images()
+        return np.max(rli_frames, axis=0)
+
+    def calculate_rli(self):
+        light = self.calculate_light_rli_frame()
+        dark = self.calculate_dark_rli_frame()
+        if light is None or dark is None:
+            return None
+        diff = (light - dark).astype(np.float32)
+        diff[diff == 0] = 0.0001  # avoid div by 0
+        return diff
 
     def set_num_dark_rli(self, dark_rli, force_resize=False):
         tmp = self.hardware.get_num_dark_rli()
@@ -517,3 +559,15 @@ class Data:
 
     def decrement_current_trial_index(self):
         self.current_trial_index = max(self.current_trial_index - 1, 0)
+
+    def get_is_rli_division_enabled(self):
+        return self.is_rli_division_enabled
+
+    def set_is_rli_division_enabled(self, v):
+        self.is_rli_division_enabled = v
+
+    def get_is_data_inverse_enabled(self):
+        return self.is_data_inverse_enabled
+
+    def set_is_data_inverse_enabled(self, v):
+        self.is_data_inverse_enabled = v

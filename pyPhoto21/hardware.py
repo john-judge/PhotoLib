@@ -373,3 +373,6 @@ class Hardware:
 
     def get_stop_flag(self):
         return self.stop_flag
+
+    def reset_camera(self):
+        self.lib.resetCamera()

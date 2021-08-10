@@ -542,33 +542,13 @@ void Controller::NI_fillOutputs()
 
 void Controller::resetCamera()
 {
-	int	sure = 1; // fl_ask("Are you sure you want to reset camera?");
 	Camera cam;
-	if (sure == 1) {
-		for (int ipdv = 0; ipdv < 4; ipdv++) {
-			cam.end_images(ipdv);
-		}
-		char command1[80];
-		sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv0_0 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");	//	command sequence from Chun B 4/22/2020
-		system(command1);
-		sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv1_0 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");
-		system(command1);
-		sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv0_1 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");
-		system(command1);
-		sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv1_1 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");
-		system(command1);
-		cout << " DapC resetCamera reset camera " << endl;
-	}
 	for (int ipdv = 0; ipdv < 4; ipdv++) {
-		try {
-			if (cam.open_channel(ipdv)) {
-				cout << "DapC resetCamera Failed to open the channel!\n";
-			}
-		}
-		catch (exception& e) {
-			cout << e.what() << '\n';
-		}
+		cam.end_images(ipdv);
 	}
+	cam.close_channels();
+
+	cam.init_cam();
 }
 
 /*

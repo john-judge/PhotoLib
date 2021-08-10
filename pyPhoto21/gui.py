@@ -180,6 +180,7 @@ class GUI:
 
     def save_file_in_background(self):
         self.file.save_to_compressed_file()
+        self.file.increment_record()
         self.update_tracking_num_fields()
 
     # returns True if stop flag is set
@@ -218,11 +219,12 @@ class GUI:
                 break
 
             for trial in range(self.data.get_num_trials()):
+                self.data.set_current_trial_index(trial)
                 is_last_trial = (trial == self.data.get_num_trials() - 1)
                 if self.get_is_schedule_rli_enabled():
                     self.take_rli_core()
-                self.hardware.record(images=self.data.get_acqui_memory(trial=trial),
-                                     fp_data=self.data.get_fp_data(trial=trial))
+                self.hardware.record(images=self.data.get_acqui_memory(),
+                                     fp_data=self.data.get_fp_data())
                 self.data.set_current_trial_index(trial)
                 self.fv.update_new_image()
                 print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
@@ -673,6 +675,7 @@ class GUI:
         self.window["Location Number"].update(self.file.get_location_num())
         self.window["Record Number"].update(self.file.get_record_num())
         self.window["Trial Number"].update(self.data.get_current_trial_index())
+        self.window["File Name"].update(self.file.get_filename(no_path=True))
 
     def set_current_trial_index(self, **kwargs):
         if 'value' in kwargs:
@@ -707,6 +710,8 @@ class GUI:
         tf_name = kwargs['values']
         tf_index = self.data.core.get_temporal_filter_options().index(tf_name)
         self.data.core.set_temporal_filter_index(tf_index)
+        self.fv.clear_shapes()
+        self.tv.clear_traces()
 
     def set_t_filter_radius(self, **kwargs):
         v = int(kwargs['values'])
@@ -738,6 +743,19 @@ class GUI:
         self.tv.clear_traces()
         self.fv.update_new_image()
 
+    def set_rli_division(self, **kwargs):
+        v = bool(kwargs['values'])
+        self.data.set_is_rli_division_enabled(v)
+        self.fv.clear_shapes()
+        self.tv.clear_traces()
+        self.fv.update_new_image()
+
+    def set_data_inverse(self, **kwargs):
+        v = bool(kwargs['values'])
+        self.data.set_is_data_inverse_enabled()
+        self.fv.clear_shapes()
+        self.tv.clear_traces()
+        self.fv.update_new_image()
 
 
 class Toolbar(NavigationToolbar2Tk):

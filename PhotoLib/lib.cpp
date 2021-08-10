@@ -167,4 +167,9 @@ extern "C"
 	{
 		return controller->getStimDuration(ch);
 	}
+
+	__declspec(dllexport) void resetCamera(Controller* controller)
+	{
+		return controller->resetCamera();
+	}
 };

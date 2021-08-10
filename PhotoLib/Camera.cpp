@@ -103,7 +103,12 @@ Camera::Camera() {
 
 }
 
+
 Camera::~Camera() {
+	close_channels();
+}
+
+int Camera::close_channels() {
 	int retries = 2;
 	for (int i = 0; i < NUM_PDV_CHANNELS; i++) {
 		if (pdv_pt[i]) {
@@ -117,6 +122,7 @@ Camera::~Camera() {
 			}
 		}
 	}
+	return (retries == 2) ? 1 : 0;
 }
 
 int Camera::open_channel(int ipdv) {

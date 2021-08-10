@@ -17,9 +17,9 @@ class AnalysisCore:
         self.temporal_filter_radius = 25.0
         self.temporal_filter_type_index = 0
         self.temporal_filter_options = [
+            'None',
             'Gaussian',
-            'Binomial',
-            'Mov Avg',
+            'Low Pass',
             'Binomial-8',
             'Binomial-6',
             'Binomial-4',
@@ -65,8 +65,8 @@ class AnalysisCore:
     def get_temporal_filter_index(self):
         return self.temporal_filter_type_index
 
-    def set_temporal_filter_index(self):
-        return self.temporal_filter_type_index
+    def set_temporal_filter_index(self, v):
+        self.temporal_filter_type_index = v
 
     def set_is_spatial_filter_enabled(self, v):
         self.is_spatial_filer_enabled = v
@@ -137,32 +137,43 @@ class AnalysisCore:
             return data
         return downscale_local_mean(data, (binning_factor, binning_factor))
 
-    @staticmethod
-    def filter_temporal(raw_data, sigma_t=1.0):
+    def filter_temporal(self, trace):
         """ Temporal filtering: 1-d binomial 8 filter (approx. Gaussian) """
-        filtered_data = np.zeros(raw_data.shape)
-        for i in range(raw_data.shape[0]):
-            for jh in range(raw_data.shape[2]):
-                for jw in range(raw_data.shape[3]):
-                    filtered_data[i, :, jh, jw] = gaussian_filter(raw_data[i, :, jh, jw],
-                                                                  sigma=sigma_t)
-        return filtered_data
+        if self.get_is_temporal_filter_enabled():
+            filter_type = self.get_temporal_filter_options()[self.get_temporal_filter_index()]
+            sigma_t = self.get_temporal_filter_radius()
+            trace = np.array(trace)
 
-    @staticmethod
-    def filter_spatial(raw_data, sigma_s=1.0, filter_type='Gaussian'):
+            if filter_type == 'Gaussian':
+                trace = gaussian_filter(trace,
+                                        sigma=sigma_t)
+            elif filter_type == 'Low Pass':  # i.e. Moving Average
+                trace = np.convolve(trace,
+                                    np.ones(int(sigma_t)),
+                                    'valid') / int(sigma_t)
+            elif filter_type.startswith('Binomial-'):
+                n = int(filter_type[-1])
+                binom_coeffs = (np.poly1d([0.5, 0.5]) ** n).coeffs  # normalized binomial filter
+                trace = np.convolve(trace,
+                                    binom_coeffs,
+                                    'valid')
+            elif filter_type != 'None':
+                print("T-Filter", filter_type, "not implemented.")
+        return trace
+
+    def filter_spatial(self, frame, filter_type='Gaussian'):
         """ Spatial filtering: Gaussian """
-        filtered_data = np.zeros(raw_data.shape)
-        if filter_type == 'Gaussian':
-            filter_size = int(sigma_s * 3)
-            if filter_size % 2 == 0:
-                filter_size += 1
+        if self.get_is_spatial_filter_enabled():
+            sigma_s = self.get_spatial_filter_sigma()
+            if filter_type == 'Gaussian':
+                filter_size = int(sigma_s * 3)
+                if filter_size % 2 == 0:
+                    filter_size += 1
 
-            for i in range(raw_data.shape[0]):
-                for t in range(raw_data.shape[1]):
-                    filtered_data[i, t, :, :] = cv.GaussianBlur(raw_data[i, t, :, :].astype(np.float32),
-                                                                (filter_size, filter_size),
-                                                                sigma_s)
-        return filtered_data
+                frame = cv.GaussianBlur(frame.astype(np.float32),
+                                        (filter_size, filter_size),
+                                        sigma_s)
+        return frame
 
     def baseline_correct_noise(self, trace, int_pts):
         """ subtract background drift off of single trace """
@@ -182,7 +193,7 @@ class AnalysisCore:
             if fit_type == "Exponential":
                 min_val = np.min(trace)
                 if min_val <= 0:
-                    trace += (-1 * min_val + 0.01)   # make all positive
+                    trace += (-1 * min_val + 0.01)  # make all positive
                 trace = np.log(trace)
             trace = trace.reshape(-1, 1)
             reg = LinearRegression().fit(t, trace).predict(t)
