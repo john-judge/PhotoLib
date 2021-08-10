@@ -752,7 +752,7 @@ class GUI:
 
     def set_data_inverse(self, **kwargs):
         v = bool(kwargs['values'])
-        self.data.set_is_data_inverse_enabled()
+        self.data.set_is_data_inverse_enabled(v)
         self.fv.clear_shapes()
         self.tv.clear_traces()
         self.fv.update_new_image()

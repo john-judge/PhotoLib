@@ -183,7 +183,8 @@ class Data:
                 print("RLI and data shapes don't match:",
                       rli.shape,
                       ret_frame.shape,
-                      "You may be using a legacy data file (or a converted legacy data file)?")
+                      "Skipping RLI division.\n",
+                      "You may be using a legacy ZDA data file (or a converted legacy data file)?")
 
         # TO DO: technically we should apply data inversing, baseline correction, and t-filter to
         # data when computing the display frame...
