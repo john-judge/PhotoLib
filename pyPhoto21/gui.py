@@ -104,6 +104,16 @@ class GUI:
             if history_debug and event is not None:
                 events += str(event) + '\n'
             if event == exit_event or event == sg.WIN_CLOSED:
+                if self.is_recording():
+                    print("Cleaning up hardware before exiting. Waiting until safe to exit (or at most 8 seconds)...")
+                    if self.data.get_is_livefeed_enabled():
+                        self.stop_livefeed()
+                    else:
+                        self.hardware.set_stop_flag()
+                        timeout = 8
+                        while self.hardware.get_stop_flag() and timeout > 0:
+                            time.sleep(1)
+                            timeout -= 1
                 break
             elif event not in self.event_mapping or self.event_mapping[event] is None:
                 print("Not Implemented:", event)
@@ -116,6 +126,9 @@ class GUI:
                 ev['function'](**ev['args'])
         if history_debug:
             print("**** History of Events ****\n", events)
+
+    def is_recording(self):
+        return self.freeze_input and not self.data.get_is_loaded_from_file()
 
     def plot_trace(self):
         fig = self.tv.get_fig()
@@ -253,6 +266,7 @@ class GUI:
         # but updates to Data/Hardware fields will be frozen
         threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
 
+    ''' RLI Controller functions '''
     def take_rli_core(self):
         self.hardware.take_rli(images=self.data.get_rli_memory())
         self.data.set_is_loaded_from_file(False)
@@ -270,6 +284,48 @@ class GUI:
 
     def take_rli(self, **kwargs):
         threading.Thread(target=self.take_rli_in_background, args=(), daemon=True).start()
+
+    ''' Live Feed Controller functions '''
+    def start_livefeed(self, **kwargs):
+        if self.data.get_is_livefeed_enabled():
+            return
+        self.window["Live Feed"].update(button_color=('black', 'yellow'))
+        self.freeze_hardware_settings()
+        self.data.set_is_livefeed_enabled(True)
+        lf_frame = self.data.get_livefeed_frame()
+        if not self.hardware.start_livefeed(lf_frame):  # C++ DLL will keep pointer to lf_frame
+            self.hardware.reset_camera()
+            self.data.set_is_livefeed_enabled(False)
+            self.unfreeze_hardware_settings()
+        # launch live feed daemon
+        threading.Thread(target=self.continue_livefeed_in_background, args=(), daemon=True).start()
+
+    # a continuous loop in background
+    def continue_livefeed_in_background(self, fps=30):
+        if not self.data.get_is_livefeed_enabled():
+            return
+        interval = 1.0 / float(fps)
+        # C++ DLL has stored pointer to lf_frame, no need to keep passing
+        while not self.hardware.get_stop_flag():
+            self.hardware.continue_livefeed()
+            self.fv.update_new_image()
+            time.sleep(interval)
+        # stop flag read
+        self.hardware.stop_livefeed()  # clean up
+        self.hardware.set_stop_flag(False)  # signal to GUI daemon that we've cleaned up
+
+    def stop_livefeed(self):
+        if not self.data.get_is_livefeed_enabled():
+            return
+        self.hardware.set_stop_flag(True)
+
+        # Wait for live feed daemon to recognize flag, act, and clear it
+        timeout = 8  # second timeout
+        while self.hardware.get_stop_flag() and timeout > 0:
+            time.sleep(1)
+            timeout -= 1
+        self.data.set_is_livefeed_enabled(False)
+        self.unfreeze_hardware_settings()
 
     def set_camera_program(self, **kwargs):
         program_name = kwargs['values']
@@ -363,7 +419,7 @@ class GUI:
             elif event == "folder_window.open":
                 folder = values["folder_window.browse"]
                 break
-        if self.freeze_input and not self.data.get_is_loaded_from_file():
+        if self.is_recording():
             folder = self.file.get_save_dir()
             self.notify_window("Warning",
                                "You are changing the save location during acquisition." +
@@ -710,14 +766,12 @@ class GUI:
         tf_name = kwargs['values']
         tf_index = self.data.core.get_temporal_filter_options().index(tf_name)
         self.data.core.set_temporal_filter_index(tf_index)
-        self.fv.clear_shapes()
-        self.tv.clear_traces()
+        self.tv.update_new_traces()
 
     def set_t_filter_radius(self, **kwargs):
         v = int(kwargs['values'])
         self.data.core.set_temporal_filter_radius(v)
-        self.fv.clear_shapes()
-        self.tv.clear_traces()
+        self.tv.update_new_traces()
 
     def set_s_filter_sigma(self, **kwargs):
         v = float(kwargs['values'])
@@ -727,8 +781,7 @@ class GUI:
     def set_is_t_filter_enabled(self, **kwargs):
         v = bool(kwargs['values'])
         self.data.core.set_is_temporal_filter_enabled(v)
-        self.fv.clear_shapes()
-        self.tv.clear_traces()
+        self.tv.update_new_traces()
 
     def set_is_s_filter_enabled(self, **kwargs):
         v = bool(kwargs['values'])
@@ -739,22 +792,19 @@ class GUI:
         v = kwargs['values']
         v = self.data.core.get_baseline_correction_options().index(v)
         self.data.core.set_baseline_correction_type_index(v)
-        self.fv.clear_shapes()
-        self.tv.clear_traces()
+        self.tv.update_new_traces()
         self.fv.update_new_image()
 
     def set_rli_division(self, **kwargs):
         v = bool(kwargs['values'])
         self.data.set_is_rli_division_enabled(v)
-        self.fv.clear_shapes()
-        self.tv.clear_traces()
+        self.tv.update_new_traces()
         self.fv.update_new_image()
 
     def set_data_inverse(self, **kwargs):
         v = bool(kwargs['values'])
         self.data.set_is_data_inverse_enabled(v)
-        self.fv.clear_shapes()
-        self.tv.clear_traces()
+        self.tv.update_new_traces()
         self.fv.update_new_image()
 
 

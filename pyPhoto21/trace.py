@@ -26,7 +26,22 @@ class TraceViewer:
 
     def update_new_traces(self):
         self.clear_figure()
+        self.regenerate_traces()
         self.populate_figure()
+
+    # Recompute all traces from saved pixel indices.
+    # Useful when processing settings have changed
+    def regenerate_traces(self):
+        self.traces = []
+        tmp_color = self.trace_colors
+        self.trace_colors = []
+        for i in range(len(self.pixel_indices)):
+            if len(tmp_color) < i+1:
+                tmp_color.append('red')
+            trace = self.data.get_display_trace(index=self.pixel_indices[i]['pixel_index'],
+                                                fp_index=self.pixel_indices[i]['fp_index'])
+            self.traces.append(trace)
+            self.trace_colors.append(tmp_color[i])
 
     def populate_figure(self):
         num_traces = len(self.traces)
@@ -36,6 +51,7 @@ class TraceViewer:
         n = self.data.get_num_pts()
         t = np.linspace(0, n * int_pts, num=n)
         probe_line = self.get_point_line_locations(key='probe')
+        region_count = 1
 
         for i in range(num_traces):
             trace = self.traces[i]
@@ -51,10 +67,19 @@ class TraceViewer:
                 self.axes[-1].get_xaxis().set_visible(False)
 
             # Annotation trace
-            px_ind = self.pixel_indices[i]
-            if len(px_ind) == 1 and len(px_ind[0]) == 2:
+            px_ind = self.pixel_indices[i]['pixel_index']
+            fp_ind = self.pixel_indices[i]['fp_index']
+            trace_annotation_text = None
+            if px_ind is None and type(fp_ind) == int:  # FP trace
+                trace_annotation_text = TextArea("FP " + str(fp_ind))
+            elif len(px_ind) == 1 and len(px_ind[0]) == 2:  # single-px trace
                 x_px, y_px = px_ind[0]
                 trace_annotation_text = TextArea("(" + str(x_px) + ", " + str(y_px) + ") px")
+            elif len(px_ind) > 1 and fp_ind is None:  # region trace
+                trace_annotation_text = TextArea("Region #" + str(region_count))
+                region_count += 1
+
+            if trace_annotation_text is not None:
                 ab = AnnotationBbox(trace_annotation_text,
                                     (0.02, 0.95),
                                     xycoords='axes fraction',
@@ -73,7 +98,7 @@ class TraceViewer:
                                      clip_on=False)
                 # Point line annotation
                 if num_traces > 0:
-                    probe_annotation = TextArea(str(probe_line * int_pts)[:5] + " ms")
+                    probe_annotation = TextArea(str(probe_line)[:5] + " ms")
                     y_annotate = self.axes[0].get_ylim()[1] * 0.9
                     ab = AnnotationBbox(probe_annotation,
                                         (probe_line, y_annotate),
@@ -90,7 +115,8 @@ class TraceViewer:
         trace = self.data.get_display_trace(index=pixel_index,
                                             fp_index=fp_index)
         if trace is not None:
-            self.pixel_indices.append(pixel_index)
+            self.pixel_indices.append({'pixel_index': pixel_index,
+                                       'fp_index': fp_index})
             self.traces.append(trace)
             self.trace_colors.append(color)
             self.update_new_traces()

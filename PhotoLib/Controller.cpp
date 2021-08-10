@@ -73,6 +73,10 @@ Controller::Controller()
 	numBursts2 = 1;
 	intBursts2 = 200;
 
+	// Live Feed Frame
+	liveFeedFrame = NULL;
+	liveFeedCam = NULL;
+
 }
 
 
@@ -539,6 +543,65 @@ void Controller::NI_fillOutputs()
 	// Future developers (or hackers): Add new stimulators or stimulation features and patterns here
 
 }
+
+//=============================================================================
+//============================  Live Feed  ====================================
+void Controller::startLiveFeed(unsigned short* frame) {
+	liveFeedFrame = frame;
+	if (liveFeedCam) delete liveFeedCam;
+
+	NI_openShutter(1);
+	Sleep(50);
+	omp_set_num_threads(NUM_PDV_CHANNELS);
+		
+	liveFeedCam = new Camera();
+	liveFeedCam->setCamProgram(getCameraProgram());
+	liveFeedCam->init_cam();
+}
+
+void Controller::continueLiveFeed() {
+	// populate liveFeedFrame with the next image.
+	if (!liveFeedCam) return;
+	int width = liveFeedCam->width();
+	int height = liveFeedCam->height();
+	int quadrantSize = width * height;
+
+	unsigned char* image;
+
+	#pragma omp parallel for	
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+
+		liveFeedCam->start_images(ipdv, 1);
+
+		unsigned short* privateMem = liveFeedFrame + (ipdv * quadrantSize); // pointer to this thread's quadrant
+
+		// acquire data for this image from the IPDVth channel	
+		image = liveFeedCam->wait_image(ipdv);
+
+		// Save the image(s) to process later	
+		memcpy(privateMem, image, quadrantSize * sizeof(short));
+		privateMem += quadrantSize; // stride to the next destination for this channel's memory	
+
+		liveFeedCam->end_images(ipdv);
+	}
+	
+	//=============================================================================	
+	// Image reassembly	
+	liveFeedCam->reassembleImages(liveFeedFrame, 1); // deinterleaves, CDS subtracts, and arranges data
+}
+
+void Controller::stopLiveFeed() {
+	NI_openShutter(0);
+	NI_stopTasks();
+	NI_clearTasks();
+	if (liveFeedCam) {
+		delete liveFeedCam;
+	}
+	liveFeedCam = NULL;
+	liveFeedFrame = NULL; // This will be freed by Python side
+}
+//=============================================================================
+
 
 void Controller::resetCamera()
 {

@@ -253,6 +253,28 @@ class Hardware:
         v = int(v // self.get_int_pts())
         return self.lib.setStimDuration(self.controller, kwargs['channel'], v)
 
+    def start_livefeed(self, lf_frame):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return False
+        orig_shape = lf_frame.shape
+        lf_frame = lf_frame.reshape(-1)
+        self.lib.startLiveFeed(self.controller, lf_frame)
+        lf_frame = lf_frame.reshape(orig_shape)
+        return True
+
+    def continue_livefeed(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
+        self.lib.continueLiveFeed(self.controller)
+
+    def stop_livefeed(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
+        self.lib.stopLiveFeed(self.controller)
+
     def define_c_types(self):
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
@@ -270,6 +292,12 @@ class Hardware:
         self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
         
         self.lib.acqui.argtypes = [controller_handle, c_uint_array, c_int_array]
+
+        self.lib.stopLiveFeed.argtypes = [controller_handle]
+        self.lib.startLiveFeed.argtypes = [controller_handle, c_uint_array]
+        self.lib.continueLiveFeed.argtypes = [controller_handle]
+
+        self.lib.resetCamera.argtypes = [controller_handle]
         
         self.lib.setCameraProgram.argtypes = [controller_handle, ctypes.c_int]
         

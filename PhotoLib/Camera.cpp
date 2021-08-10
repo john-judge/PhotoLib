@@ -144,15 +144,6 @@ int Camera::open_channel(int ipdv) {
 	return 0;
 }
 
-unsigned char* Camera::single_image(int ipdv)			//used by LiveFeed.cpp
-{
-	if (!pdv_pt[ipdv])
-		return nullptr;
-	pdv_flush_fifo(pdv_pt[ipdv]);
-	pdv_start_image(pdv_pt[ipdv]);
-	return pdv_wait_image_raw(pdv_pt[ipdv]);
-}
-
 // Load cfg files by running PDV initcam script. Do this before opening channels.
 void Camera::load_cfg() {
 	char command[80];

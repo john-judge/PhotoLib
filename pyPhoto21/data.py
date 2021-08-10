@@ -42,7 +42,9 @@ class Data:
         self.rli_images = None
         self.acqui_images = None
         self.fp_data = None
+        self.livefeed_frame = None
         self.is_loaded_from_file = False
+        self.is_live_feed_enabled = False
 
         self.auto_save_enabled = True
         self.schedule_rli_enabled = False
@@ -148,6 +150,8 @@ class Data:
     # Based on system state, create/get the frame that should be displayed.
     # index can be an integer or a list of [start:end] over which to average
     def get_display_frame(self, index=None, get_rli=False, binning=1, raw_override=False):
+        if self.get_is_livefeed_enabled() and not raw_override:
+            return self.get_livefeed_frame()[0, :, :]
         if self.core.get_show_processed_data() and not raw_override:
             return self.core.get_processed_display_frame()
         images = None
@@ -572,3 +576,19 @@ class Data:
 
     def set_is_data_inverse_enabled(self, v):
         self.is_data_inverse_enabled = v
+
+    def get_is_livefeed_enabled(self):
+        return self.is_live_feed_enabled
+
+    def set_is_livefeed_enabled(self, v):
+        self.is_live_feed_enabled = v
+
+    def get_livefeed_frame(self):
+        if self.get_is_livefeed_enabled():
+            if self.livefeed_frame is not None:
+                return self.livefeed_frame
+            else:
+                w = self.get_display_width()
+                h = self.get_display_height()
+                self.livefeed_frame = np.zeros((2, h, w), dtype=np.uint16)
+                return self.livefeed_frame

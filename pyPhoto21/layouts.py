@@ -507,11 +507,11 @@ class Layouts:
 
     @staticmethod
     def list_hardware_events():
-        return ["Live Feed", "Take RLI", "Live Feed", "Record"]
+        return ["Live Feed", "Take RLI", "Record"]
 
     @staticmethod
     def list_file_events():
-        return ["Save Analysis", "Unload File"]
+        return ["Save Analysis", "Unload File", "Save"]
 
     @staticmethod
     def create_roi_settings_form(gui):

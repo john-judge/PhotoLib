@@ -361,6 +361,10 @@ class EventMapping:
             'Data Inverse': {
                 'function': gui.set_data_inverse,
                 'args': {}
+            },
+            'Live Feed': {
+                'function': gui.start_livefeed,
+                'args': {}
             }
         }
 

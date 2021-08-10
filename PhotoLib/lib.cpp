@@ -172,4 +172,19 @@ extern "C"
 	{
 		return controller->resetCamera();
 	}
+
+	__declspec(dllexport) void startLiveFeed(Controller* controller, unsigned short* frame)
+	{
+		return controller->startLiveFeed(frame);
+	}
+
+	__declspec(dllexport) void continueLiveFeed(Controller* controller)
+	{
+		return controller->continueLiveFeed();
+	}
+
+	__declspec(dllexport) void stopLiveFeed(Controller* controller)
+	{
+		return controller->stopLiveFeed();
+	}
 };
