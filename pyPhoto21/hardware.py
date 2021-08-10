@@ -20,6 +20,7 @@ class Hardware:
             print(e)
             self.hardware_enabled = False
         self.stop_flag = False
+        self.livefeed_flags = None  # used to synchronize live feed
 
     def __del__(self):
         if self.hardware_enabled:
@@ -254,12 +255,15 @@ class Hardware:
         return self.lib.setStimDuration(self.controller, kwargs['channel'], v)
 
     def start_livefeed(self, lf_frame):
+        # live feed flags are [produced_image, stop_livefeed]
+        # scheme is producer-consumer relationship between python threads
+        self.livefeed_flags = np.zeros(2, dtype=np.bool)
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return False
         orig_shape = lf_frame.shape
         lf_frame = lf_frame.reshape(-1)
-        self.lib.startLiveFeed(self.controller, lf_frame)
+        self.lib.startLiveFeed(self.controller, lf_frame, self.livefeed_flags)
         lf_frame = lf_frame.reshape(orig_shape)
         return True
 
@@ -270,6 +274,7 @@ class Hardware:
         self.lib.continueLiveFeed(self.controller)
 
     def stop_livefeed(self):
+        self.livefeed_flags = None
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
@@ -283,6 +288,7 @@ class Hardware:
         c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16, ndim=1, flags='C_CONTIGUOUS')
         c_float_array = np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS')
         c_int_array = np.ctypeslib.ndpointer(dtype=np.int16, ndim=1, flags='C_CONTIGUOUS')
+        c_bool_array = np.ctypeslib.ndpointer(dtype=np.bool, ndim=1, flags='C_CONTIGUOUS')
 
         self.lib.createController.argtypes = []  # argument types
         self.lib.createController.restype = controller_handle  # return type
@@ -294,7 +300,7 @@ class Hardware:
         self.lib.acqui.argtypes = [controller_handle, c_uint_array, c_int_array]
 
         self.lib.stopLiveFeed.argtypes = [controller_handle]
-        self.lib.startLiveFeed.argtypes = [controller_handle, c_uint_array]
+        self.lib.startLiveFeed.argtypes = [controller_handle, c_uint_array, c_bool_array]
         self.lib.continueLiveFeed.argtypes = [controller_handle]
 
         self.lib.resetCamera.argtypes = [controller_handle]

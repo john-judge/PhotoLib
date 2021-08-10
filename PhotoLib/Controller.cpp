@@ -546,8 +546,9 @@ void Controller::NI_fillOutputs()
 
 //=============================================================================
 //============================  Live Feed  ====================================
-void Controller::startLiveFeed(unsigned short* frame) {
+void Controller::startLiveFeed(unsigned short* frame, bool* flags) {
 	liveFeedFrame = frame;
+	liveFeedFlags = flags;
 	if (liveFeedCam) delete liveFeedCam;
 
 	NI_openShutter(1);
