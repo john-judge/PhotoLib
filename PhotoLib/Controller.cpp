@@ -295,6 +295,8 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+		cout << "Num threads: " << omp_get_num_threads() << "\n";
+
 
 		int loops = getNumPts() / superframe_factor; // superframing 
 
@@ -521,6 +523,8 @@ void Controller::continueLiveFeed() {
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 
+		cout << "Num threads: " << omp_get_num_threads() << "\n";
+
 		while (!liveFeedFlags[1]) {
 
 			liveFeedCam->start_images(ipdv, 1);
@@ -540,10 +544,12 @@ void Controller::continueLiveFeed() {
 			// Plus, sleeping may improve performance
 			int interval = 5;
 			while(liveFeedFlags[0]) { // wait for plotter to be ready for next image
+				cout << "Thread " << ipdv << " waiting for plotter to take image...\n";
 				Sleep(interval);
-			} 
+			}
 			
 		}
+		cout << "Acqui daemon read stop-loop flag\n";
 		liveFeedCam->end_images(ipdv);
 	}
 

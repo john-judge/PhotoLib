@@ -263,6 +263,7 @@ class GUI:
         # we spawn a new thread to acquire in the background.
         # meanwhile the original thread returns and keeps handling GUI clicks
         # but updates to Data/Hardware fields will be frozen
+        #self.record_in_background()
         threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
 
     ''' RLI Controller functions '''
@@ -297,28 +298,28 @@ class GUI:
             # Hardware not enabled
             self.stop_livefeed()
             return
-        # launch live feed daemon: plotter
         self.fv.update_new_image()
+
+        # launch live feed daemon: plotter
         threading.Thread(target=self.continue_livefeed_in_background, args=(lf_frame,), daemon=True).start()
 
-        # Launch live feed daemon: acquirer
-        threading.Thread(target=self.hardware.continue_livefeed, args=(), daemon=True).start()
+        self.hardware.continue_livefeed()
 
     # a continuous loop in background
-    def continue_livefeed_in_background(self, lf_frame, fps=20):
+    def continue_livefeed_in_background(self, lf_frame, fps=30):
         if not self.data.get_is_livefeed_enabled():
             return
         interval = 1.0 / float(fps)
         # C++ DLL has stored pointer to lf_frame, no need to keep passing
         while not self.hardware.get_stop_flag():  # the GUI flag
-            timeout = 8.0
-            while not self.hardware.get_livefeed_produced_image_flag() and timeout > 0:
-                timeout -= interval
-
-            if timeout > 0:
+            timeout = 80.0
+            if self.hardware.get_livefeed_produced_image_flag():
+                print("plotter got image!")
                 self.fv.update()
-            else:
-                break  # something is wrong -- ask loop daemon to clean up.
+
+                # Allows DLL to continue to next image
+                self.hardware.clear_livefeed_produced_image_flag()
+                time.sleep(interval)
 
         # stop flag read -- notify hardware
         self.stop_livefeed()

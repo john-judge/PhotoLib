@@ -280,10 +280,11 @@ class Hardware:
             print("Hardware not enabled (analysis-only mode).")
             return
         self.set_livefeed_stop_loop_flag()
-        timeout = 8
+        timeout = 80.0
         while self.get_livefeed_stop_loop_flag() and timeout > 0:
             time.sleep(1)
             timeout -= 1
+            print("waiting for acqui daemon to read stop-loop flag...")
         self.livefeed_flags = None
 
     def define_c_types(self):
