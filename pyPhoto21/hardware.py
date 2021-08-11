@@ -260,6 +260,8 @@ class Hardware:
         # live feed flags are [produced_image, stop_livefeed]
         # scheme is producer-consumer relationship between python threads
         self.livefeed_flags = np.zeros(2, dtype=np.bool)
+        self.clear_livefeed_produced_image_flag()
+        self.set_livefeed_stop_loop_flag(False)
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return False

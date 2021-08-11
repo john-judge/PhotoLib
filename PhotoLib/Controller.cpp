@@ -512,52 +512,118 @@ void Controller::continueLiveFeed() {
 	int width = liveFeedCam->width();
 	int height = liveFeedCam->height();
 	int quadrantSize = width * height;
+
+
+	// Serial version -- maybe it's fast enough for single-image live feeding?
+	unsigned char* image;
+
+	while (!liveFeedFlags[1]) {
+		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+			liveFeedCam->start_images(ipdv, 1);
+		}
+
+		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+			// acquire data for this image from the IPDVth channel	
+			image = liveFeedCam->wait_image(ipdv);
+			memcpy(liveFeedFrame + (ipdv * quadrantSize), image, quadrantSize * sizeof(short));
+		}
+
+		liveFeedCam->reassembleImages(liveFeedFrame, 1); // Time should be negligible
+		liveFeedFlags[0] = true;
+		cout << "Produced an image\n";
+
+		while (liveFeedFlags[0] and !liveFeedFlags[1]) { // wait for plotter to be ready for next image
+			Sleep(2);
+		}
+		cout << "Acqui daemon heard you wanted another image.\n";
+	}
+	cout << "Acqui daemon read stop-loop flag, stopping.\n";
+
+
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++)
+		liveFeedCam->end_images(ipdv);
+
+	stopLiveFeed(); // prepare for later hardware use
+	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:
+	liveFeedFlags[1] = false;
+
+	/*
+	bool barrier[4] = { false, false, false, false };
 	
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 
 	// Sync with plotter daemon is done via liveFeedFlags.
 	// All omp threads may read flags, but only threadid 0 is designated flag writer.
-	#pragma omp parallel for	
-	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+	#pragma omp parallel shared(barrier)
+	{
+		int ipdv = omp_get_thread_num();
 
-		cout << "Num threads: " << omp_get_num_threads() << "\n";
+		cout << "thread ID: " << ipdv << "\n";
 		unsigned short* privateMem = liveFeedFrame + (ipdv * quadrantSize); // pointer to this thread's quadrant
 		unsigned char* image;
 		while (!liveFeedFlags[1]) {
 
+			#pragma omp barrier
+
 			liveFeedCam->start_images(ipdv, 1);
 
-			
 			// acquire data for this image from the IPDVth channel	
 			image = liveFeedCam->wait_image(ipdv);
 
 			// Save the image(s) to process later	
 			memcpy(privateMem, image, quadrantSize * sizeof(short));
+
+			#pragma omp barrier
+
 			if (ipdv == 0) {
 				liveFeedCam->reassembleImages(liveFeedFrame, 1); // Time should be negligible
 				liveFeedFlags[0] = true; // signal that image is produced
+				cout << "Produced an image.\n";
+				
+				// Debug -- output to file
+				std::string filename = "full-out-livefeed.txt";
+				liveFeedCam->printFinishedImage(liveFeedFrame, filename.c_str(), true);
 			}
 			
-			#pragma omp barrier // all threads must get here before continuing
+			// Custom sync barrier =========================
+			barrier[ipdv] = true;
+			while (!(barrier[0] && barrier[1] && barrier[2] && barrier[3])) {
+				Sleep(2);
+				if (liveFeedFlags[1]) break;
+			}
+			if (liveFeedFlags[1]) break;
+			barrier[ipdv] = false;
+			// End Custom sync barrier =====================
 
 			// Note that some compiler optimizations could remove empty while loop
 			// Plus, sleeping may improve performance
 			int interval = 5;
 			while(liveFeedFlags[0]) { // wait for plotter to be ready for next image
-				cout << "Thread " << ipdv << " waiting for plotter to take image...\n";
 				Sleep(interval);
 			}
+
+			// Custom sync barrier =========================
+			barrier[ipdv] = true;
+			while (!(barrier[0] && barrier[1] && barrier[2] && barrier[3])) {
+				Sleep(2);
+				if (liveFeedFlags[1]) break;
+			}
+			if (liveFeedFlags[1]) break;
+			barrier[ipdv] = false;
+			// End Custom sync barrier =====================
 			
 		}
-		cout << "Acqui daemon read stop-loop flag\n";
+		cout << "Acqui daemon omp thread " << ipdv << " read stop-loop flag, stopping.\n";
 		liveFeedCam->end_images(ipdv);
 	}
 
 	//=============================================================================	
 	// implicit sync barrier here -- parallelism stops before we continue
+
+	
 	stopLiveFeed(); // prepare for later hardware use
 	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:
-	liveFeedFlags[1] = false; 
+	liveFeedFlags[1] = false; */
 }
 
 void Controller::stopLiveFeed() {

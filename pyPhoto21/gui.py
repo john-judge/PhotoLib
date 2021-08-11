@@ -303,19 +303,23 @@ class GUI:
         # launch live feed daemon: plotter
         threading.Thread(target=self.continue_livefeed_in_background, args=(lf_frame,), daemon=True).start()
 
-        self.hardware.continue_livefeed()
+        # launch acqui daemon
+        threading.Thread(target=self.hardware.continue_livefeed, args=(), daemon=True).start()
 
     # a continuous loop in background
     def continue_livefeed_in_background(self, lf_frame, fps=30):
         if not self.data.get_is_livefeed_enabled():
             return
         interval = 1.0 / float(fps)
+        lf_img = self.fv.livefeed_im
+        fig = self.fv.get_fig()
         # C++ DLL has stored pointer to lf_frame, no need to keep passing
         while not self.hardware.get_stop_flag():  # the GUI flag
             timeout = 80.0
             if self.hardware.get_livefeed_produced_image_flag():
-                print("plotter got image!")
-                self.fv.update()
+                print("plotter got image!", np.std(lf_frame))
+                lf_img.set_data(lf_frame[0, :, :])
+                fig.canvas.draw_idle()
 
                 # Allows DLL to continue to next image
                 self.hardware.clear_livefeed_produced_image_flag()
@@ -330,7 +334,7 @@ class GUI:
         self.hardware.stop_livefeed()  # clean up
         self.data.set_is_livefeed_enabled(False)
         self.unfreeze_hardware_settings()
-        self.hardware.set_stop_flag(False)  # signal to GUI daemon that we've cleaned up
+        self.hardware.set_stop_flag(False)  # take down flag to signal to GUI daemon that we've cleaned up
         self.fv.update_new_image()
 
     def set_camera_program(self, **kwargs):
