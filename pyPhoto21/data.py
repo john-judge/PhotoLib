@@ -219,7 +219,7 @@ class Data:
     @staticmethod
     def get_frame_mask(h, w, index=None):
         """ Return a frame mask given a polygon """
-        if type(index) != np.ndarray and np.size(index) < 1:
+        if index is None or type(index) != np.ndarray or index.shape[0] == 1:
             return None
         x, y = np.meshgrid(np.arange(w), np.arange(h))  # make a canvas with coordinates
         x, y = x.flatten(), y.flatten()
@@ -228,9 +228,9 @@ class Data:
         p = Path(index, closed=False)
         mask = p.contains_points(points).reshape(h, w)  # mask of filled in path
 
-        index = np.where(mask)
-        if np.size(index) < 1:
-            print("get_display_trace: filled shape is empty:", index)
+        mask_where = np.where(mask)
+        if np.size(mask_where) < 1:
+            print("frame mask: filled shape is empty:", index, mask_where)
             return None
         return mask
 
