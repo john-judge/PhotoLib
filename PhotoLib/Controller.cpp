@@ -232,33 +232,6 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	int32* successfulSamples = &defaultSuccess;
 	int32 defaultReadSuccess = -1;
 	int32* successfulSamplesIn = &defaultReadSuccess;
-
-	//-------------------------------------------
-	// Configure NI tasks and channels
-	/*
-	// Digital Output
-	DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
-	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", samplingRate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, 348));
-
-	// Analog Input
-	DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
-	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync
-		DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
-
-
-	cout << "starting tasks...\n";
-
-	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
-	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, duration + 10, false, 0, DAQmx_Val_GroupByChannel, outputs, successfulSamples, NULL));
-	int start_offset = (int)((double)(CAM_INPUT_OFFSET + acquiOnset) / intPts);
-	//int32 DAQmxReadBinaryI16 (TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved);	
-	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, numPts, 0, DAQmx_Val_GroupByScanNumber, tmp_fp_memory, 4 * numPts, successfulSamplesIn, NULL));
-	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
-
-	cout << "started tasks...\n";
-	*/
 	
 	//-------------------------------------------
 	// Configure NI outputs and trigger
@@ -391,32 +364,6 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 }
 
 //=============================================================================
-/*
-int Controller::NI_openShutter(uInt8 on)
-{
-	int32       error = 0;
-	TaskHandle  taskHandle = 0;
-	uInt8       data[4] = { 0,on,0,0 };
-	char        errBuff[2048] = { '\0' };
-
-	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
-	DAQmxErrChk(DAQmxCreateDOChan(taskHandle, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));
-	DAQmxErrChk(DAQmxStartTask(taskHandle));
-	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle, 1, 1, 10.0, DAQmx_Val_GroupByChannel, data, NULL, NULL));
-
-Error:
-	if (DAQmxFailed(error))
-		DAQmxGetExtendedErrorInfo(errBuff, 2048);
-	if (taskHandle != 0) {
-		DAQmxStopTask(taskHandle);
-		DAQmxClearTask(taskHandle);
-	}
-	if (DAQmxFailed(error))
-		printf("DAQmx Error: %s\n", errBuff);
-	return 0;
-}*/
-
-//=============================================================================
 int Controller::NI_openShutter(uInt8 on)
 {
 	uInt8       data[2] = { on };
@@ -488,7 +435,7 @@ void Controller::NI_fillOutputs()
 	// Reset the array
 	memset(outputs, 0, sizeof(uInt8) * do_size * num_DO_channels);
 	//--------------------------------------------------------------
-	// Shutter (handled as a simple separate task, since exact sync not needed)
+	// Shutter (instead of this, handled as a simple separate task, since exact sync not needed)
 	/*
 	if (realFlag) {
 		start = shutter->getOnset();
@@ -552,14 +499,13 @@ void Controller::startLiveFeed(unsigned short* frame, bool* flags) {
 	if (liveFeedCam) delete liveFeedCam;
 
 	NI_openShutter(1);
-	Sleep(50);
-	omp_set_num_threads(NUM_PDV_CHANNELS);
 		
 	liveFeedCam = new Camera();
 	liveFeedCam->setCamProgram(getCameraProgram());
 	liveFeedCam->init_cam();
 }
 
+// This is launched by Python application as a separate thread (sep from GUI and plotter daemons)
 void Controller::continueLiveFeed() {
 	// populate liveFeedFrame with the next image.
 	if (!liveFeedCam) return;
@@ -568,27 +514,44 @@ void Controller::continueLiveFeed() {
 	int quadrantSize = width * height;
 
 	unsigned char* image;
+	omp_set_num_threads(NUM_PDV_CHANNELS);
 
+	// Sync with plotter daemon is done via liveFeedFlags.
+	// All omp threads may read flags, but only threadid 0 is designated flag writer.
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 
-		liveFeedCam->start_images(ipdv, 1);
+		while (!liveFeedFlags[1]) {
 
-		unsigned short* privateMem = liveFeedFrame + (ipdv * quadrantSize); // pointer to this thread's quadrant
+			liveFeedCam->start_images(ipdv, 1);
 
-		// acquire data for this image from the IPDVth channel	
-		image = liveFeedCam->wait_image(ipdv);
+			unsigned short* privateMem = liveFeedFrame + (ipdv * quadrantSize); // pointer to this thread's quadrant
 
-		// Save the image(s) to process later	
-		memcpy(privateMem, image, quadrantSize * sizeof(short));
-		privateMem += quadrantSize; // stride to the next destination for this channel's memory	
+			// acquire data for this image from the IPDVth channel	
+			image = liveFeedCam->wait_image(ipdv);
 
+			// Save the image(s) to process later	
+			memcpy(privateMem, image, quadrantSize * sizeof(short));
+			if (ipdv == 0) {
+				liveFeedCam->reassembleImages(liveFeedFrame, 1); // Time should be negligible
+				liveFeedFlags[0] = true; // signal that image is produced
+			}
+			// Note that some compiler optimizations could remove empty while loop
+			// Plus, sleeping may improve performance
+			int interval = 5;
+			while(liveFeedFlags[0]) { // wait for plotter to be ready for next image
+				Sleep(interval);
+			} 
+			
+		}
 		liveFeedCam->end_images(ipdv);
 	}
-	
+
 	//=============================================================================	
-	// Image reassembly	
-	liveFeedCam->reassembleImages(liveFeedFrame, 1); // deinterleaves, CDS subtracts, and arranges data
+	// implicit sync barrier here -- parallelism stops before we continue
+	stopLiveFeed(); // prepare for later hardware use
+	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:
+	liveFeedFlags[1] = false; 
 }
 
 void Controller::stopLiveFeed() {
@@ -807,14 +770,3 @@ float Controller::getStimDuration(int ch) {
 	if (ch == 1) return sti1->getDuration();
 	return sti2->getDuration();
 }
-
-
-//=============================================================================
-
-// Notes:
-//Defining functions in files (like .dap files) which can send the signals to NI
-//Dap820Put is used to send system commands. Figure out port equivalent to SYSin
-//(or check if it's even needed as tasks can define and what needs to be done and
-//  when executed will automatically send signals for niboards ports to the LED and STIMULATOR)
-
-//Burst mode usage

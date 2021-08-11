@@ -1,5 +1,7 @@
 import ctypes
 import os
+import time
+
 import numpy as np
 
 # https://medium.com/@stephenscotttucker/interfacing-python-with-c-using-ctypes-classes-and-arrays-42534d562ce7
@@ -274,11 +276,15 @@ class Hardware:
         self.lib.continueLiveFeed(self.controller)
 
     def stop_livefeed(self):
-        self.livefeed_flags = None
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
-        self.lib.stopLiveFeed(self.controller)
+        self.set_livefeed_stop_loop_flag()
+        timeout = 8
+        while self.get_livefeed_stop_loop_flag() and timeout > 0:
+            time.sleep(1)
+            timeout -= 1
+        self.livefeed_flags = None
 
     def define_c_types(self):
         if not self.hardware_enabled:
@@ -299,7 +305,6 @@ class Hardware:
         
         self.lib.acqui.argtypes = [controller_handle, c_uint_array, c_int_array]
 
-        self.lib.stopLiveFeed.argtypes = [controller_handle]
         self.lib.startLiveFeed.argtypes = [controller_handle, c_uint_array, c_bool_array]
         self.lib.continueLiveFeed.argtypes = [controller_handle]
 
@@ -410,3 +415,15 @@ class Hardware:
 
     def reset_camera(self):
         self.lib.resetCamera()
+
+    def get_livefeed_produced_image_flag(self):
+        return self.livefeed_flags[0]
+
+    def clear_livefeed_produced_image_flag(self):
+        self.livefeed_flags[0] = False
+
+    def get_livefeed_stop_loop_flag(self):
+        return self.livefeed_flags[1]
+
+    def set_livefeed_stop_loop_flag(self, v=True):
+        self.livefeed_flags[1] = v

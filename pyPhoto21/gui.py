@@ -297,9 +297,12 @@ class GUI:
             # Hardware not enabled
             self.stop_livefeed()
             return
-        # launch live feed daemon
+        # launch live feed daemon: plotter
         self.fv.update_new_image()
         threading.Thread(target=self.continue_livefeed_in_background, args=(lf_frame,), daemon=True).start()
+
+        # Launch live feed daemon: acquirer
+        threading.Thread(target=self.hardware.continue_livefeed, args=(), daemon=True).start()
 
     # a continuous loop in background
     def continue_livefeed_in_background(self, lf_frame, fps=20):
@@ -307,16 +310,17 @@ class GUI:
             return
         interval = 1.0 / float(fps)
         # C++ DLL has stored pointer to lf_frame, no need to keep passing
-        while not self.hardware.get_stop_flag():
-            start = time.time()
-            self.hardware.continue_livefeed()
-            end = time.time()
-            time.sleep(interval)
-            self.fv.update()
+        while not self.hardware.get_stop_flag():  # the GUI flag
+            timeout = 8.0
+            while not self.hardware.get_livefeed_produced_image_flag() and timeout > 0:
+                timeout -= interval
 
-            print("Time to acquire:", end - start)
-            print("Slept", interval, "\tStop Flag:", self.hardware.get_stop_flag())
-        # stop flag read
+            if timeout > 0:
+                self.fv.update()
+            else:
+                break  # something is wrong -- ask loop daemon to clean up.
+
+        # stop flag read -- notify hardware
         self.stop_livefeed()
         print("Live Feed daemon exiting.")
 

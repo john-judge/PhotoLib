@@ -46,6 +46,7 @@ private:
 	// Live Feed 
 	unsigned short* liveFeedFrame;
 	Camera *liveFeedCam;
+	bool *liveFeedFlags;
 
 	// Ch1
 	int numPulses2;
@@ -132,7 +133,7 @@ public:
 	// Live Feed
 
 	void stopLiveFeed();
-	void startLiveFeed(unsigned short* frame);
+	void startLiveFeed(unsigned short* frame, bool* flags);
 	void continueLiveFeed();
 };
 

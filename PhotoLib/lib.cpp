@@ -183,8 +183,4 @@ extern "C"
 		return controller->continueLiveFeed();
 	}
 
-	__declspec(dllexport) void stopLiveFeed(Controller* controller)
-	{
-		return controller->stopLiveFeed();
-	}
 };
