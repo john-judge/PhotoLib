@@ -127,7 +127,6 @@ int Controller::takeRli(unsigned short* memory) {
 
 	int rliPts = darkPts + lightPts;
 
-	unsigned char* image;
 	int width = cam.width();
 	int height = cam.height();
 	int quadrantSize = width * height;
@@ -138,7 +137,7 @@ int Controller::takeRli(unsigned short* memory) {
 	// acquire dark frames with LED off	
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-
+		unsigned char* image;
 		int loops = darkPts / superframe_factor; // superframing 
 
 		// Start all images
@@ -163,7 +162,7 @@ int Controller::takeRli(unsigned short* memory) {
 	// parallel acquisition resumes now that light is on	
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-
+		unsigned char* image;
 		int loops = lightPts / superframe_factor; // superframing 
 
 		cam.start_images(ipdv, loops);
@@ -221,7 +220,6 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 
 	//-------------------------------------------
 	// Initialize variables for camera data management
-	unsigned char *image;
 	int width = cam.width();
 	int height = cam.height();
 	int quadrantSize = width * height;
@@ -297,7 +295,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		cout << "Num threads: " << omp_get_num_threads() << "\n";
 
-
+		unsigned char* image;
 		int loops = getNumPts() / superframe_factor; // superframing 
 
 		// Start all images
@@ -514,8 +512,7 @@ void Controller::continueLiveFeed() {
 	int width = liveFeedCam->width();
 	int height = liveFeedCam->height();
 	int quadrantSize = width * height;
-
-	unsigned char* image;
+	
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 
 	// Sync with plotter daemon is done via liveFeedFlags.
@@ -524,13 +521,13 @@ void Controller::continueLiveFeed() {
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 
 		cout << "Num threads: " << omp_get_num_threads() << "\n";
-
+		unsigned short* privateMem = liveFeedFrame + (ipdv * quadrantSize); // pointer to this thread's quadrant
+		unsigned char* image;
 		while (!liveFeedFlags[1]) {
 
 			liveFeedCam->start_images(ipdv, 1);
 
-			unsigned short* privateMem = liveFeedFrame + (ipdv * quadrantSize); // pointer to this thread's quadrant
-
+			
 			// acquire data for this image from the IPDVth channel	
 			image = liveFeedCam->wait_image(ipdv);
 
@@ -540,6 +537,9 @@ void Controller::continueLiveFeed() {
 				liveFeedCam->reassembleImages(liveFeedFrame, 1); // Time should be negligible
 				liveFeedFlags[0] = true; // signal that image is produced
 			}
+			
+			#pragma omp barrier // all threads must get here before continuing
+
 			// Note that some compiler optimizations could remove empty while loop
 			// Plus, sleeping may improve performance
 			int interval = 5;

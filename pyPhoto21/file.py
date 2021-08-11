@@ -150,7 +150,7 @@ class File:
             'num_fp': self.data.get_num_fp(),
             'slice_no': self.current_slice,
             'location_no': self.current_location,
-            'run_no': self.current_record,
+            'record_no': self.current_record,
             'num_trials': self.data.get_num_trials(),
             'num_pts': self.data.get_num_pts(),
             'int_pts': self.data.get_int_pts(),
@@ -177,14 +177,26 @@ class File:
         data = self.retrieve_python_object_from_pickle(filename)
         self.data.file_metadata = data['meta']
 
-        # Recording load
-        self.data.set_acqui_images(data['acqui'], from_file=True)
+        if data['meta'] is not None:
+            self.current_slice = data['meta']['slice_no']
+            self.current_location = data['meta']['location_no']
+            self.current_record = data['meta']['record_no']
+            self.data.set_num_trials(data['meta']['num_trials'])
+            new_num_pts = data['meta']['num_pts']
+            if new_num_pts < 1 or new_num_pts is None:
+                new_num_pts = data['acqui'].shape[1]
+            print("Number of pts: ", new_num_pts)
+            self.data.set_num_pts(new_num_pts)
+            # There are only 3 (averaged) RLI frames in ZDA files:
+            self.data.set_num_dark_rli(data['rli_pts_dark'])
+            self.data.set_num_light_rli(data['rli_pts_light'])
+            self.data.set_num_fp(data['meta']['num_fp'])
 
-        # RLI load
-        self.data.set_rli_images(data['rli'], from_file=True)
-
-        # FP data load
-        self.data.set_fp_data(data['fp'])
+        self.data.set_current_trial_index(None)  # needed to make data load non-trial specific
+        self.data.set_acqui_images(data['acqui'], from_file=True) # Recording load
+        self.data.set_rli_images(data['rli'], from_file=True) # RLI load
+        self.data.set_fp_data(data['fp']) # FP data load
+        self.data.set_current_trial_index(0)
 
     def load_from_file(self, filename):
         file_ext = filename.split('.')[-1]

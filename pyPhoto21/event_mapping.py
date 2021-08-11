@@ -365,6 +365,10 @@ class EventMapping:
             'Live Feed': {
                 'function': gui.start_livefeed,
                 'args': {}
+            },
+            "Select Display Value": {
+                'function': gui.set_display_value_option_index,
+                'args': {},
             }
         }
 

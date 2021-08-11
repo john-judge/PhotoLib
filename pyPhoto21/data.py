@@ -43,8 +43,11 @@ class Data:
         self.acqui_images = None
         self.fp_data = None
         self.livefeed_frame = None
+
+        # Settings
         self.is_loaded_from_file = False
         self.is_live_feed_enabled = False
+        self.display_value_option_index = 0
 
         self.auto_save_enabled = True
         self.schedule_rli_enabled = False
@@ -213,6 +216,24 @@ class Data:
             traces = np.average(traces, axis=0)
         return traces[:, fp_index]
 
+    @staticmethod
+    def get_frame_mask(h, w, index=None):
+        """ Return a frame mask given a polygon """
+        if type(index) != np.ndarray and np.size(index) < 1:
+            return None
+        x, y = np.meshgrid(np.arange(w), np.arange(h))  # make a canvas with coordinates
+        x, y = x.flatten(), y.flatten()
+        points = np.vstack((x, y)).T
+
+        p = Path(index, closed=False)
+        mask = p.contains_points(points).reshape(h, w)  # mask of filled in path
+
+        index = np.where(mask)
+        if np.size(index) < 1:
+            print("get_display_trace: filled shape is empty:", index)
+            return None
+        return mask
+
     def get_display_trace(self, index=None, fp_index=None):
         trial = self.get_current_trial_index()
         if fp_index is not None:
@@ -231,16 +252,7 @@ class Data:
                 ret_trace = images[:, index[0, 1], index[0, 0]]
             elif np.size(index) > 0:
                 _, h, w = images.shape
-                x, y = np.meshgrid(np.arange(w), np.arange(h))  # make a canvas with coordinates
-                x, y = x.flatten(), y.flatten()
-                points = np.vstack((x, y)).T
-
-                p = Path(index, closed=False)
-                mask = p.contains_points(points).reshape(h, w)  # mask of filled in path
-                index = np.where(mask)
-                if np.size(index) < 1:
-                    print("get_display_trace: filled shape is empty:", index)
-                    return None
+                mask = self.get_frame_mask(h, w, index=index)
                 ret_trace = images[:, mask]
                 ret_trace = np.average(ret_trace, axis=1)
             else:
@@ -344,7 +356,7 @@ class Data:
         trial = self.get_current_trial_index()
         self.set_is_loaded_from_file(from_file)
         if from_file:
-            self.rli_images[:, 0, :, :, :] = data
+            self.rli_images = data
         elif trial is not None:
             self.rli_images[trial, 0, :, :, :] = data[:, :, :]
 
@@ -591,6 +603,12 @@ class Data:
 
     def set_is_livefeed_enabled(self, v):
         self.is_live_feed_enabled = v
+
+    def get_display_value_option_index(self):
+        return self.display_value_option_index
+
+    def set_display_value_option_index(self, v):
+        self.display_value_option_index = v
 
     def get_livefeed_frame(self):
         if self.get_is_livefeed_enabled():

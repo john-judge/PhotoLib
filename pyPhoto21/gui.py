@@ -74,7 +74,7 @@ class GUI:
                 break
 
     def main_workflow(self):
-        right_col = self.layouts.create_right_column()
+        right_col = self.layouts.create_right_column(self)
         left_col = self.layouts.create_left_column(self)
         toolbar_menu = self.layouts.create_menu()
 
@@ -475,6 +475,7 @@ class GUI:
         w['Stimulator #2 Onset'].update(self.data.get_stim_onset(2))
         w['Stimulator #1 Duration'].update(self.data.get_stim_duration(1))
         w['Stimulator #2 Duration'].update(self.data.get_stim_duration(2))
+        self.update_tracking_num_fields()
 
     # disable file-viewing mode, allowing acquisition to resume
     def unload_file(self):
@@ -767,6 +768,16 @@ class GUI:
         bg_name = kwargs['values']
         bg_index = self.layouts.get_background_options().index(bg_name)
         self.background_option_index = bg_index
+
+    # value to display in trace viewer
+    def get_display_value_option_index(self):
+        return self.data.get_display_value_option_index()
+
+    # value to display in trace viewer
+    def set_display_value_option_index(self, **kwargs):
+        name = kwargs['values']
+        ind = self.tv.get_display_value_options().index(name)
+        self.data.set_display_value_option_index(ind)
 
     def set_temporal_filter_index(self, **kwargs):
         tf_name = kwargs['values']

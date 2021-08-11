@@ -236,7 +236,6 @@ class Layouts:
     def create_baseline_tab(self):
         button_size = (12, 1)
         double_button_size = (20, 1)
-        slider_size = (20, 40)
         baseline_correction_options = self.data.core.get_baseline_correction_options()
         return [
             [sg.Text('Baseline Correction:', size=double_button_size),
@@ -453,10 +452,35 @@ class Layouts:
                  sg.Text(" s", size=cell_size)],
                 [sg.Canvas(key='daq_canvas', size=self.plot_size)]]
 
-    def create_right_column(self):
-        trace_viewer_layout = [
+    def create_display_tab(self, gui):
+        button_size = (12, 1)
+        double_button_size = (20, 1)
+        display_value_options = gui.tv.get_display_value_options()
+        return [
+            [sg.Text("Value:", size=button_size),
+             sg.Combo(display_value_options,
+                      enable_events=True,
+                      default_value=display_value_options[gui.get_display_value_option_index()],
+                      key="Select Display Value")]
+        ]
+
+    def create_simulation_tab(self):
+        return []
+
+    def create_trace_viewer_tab(self, gui):
+        trace_viewer_canvas = [
             [sg.Canvas(key='trace_canvas_controls')],
-            [sg.Canvas(key='trace_canvas', size=self.plot_size)]]
+            [sg.Canvas(key='trace_canvas', size=self.plot_size)]
+            ]
+        trace_viewer_tab_group = [
+            [sg.TabGroup([[
+                sg.Tab('Display', self.create_display_tab(gui)),
+                sg.Tab('Simulation', self.create_simulation_tab())]])
+        ]]
+        return trace_viewer_canvas + trace_viewer_tab_group
+
+    def create_right_column(self, gui):
+        trace_viewer_layout = self.create_trace_viewer_tab(gui)
 
         # plotting a small timeline of record/stim events
         daq_layout = self.create_daq_config_tab()

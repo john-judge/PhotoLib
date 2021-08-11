@@ -14,6 +14,10 @@ class TraceViewer:
         self.point_line_locations = None
         self.clear_point_line_locations()
 
+    @staticmethod
+    def get_display_value_options():
+        return ['None', 'RLI', 'Max Amp', 'MaxAmp/SD', ]
+
     def get_fig(self):
         return self.fig
 
@@ -43,6 +47,47 @@ class TraceViewer:
             self.traces.append(trace)
             self.trace_colors.append(tmp_color[i])
 
+    def create_annotation_text(self, region_count, i):
+        px_ind = self.pixel_indices[i]['pixel_index']
+        fp_ind = self.pixel_indices[i]['fp_index']
+        trace_annotation_text = None
+        if px_ind is None and type(fp_ind) == int:  # FP trace
+            trace_annotation_text = TextArea("FP " + str(fp_ind))
+        elif len(px_ind) == 1 and len(px_ind[0]) == 2:  # single-px trace
+            x_px, y_px = px_ind[0]
+            trace_annotation_text = TextArea("(" + str(x_px) + ", " + str(y_px) + ") px")
+        elif len(px_ind) > 1 and fp_ind is None:  # region trace
+            trace_annotation_text = TextArea("Region #" + str(region_count))
+            region_count += 1
+        return trace_annotation_text, region_count
+
+    def create_display_value(self, display_type, i, trace):
+        value_to_display = None
+        pixel_index = self.pixel_indices[i]['pixel_index']
+        if display_type == 'RLI':
+            if pixel_index is not None:
+                rli_frame = self.data.calculate_rli()
+
+                h, w = rli_frame.shape
+                mask = self.data.get_frame_mask(h, w, pixel_index)
+                if mask is not None:  # region
+                    value_to_display = np.average(rli_frame[mask])
+                else:  # single pixel
+                    value_to_display = rli_frame[pixel_index[0, 1], pixel_index[0, 0]]
+            else:  # FP, no RLI
+                return None
+        elif display_type == "Max Amp":
+            value_to_display = np.max(trace)
+        elif display_type == "MaxAmp/SD":
+            value_to_display = np.max(trace) / np.std(trace)
+        elif display_type != "None":
+            print("Displaying", display_type, "in trace viewer not implemented")
+        # String, truncated
+        value_to_display = str(value_to_display)
+        if len(value_to_display) > 6:
+            value_to_display = value_to_display[:6]
+        return value_to_display
+
     def populate_figure(self):
         num_traces = len(self.traces)
         int_pts = self.data.get_int_pts()
@@ -52,6 +97,7 @@ class TraceViewer:
         t = np.linspace(0, n * int_pts, num=n)
         probe_line = self.get_point_line_locations(key='probe')
         region_count = 1
+        value_type_to_display = self.get_display_value_options[self.data.get_display_value_option_index()]
 
         for i in range(num_traces):
             trace = self.traces[i]
@@ -66,19 +112,19 @@ class TraceViewer:
             if num_traces > 4 and i != num_traces - 1:
                 self.axes[-1].get_xaxis().set_visible(False)
 
-            # Annotation trace
-            px_ind = self.pixel_indices[i]['pixel_index']
-            fp_ind = self.pixel_indices[i]['fp_index']
-            trace_annotation_text = None
-            if px_ind is None and type(fp_ind) == int:  # FP trace
-                trace_annotation_text = TextArea("FP " + str(fp_ind))
-            elif len(px_ind) == 1 and len(px_ind[0]) == 2:  # single-px trace
-                x_px, y_px = px_ind[0]
-                trace_annotation_text = TextArea("(" + str(x_px) + ", " + str(y_px) + ") px")
-            elif len(px_ind) > 1 and fp_ind is None:  # region trace
-                trace_annotation_text = TextArea("Region #" + str(region_count))
-                region_count += 1
+            # Display Value
+            value_to_display = self.create_display_value(value_type_to_display, i, trace)
+            if value_to_display is not None:
+                ab = AnnotationBbox(value_to_display,
+                                    (0.02, 0.05),
+                                    xycoords='axes fraction',
+                                    xybox=(0.02, 0.95),
+                                    boxcoords=("axes fraction", "axes fraction"),
+                                    box_alignment=(0., 1.0))
+                self.axes[i].add_artist(ab)
 
+            # Annotation trace
+            trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
             if trace_annotation_text is not None:
                 ab = AnnotationBbox(trace_annotation_text,
                                     (0.02, 0.95),
@@ -87,6 +133,8 @@ class TraceViewer:
                                     boxcoords=("axes fraction", "axes fraction"),
                                     box_alignment=(0., 1.0))
                 self.axes[i].add_artist(ab)
+
+
 
             # Point line (probe type)
             if probe_line is not None:
