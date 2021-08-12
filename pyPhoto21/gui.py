@@ -539,7 +539,11 @@ class GUI:
 
     def set_acqui_onset(self, **kwargs):
         v = kwargs['values']
-        self.hardware.set_acqui_onset(acqui_onset=v)
+        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=15000):
+            v = v[:-1]
+        if self.validate_numeric_input(v, decimal=True, max_val=15000):
+            num_frames = float(v) // self.data.get_int_pts()
+            self.hardware.set_acqui_onset(acqui_onset=num_frames)
 
     def set_num_pts(self, **kwargs):
         v = kwargs['values']
@@ -674,17 +678,18 @@ class GUI:
     def toggle_auto_rli(self, **kwargs):
         self.set_is_schedule_rli_enabled(kwargs['values'])
 
-    def set_roi_time_window(self, **kwargs):
-        v = kwargs['values']
-        form = kwargs['form']
-        kind = kwargs['kind']
-        index = kwargs['index']
+    # generic setter that links together 2 ms / frame linked fields
+    def set_time_window_generic(self, setter_function, arg_dict):
+        v = arg_dict['values']
+        form = arg_dict['form']
+        kind = arg_dict['kind']
+        index = arg_dict['index']
         partner_field = None
         partner_v = None
         if form == 'ms':
-            partner_field = kwargs['event'].replace('(ms)', 'frames')
+            partner_field = arg_dict['event'].replace('(ms)', 'frames')
         else:
-            partner_field = kwargs['event'].replace('frames', '(ms)')
+            partner_field = arg_dict['event'].replace('frames', '(ms)')
 
         # if possible, trim input of invalid characters
         while len(v) > 0 and not self.validate_numeric_input(v):
@@ -698,12 +703,21 @@ class GUI:
                 v = int(v)
                 partner_v = float(v * self.data.get_int_pts())
 
-            self.window[partner_field].update(str(partner_v))
-            self.roi.set_time_window(kind, index, v)
+            self.window[partner_field].update(str(partner_v)[:6])
+            setter_function(kind, index, v)
         else:
-            self.roi.set_time_window(kind, index, None)
+            setter_function(kind, index, None)
             self.window[partner_field].update('')
-            self.window[kwargs['event']].update('')
+            self.window[arg_dict['event']].update('')
+
+    def set_baseline_skip_window(self, **kwargs):
+        self.set_time_window_generic(self.data.core.set_baseline_skip_window, kwargs)
+
+    def set_roi_time_window(self, **kwargs):
+        self.set_time_window_generic(self.roi.set_time_window, kwargs)
+
+    def select_baseline_skip_window(self):
+        print("select_baseline_skip_window not implemented")
 
     def select_time_window_workflow(self):
         pass

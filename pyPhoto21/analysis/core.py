@@ -37,8 +37,7 @@ class AnalysisCore:
             'Cubic'
         ]
         self.baseline_correction_type_index = 0
-        self.skip_window_size = 100
-        self.skip_window_start = 200
+        self.baseline_skip_window = [94, 134]
 
         # Time window selection
         self.time_window = [0, -1]
@@ -118,12 +117,6 @@ class AnalysisCore:
     def get_show_processed_data(self):
         return self.show_processed_data
 
-    def get_skip_window_size(self):
-        return self.skip_window_size
-
-    def set_skip_window_size(self, value=0):
-        self.skip_window_size = value
-
     @staticmethod
     def get_snr(data):
         """ Given a single trial, compute the SNR image for this trial
@@ -182,6 +175,12 @@ class AnalysisCore:
 
         fit_type = self.get_baseline_correction_options()[self.get_baseline_correction_type_index()]
 
+        # Skip points
+        skip_start, skip_end = self.get_baseline_skip_window()
+        skip_int = [i for i in range(skip_start, skip_end)]
+        trace_skipped = np.delete(trace, skip_int)
+        t_skipped = np.delete(t, skip_int)
+
         poly_powers = {
             'Quadratic': 2,
             'Cubic': 3,
@@ -189,27 +188,35 @@ class AnalysisCore:
         }
         if fit_type in ["Exponential", "Linear"]:
             t = t.reshape(-1, 1)
+            t_skipped = t_skipped.reshape(-1, 1)
             min_val = None
             if fit_type == "Exponential":
-                min_val = np.min(trace)
+                min_val = np.min(trace_skipped)
                 if min_val <= 0:
-                    trace += (-1 * min_val + 0.01)  # make all positive
-                trace = np.log(trace)
-            trace = trace.reshape(-1, 1)
-            reg = LinearRegression().fit(t, trace).predict(t)
+                    trace_skipped += (-1 * min_val + 0.01)  # make all positive
+                trace_skipped = np.log(trace_skipped)
+            trace_skipped = trace_skipped.reshape(-1, 1)
+            reg = LinearRegression().fit(t_skipped, trace_skipped).predict(t)
             if fit_type == "Exponential":
                 reg = np.exp(reg)
                 if min_val <= 0:
                     reg -= (-1 * min_val + 0.01)
         elif fit_type in poly_powers:
             power = poly_powers[fit_type]
-            coeffs, stats = polynomial.polyfit(t, trace, power, full=True)
+            coeffs, stats = polynomial.polyfit(t_skipped, trace_skipped, power, full=True)
             reg = np.array(polynomial.polyval(t, coeffs))
         else:
             return trace
 
         trace = (trace.reshape(-1, 1) - reg.reshape(-1, 1)).reshape(-1)
         return trace
+
+    def set_baseline_skip_window(self, kind, index, value):
+        if index == 0 or index == 1:
+            self.baseline_skip_window[index] = value
+
+    def get_baseline_skip_window(self):
+        return self.baseline_skip_window
 
     @staticmethod
     def get_half_width(location, trace):

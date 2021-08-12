@@ -307,9 +307,9 @@ class Data:
             return None
         if self.get_is_loaded_from_file():
             if trial is None:
-                return self.acqui_images[:, :, :, :]
+                return self.acqui_images
             else:
-                return self.acqui_images[trial, :, :, :]
+                return self.acqui_images[trial]
 
         if trial is None:
             return self.acqui_images[:, 0, :, :, :]
@@ -321,7 +321,7 @@ class Data:
         if self.rli_images is None:
             return None
         if self.get_is_loaded_from_file():
-            return self.rli_images[:, :, :, :]
+            return self.rli_images
         if trial is None:
             return self.rli_images[:, 0, :, :, :]
         else:

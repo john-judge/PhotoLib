@@ -50,7 +50,7 @@ class TraceViewer:
             else:
                 self.traces.append(np.zeros(self.data.get_num_pts()))
                 self.trace_colors.append('red')
-                print("Invalid trace generated from pix index:", index=self.pixel_indices[i]['pixel_index'])
+                print("Invalid trace generated from pix index:", self.pixel_indices[i]['pixel_index'])
 
     def create_annotation_text(self, region_count, i):
         px_ind = self.pixel_indices[i]['pixel_index']

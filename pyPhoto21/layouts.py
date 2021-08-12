@@ -78,7 +78,7 @@ class Layouts:
             [sg.Text("Auto:", size=(8, 1)),
              sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
              sg.Button("Take RLI", button_color=('blue', 'white'), size=button_size),
-             sg.Button("Reset Cam", button_color=('brown', 'gray'), size=button_size),],
+             sg.Button("Reset Cam", button_color=('brown', 'gray'), size=button_size), ],
             [sg.Checkbox('RLI', default=self.data.get_is_schedule_rli_enabled(), enable_events=True, key="Auto RLI",
                          size=checkbox_size),
              sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size),
@@ -219,7 +219,7 @@ class Layouts:
         ]
 
     def create_dsp_tab(self):
-        checkbox_size = (6, 1)
+        checkbox_size = (10, 1)
         return [
             [sg.Checkbox('RLI Division',
                          default=self.data.get_is_rli_division_enabled(),
@@ -234,9 +234,12 @@ class Layouts:
         ]
 
     def create_baseline_tab(self):
-        button_size = (12, 1)
+        button_size = (8, 1)
         double_button_size = (20, 1)
+        field_text_size = (12, 1)
         baseline_correction_options = self.data.core.get_baseline_correction_options()
+        baseline_skip_default = self.data.core.get_baseline_skip_window()
+        int_pts = self.data.get_int_pts()
         return [
             [sg.Text('Baseline Correction:', size=double_button_size),
              sg.Combo(baseline_correction_options,
@@ -244,17 +247,29 @@ class Layouts:
                       default_value=baseline_correction_options[self.data.core.get_baseline_correction_type_index()],
                       key="Select Baseline Correction")],
             [sg.Text('')],
-            [sg.Text('Baseline Skip Window:', size=double_button_size)],
-            [sg.Text("Start Point:", size=button_size),
-             sg.InputText(key="Baseline Skip Window Start",
-                          default_text=str(self.data.core.get_skip_window_start()),
+            [sg.Button("Baseline Skip Window",
+                       button_color=('black', 'orange'),
+                       size=double_button_size)],
+            [sg.InputText(key="Baseline Skip Window Start frames",
+                          default_text=str(baseline_skip_default[0]),
                           enable_events=True,
-                          size=button_size)],
-            [sg.Text("Window Size:", size=button_size),
-             sg.InputText(key="Baseline Skip Window Size",
-                          default_text=str(self.data.core.get_skip_window_size()),
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Baseline Skip Window End frames",
+                          default_text=str(baseline_skip_default[1]),
                           enable_events=True,
-                          size=button_size)],
+                          size=button_size),
+             sg.Text(" frames")],
+            [sg.InputText(key="Baseline Skip Window Start (ms)",
+                          default_text=str(baseline_skip_default[0] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Baseline Skip Window End (ms)",
+                          default_text=str(baseline_skip_default[1] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" ms")],
         ]
 
     def create_filter_tab(self):
@@ -471,12 +486,12 @@ class Layouts:
         trace_viewer_canvas = [
             [sg.Canvas(key='trace_canvas_controls')],
             [sg.Canvas(key='trace_canvas', size=self.plot_size)]
-            ]
+        ]
         trace_viewer_tab_group = [
             [sg.TabGroup([[
                 sg.Tab('Display', self.create_display_tab(gui)),
                 sg.Tab('Simulation', self.create_simulation_tab())]])
-        ]]
+            ]]
         return trace_viewer_canvas + trace_viewer_tab_group
 
     def create_right_column(self, gui):

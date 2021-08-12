@@ -188,8 +188,8 @@ class File:
             print("Number of pts: ", new_num_pts)
             self.data.set_num_pts(new_num_pts)
             # There are only 3 (averaged) RLI frames in ZDA files:
-            self.data.set_num_dark_rli(data['rli_pts_dark'])
-            self.data.set_num_light_rli(data['rli_pts_light'])
+            self.data.set_num_dark_rli(data['meta']['rli_pts_dark'])
+            self.data.set_num_light_rli(data['meta']['rli_pts_light'])
             self.data.set_num_fp(data['meta']['num_fp'])
 
         self.data.set_current_trial_index(None)  # needed to make data load non-trial specific

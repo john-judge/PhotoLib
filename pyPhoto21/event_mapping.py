@@ -342,14 +342,6 @@ class EventMapping:
                 'function': gui.set_baseline_correction,
                 'args': {}
             },
-            "Baseline Skip Window Size": {
-                'function': gui.validate_and_pass_int,
-                'args': {'call': gui.data.core.set_skip_window_start}
-            },
-            "Baseline Skip Window Start": {
-                'function': gui.validate_and_pass_int,
-                'args': {'call': gui.data.core.set_skip_window_size}
-            },
             "Reset Cam": {
                 'function': gui.hardware.reset_camera,
                 'args': {}
@@ -369,7 +361,36 @@ class EventMapping:
             "Select Display Value": {
                 'function': gui.set_display_value_option_index,
                 'args': {},
-            }
+            },
+            "Baseline Skip Window": {
+                'function': gui.select_baseline_skip_window,
+                'args': {}
+            },
+            "Baseline Skip Window Start (ms)": {
+                'function': gui.set_baseline_skip_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'ms'}
+            },
+            "Baseline Skip Window End (ms)": {
+                'function': gui.set_baseline_skip_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'ms'}
+            },
+            "Baseline Skip Window Start frames": {
+                'function': gui.set_baseline_skip_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+            "Baseline Skip Window End frames": {
+                'function': gui.set_baseline_skip_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+
         }
 
     def get_event_mapping(self):

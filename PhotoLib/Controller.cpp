@@ -516,12 +516,13 @@ void Controller::continueLiveFeed() {
 
 	// Serial version -- maybe it's fast enough for single-image live feeding?
 	unsigned char* image;
+	
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+		liveFeedCam->start_images(ipdv, 0); // start free run
+	}
 
 	while (!liveFeedFlags[1]) {
-		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-			liveFeedCam->start_images(ipdv, 1);
-		}
-
+		
 		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 			// acquire data for this image from the IPDVth channel	
 			image = liveFeedCam->wait_image(ipdv);
@@ -540,8 +541,10 @@ void Controller::continueLiveFeed() {
 	cout << "Acqui daemon read stop-loop flag, stopping.\n";
 
 
-	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++)
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+		liveFeedCam->start_images(ipdv, 1); // end free run
 		liveFeedCam->end_images(ipdv);
+	}
 
 	stopLiveFeed(); // prepare for later hardware use
 	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:

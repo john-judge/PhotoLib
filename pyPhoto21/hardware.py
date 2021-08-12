@@ -170,8 +170,7 @@ class Hardware:
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
-        num_frames = int(kwargs['acqui_onset'] // self.get_int_pts())
-        self.lib.setAcquiOnset(self.controller, num_frames)
+        self.lib.setAcquiOnset(self.controller, int(kwargs['acqui_onset']))
 
     def get_acqui_onset(self):
         if not self.hardware_enabled:
