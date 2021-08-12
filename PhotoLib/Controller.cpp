@@ -516,11 +516,10 @@ void Controller::continueLiveFeed() {
 
 	// Serial version -- maybe it's fast enough for single-image live feeding?
 	unsigned char* image;
-	
+
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		liveFeedCam->start_images(ipdv, 0); // start free run
 	}
-
 	while (!liveFeedFlags[1]) {
 		
 		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
@@ -531,12 +530,14 @@ void Controller::continueLiveFeed() {
 
 		liveFeedCam->reassembleImages(liveFeedFrame, 1); // Time should be negligible
 		liveFeedFlags[0] = true;
-		cout << "Produced an image\n";
+
+		// Debug -- output to file
+		//std::string filename = "full-out-livefeed.txt";
+		//liveFeedCam->printFinishedImage(liveFeedFrame, filename.c_str(), true);
 
 		while (liveFeedFlags[0] and !liveFeedFlags[1]) { // wait for plotter to be ready for next image
-			Sleep(2);
+			Sleep(1);
 		}
-		cout << "Acqui daemon heard you wanted another image.\n";
 	}
 	cout << "Acqui daemon read stop-loop flag, stopping.\n";
 

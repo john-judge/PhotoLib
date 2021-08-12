@@ -152,7 +152,7 @@ class TraceViewer:
                     ab = AnnotationBbox(probe_annotation,
                                         (probe_line, y_annotate),
                                         xycoords='data',
-                                        xybox=(0.5, 1.16 - 0.1 * int(num_traces == 0)),
+                                        xybox=(0.5, 1.16 - 0.1 * int(num_traces == 1)),
                                         boxcoords=("axes fraction", "axes fraction"),
                                         box_alignment=(0., 0.5),
                                         arrowprops=dict(arrowstyle="->")

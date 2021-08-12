@@ -191,13 +191,19 @@ class FrameViewer:
 
 
     def start_livefeed_animation(self):
+        print("Starting livefeed animation...")
         self.refresh_current_frame()
         self.ax = self.fig.add_subplot(1, 1, 1)
 
-        self.livefeed_im = self.ax.imshow(self.current_frame,
+        self.livefeed_im = self.ax.imshow(self.current_frame.astype(np.uint16),
+                                          interpolation = 'nearest',
                                           aspect='auto',
                                           cmap='jet')
         self.fig.canvas.draw_idle()
+
+    def end_livefeed_animation(self):
+        self.livefeed_im = None
+        self.update_new_image()
 
     def update(self, update_hyperslicer=True):
         self.refresh_current_frame()

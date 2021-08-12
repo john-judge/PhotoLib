@@ -298,7 +298,6 @@ class GUI:
             # Hardware not enabled
             self.stop_livefeed()
             return
-        self.fv.update_new_image()
 
         # launch live feed daemon: plotter
         threading.Thread(target=self.continue_livefeed_in_background, args=(lf_frame,), daemon=True).start()
@@ -307,23 +306,37 @@ class GUI:
         threading.Thread(target=self.hardware.continue_livefeed, args=(), daemon=True).start()
 
     # a continuous loop in background
-    def continue_livefeed_in_background(self, lf_frame, fps=30):
+    def continue_livefeed_in_background(self, lf_frame, fps=50):
         if not self.data.get_is_livefeed_enabled():
             return
+        is_image_started = False
         interval = 1.0 / float(fps)
-        lf_img = self.fv.livefeed_im
-        fig = self.fv.get_fig()
+
+        num_images_shown = 0
+        start = time.time()
+
         # C++ DLL has stored pointer to lf_frame, no need to keep passing
         while not self.hardware.get_stop_flag():  # the GUI flag
             timeout = 80.0
             if self.hardware.get_livefeed_produced_image_flag():
-                print("plotter got image!", np.std(lf_frame))
-                lf_img.set_data(lf_frame[0, :, :])
-                fig.canvas.draw_idle()
+                # print(lf_frame[0, :, :], np.std(lf_frame[0, :, :]))
+                if is_image_started:
+                    lf_img.set_data(lf_frame[0, :, :].astype(np.uint16))
+                    fig.canvas.draw_idle()
+                else:
+                    self.fv.start_livefeed_animation()
+                    lf_img = self.fv.livefeed_im
+                    fig = self.fv.get_fig()
+                    is_image_started = True
+                num_images_shown += 1
 
                 # Allows DLL to continue to next image
                 self.hardware.clear_livefeed_produced_image_flag()
                 time.sleep(interval)
+
+        end = time.time()
+
+        print("Livefeed averaged", num_images_shown / (end - start), "fps.")
 
         # stop flag read -- notify hardware
         self.stop_livefeed()
@@ -335,7 +348,7 @@ class GUI:
         self.data.set_is_livefeed_enabled(False)
         self.unfreeze_hardware_settings()
         self.hardware.set_stop_flag(False)  # take down flag to signal to GUI daemon that we've cleaned up
-        self.fv.update_new_image()
+        self.fv.end_livefeed_animation()
 
     def set_camera_program(self, **kwargs):
         program_name = kwargs['values']
