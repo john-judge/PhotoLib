@@ -497,8 +497,6 @@ void Controller::startLiveFeed(unsigned short* frame, bool* flags) {
 	liveFeedFrame = frame;
 	liveFeedFlags = flags;
 	if (liveFeedCam) delete liveFeedCam;
-
-	NI_openShutter(1);
 		
 	liveFeedCam = new Camera();
 	liveFeedCam->setCamProgram(getCameraProgram());
@@ -512,6 +510,12 @@ void Controller::continueLiveFeed() {
 	int width = liveFeedCam->width();
 	int height = liveFeedCam->height();
 	int quadrantSize = width * height;
+	cout << "live cam program" << getCameraProgram() <<
+		"\nheight: " << height <<
+		"\nwidth: " << width << "\n";
+
+
+	NI_openShutter(1);
 
 
 	// Serial version -- maybe it's fast enough for single-image live feeding?
@@ -548,8 +552,7 @@ void Controller::continueLiveFeed() {
 	}
 
 	stopLiveFeed(); // prepare for later hardware use
-	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:
-	liveFeedFlags[1] = false;
+
 
 	/*
 	bool barrier[4] = { false, false, false, false };
@@ -639,6 +642,9 @@ void Controller::stopLiveFeed() {
 	}
 	liveFeedCam = NULL;
 	liveFeedFrame = NULL; // This will be freed by Python side
+
+	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:
+	liveFeedFlags[1] = false;
 }
 //=============================================================================
 

@@ -665,3 +665,6 @@ class Data:
                 h = self.get_display_height()
                 self.livefeed_frame = np.zeros((2, h, w), dtype=np.uint16)
                 return self.livefeed_frame
+
+    def clear_livefeed_frame(self):
+        self.livefeed_frame = None

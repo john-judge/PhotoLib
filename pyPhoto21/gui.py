@@ -290,6 +290,11 @@ class GUI:
     def start_livefeed(self, **kwargs):
         if self.data.get_is_livefeed_enabled():
             return
+        # if self.hardware.get_camera_program() == 0:
+        #     self.set_camera_program(values=self.data.display_camera_programs[7])
+        #     self.notify_window("Livefeed Changing Camera Settings",
+        #                        "Camera Program 200 Hz 2048x1024 currently does not support livefeed." +
+        #                        "\n Setting to 40x1024.")
         self.window["Live Feed"].update(button_color=('black', 'yellow'))
         self.freeze_hardware_settings()
         self.data.set_is_livefeed_enabled(True)
@@ -336,11 +341,16 @@ class GUI:
 
         end = time.time()
 
-        print("Livefeed averaged", num_images_shown / (end - start), "fps.")
-
         # stop flag read -- notify hardware
         self.stop_livefeed()
         print("Live Feed daemon exiting.")
+
+        # Performance metrics
+        actual_fps = num_images_shown / (end - start)
+        print("Livefeed averaged", actual_fps, "fps.")
+        if actual_fps < 10:
+            print("Livefeed performed poorly\n",
+                  "Restarting camera and Photo21 is recommended.")
 
     def stop_livefeed(self):
         self.window["Live Feed"].update(button_color=('black', 'gray'))
@@ -349,10 +359,13 @@ class GUI:
         self.unfreeze_hardware_settings()
         self.hardware.set_stop_flag(False)  # take down flag to signal to GUI daemon that we've cleaned up
         self.fv.end_livefeed_animation()
+        self.data.clear_livefeed_frame()
 
     def set_camera_program(self, **kwargs):
         program_name = kwargs['values']
         program_index = self.data.display_camera_programs.index(program_name)
+        if program_index == 0 and self.data.get_num_pts() > 200:
+            self.set_num_pts(values='200')
         self.data.set_camera_program(program_index)
         self.window["Acquisition Duration"].update(self.data.get_acqui_duration())
 
@@ -566,12 +579,12 @@ class GUI:
         if len(v) > 0 and self.validate_numeric_input(v, decimal=True, max_val=15000):
             acqui_duration = float(v) * self.data.get_int_pts()
             self.data.set_num_pts(value=int(v))  # Data method resizes data
-            kwargs['window'][kwargs['event']].update(v)
-            kwargs['window']["Acquisition Duration"].update(str(acqui_duration))
+            self.window["Number of Points"].update(v)
+            self.window["Acquisition Duration"].update(str(acqui_duration))
         else:
             self.data.set_num_pts(value=0)  # Data method resizes data
-            kwargs['window'][kwargs['event']].update('')
-            kwargs['window']["Acquisition Duration"].update('')
+            self.window["Number of Points"].update('')
+            self.window["Acquisition Duration"].update('')
 
     def set_acqui_duration(self, **kwargs):
         v = kwargs['values']
@@ -586,12 +599,12 @@ class GUI:
         if len(v) > 0 and is_valid_acqui_duration(v):
             num_pts = int(float(v) // self.data.get_int_pts())
             self.data.set_num_pts(value=num_pts)
-            kwargs['window'][kwargs['event']].update(v)
-            kwargs['window']["Number of Points"].update(str(num_pts))
+            self.window["Acquisition Duration"].update(v)
+            self.window["Number of Points"].update(str(num_pts))
         else:
             self.data.set_num_pts(value=0)
-            kwargs['window'][kwargs['event']].update('')
-            kwargs['window']["Number of Points"].update('')
+            self.window["Acquisition Duration"].update('')
+            self.window["Number of Points"].update('')
 
     @staticmethod
     def pass_no_arg_calls(**kwargs):

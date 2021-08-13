@@ -416,7 +416,7 @@ class Hardware:
         return self.stop_flag
 
     def reset_camera(self):
-        self.lib.resetCamera()
+        self.lib.resetCamera(self.controller)
 
     def get_livefeed_produced_image_flag(self):
         return self.livefeed_flags[0]
