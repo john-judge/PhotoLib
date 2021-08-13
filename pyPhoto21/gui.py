@@ -175,13 +175,15 @@ class GUI:
         figure_canvas_agg.draw_idle()
         figure_canvas_agg.get_tk_widget().pack(fill='none', expand=True)
 
-    def freeze_hardware_settings(self, v=True, include_buttons=True):
+    def freeze_hardware_settings(self, v=True, include_buttons=True, freeze_file_flip=True):
         if type(v) == bool:
             self.freeze_input = v
             events_to_control = self.layouts.list_hardware_settings()
             if include_buttons:
                 events_to_control += self.layouts.list_hardware_events()
                 events_to_control += self.layouts.list_file_events()
+            if freeze_file_flip:  # freeze ability to navigate different files with arrow buttons
+                events_to_control += self.layouts.list_file_navigation_fields()
             for ev in events_to_control:
                 self.window[ev].update(disabled=v)
 
@@ -498,7 +500,7 @@ class GUI:
     def load_data_file(self):
         file = self.browse_for_file(['zda', 'pbz2'])
         if file is not None:
-            self.freeze_hardware_settings(include_buttons=False)
+            self.freeze_hardware_settings(include_buttons=False, freeze_file_flip=False)
             print("Loading from file:", file, "\nThis will take a few seconds...")
 
             threading.Thread(target=self.load_data_file_in_background, args=(file,), daemon=True).start()

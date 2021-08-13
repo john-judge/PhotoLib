@@ -252,7 +252,6 @@ class Hardware:
         if v is None or type(v) != int:
             v = 0
         self.lib.setStimDuration(self.controller, kwargs['channel'], float(v))
-        print("New stim duration:", self.lib.getStimDuration(self.controller, kwargs['channel']))
 
     def start_livefeed(self, lf_frame):
         # live feed flags are [produced_image, stop_livefeed]
