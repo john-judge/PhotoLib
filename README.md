@@ -1,6 +1,18 @@
 # PhotoLib
 Builds a camera/electrode management DLL to expose to (Python) applications. Includes a GUI application for acquisition and analysis, written in Python.
 
+## Building Executable
+
+Uses `pyinstaller`. Currently use:
+```
+pyinstaller -F --add-data nicaiu.dll;. --add-data clseredt.dll;. driver.py
+```
+This will take serveral minutes. 
+
+Excludes ` --add-data ./x64/Release/PhotoLib.dll;./x64/Release/` because finicky, but that means that the .exe must be launched from the same directory from which `driver.py` is able to run and locate `PhotoLib.dll` (otherwise it runs in analysis-only mode). I'm looking for a solution to this, but it's not a big problem.
+
+The .exe is ~400 MB, so it will have to be distributed outside of Google Drive.
+
 ## Hardware Requirements
 - DLL targets 64-bit machines
 - RedshirtImaging's Little Dave (DaVinci 2K)
