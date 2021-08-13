@@ -1,10 +1,7 @@
 import numpy as np
 
 from skimage.transform import downscale_local_mean
-from scipy.ndimage import gaussian_filter
 import cv2 as cv
-from sklearn.linear_model import LinearRegression
-from numpy.polynomial import polynomial
 
 
 # Analysis functionality shared by many features
@@ -130,30 +127,6 @@ class AnalysisCore:
             return data
         return downscale_local_mean(data, (binning_factor, binning_factor))
 
-    def filter_temporal(self, trace):
-        """ Temporal filtering: 1-d binomial 8 filter (approx. Gaussian) """
-        if self.get_is_temporal_filter_enabled():
-            filter_type = self.get_temporal_filter_options()[self.get_temporal_filter_index()]
-            sigma_t = self.get_temporal_filter_radius()
-            trace = np.array(trace)
-
-            if filter_type == 'Gaussian':
-                trace = gaussian_filter(trace,
-                                        sigma=sigma_t)
-            elif filter_type == 'Low Pass':  # i.e. Moving Average
-                trace = np.convolve(trace,
-                                    np.ones(int(sigma_t)),
-                                    'valid') / int(sigma_t)
-            elif filter_type.startswith('Binomial-'):
-                n = int(filter_type[-1])
-                binom_coeffs = (np.poly1d([0.5, 0.5]) ** n).coeffs  # normalized binomial filter
-                trace = np.convolve(trace,
-                                    binom_coeffs,
-                                    'valid')
-            elif filter_type != 'None':
-                print("T-Filter", filter_type, "not implemented.")
-        return trace
-
     def filter_spatial(self, frame, filter_type='Gaussian'):
         """ Spatial filtering: Gaussian """
         if self.get_is_spatial_filter_enabled():
@@ -167,49 +140,6 @@ class AnalysisCore:
                                         (filter_size, filter_size),
                                         sigma_s)
         return frame
-
-    def baseline_correct_noise(self, trace, int_pts):
-        """ subtract background drift off of single trace """
-        n = len(trace)
-        t = np.linspace(0, n * int_pts, num=n)
-
-        fit_type = self.get_baseline_correction_options()[self.get_baseline_correction_type_index()]
-
-        # Skip points
-        skip_start, skip_end = self.get_baseline_skip_window()
-        skip_int = [i for i in range(skip_start, skip_end)]
-        trace_skipped = np.delete(trace, skip_int)
-        t_skipped = np.delete(t, skip_int)
-
-        poly_powers = {
-            'Quadratic': 2,
-            'Cubic': 3,
-            "Polynomial-8th": 8
-        }
-        if fit_type in ["Exponential", "Linear"]:
-            t = t.reshape(-1, 1)
-            t_skipped = t_skipped.reshape(-1, 1)
-            min_val = None
-            if fit_type == "Exponential":
-                min_val = np.min(trace_skipped)
-                if min_val <= 0:
-                    trace_skipped += (-1 * min_val + 0.01)  # make all positive
-                trace_skipped = np.log(trace_skipped)
-            trace_skipped = trace_skipped.reshape(-1, 1)
-            reg = LinearRegression().fit(t_skipped, trace_skipped).predict(t)
-            if fit_type == "Exponential":
-                reg = np.exp(reg)
-                if min_val <= 0:
-                    reg -= (-1 * min_val + 0.01)
-        elif fit_type in poly_powers:
-            power = poly_powers[fit_type]
-            coeffs, stats = polynomial.polyfit(t_skipped, trace_skipped, power, full=True)
-            reg = np.array(polynomial.polyval(t, coeffs))
-        else:
-            return trace
-
-        trace = (trace.reshape(-1, 1) - reg.reshape(-1, 1)).reshape(-1)
-        return trace
 
     def set_baseline_skip_window(self, kind, index, value):
         if index == 0 or index == 1:

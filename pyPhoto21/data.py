@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib.path import Path
 
 from pyPhoto21.analysis.core import AnalysisCore
+from pyPhoto21.trace import Trace
 
 
 class Data:
@@ -55,6 +56,33 @@ class Data:
         self.is_data_inverse_enabled = True
 
         self.sync_defaults_into_hardware()
+
+        # Time Window cropping
+        self.crop_window = [0, -1]
+
+    def set_crop_window(self, v, index=None):
+        if index is None:
+            self.crop_window = v
+        elif index == 0 or index == 1:
+            self.crop_window[index] = v
+
+    def get_crop_window(self, index=None):
+        if index is None:
+            return self.crop_window
+        return self.crop_window[index]
+
+    # The purpose of this linspace is to
+    # allow us to remove trace points without
+    # losing track of the absolute frame number w.r.t
+    # the stim time, etc
+    def get_cropped_linspace(self):
+        start_frames, end_frames = self.get_crop_window()
+        if end_frames < 0:
+            end_frames = self.get_num_pts()
+        int_pts = self.get_int_pts()
+        return np.linspace(start_frames * int_pts,
+                           end_frames * int_pts,
+                           end_frames - start_frames)
 
     def sync_defaults_into_hardware(self):
         if self.get_is_loaded_from_file():
@@ -234,6 +262,7 @@ class Data:
             return None
         return mask
 
+    # returns a Trace object representing trace
     def get_display_trace(self, index=None, fp_index=None):
         trial = self.get_current_trial_index()
         if fp_index is not None:
@@ -258,15 +287,25 @@ class Data:
             else:
                 print("get_display_trace: drawn shape is empty:", index)
 
+        if ret_trace is None:
+            return None
+
+        ret_trace = Trace(ret_trace, self.get_int_pts())
+
         # data inversing (BEFORE baseline correction)
         if self.get_is_data_inverse_enabled():
-            ret_trace = 0 - ret_trace
+            ret_trace.apply_inverse()
 
         # baseline correction
-        ret_trace = self.core.baseline_correct_noise(ret_trace, self.get_int_pts())
+        fit_type = self.core.get_baseline_correction_options()[self.core.get_baseline_correction_type_index()]
+        skip_window = self.core.get_baseline_skip_window()
+        ret_trace.baseline_correct_noise(fit_type, skip_window)
 
         # temporal filtering
-        ret_trace = self.core.filter_temporal(ret_trace)
+        if self.core.get_is_temporal_filter_enabled():
+            filter_type = self.core.get_temporal_filter_options()[self.core.get_temporal_filter_index()]
+            sigma_t = self.core.get_temporal_filter_radius()
+            ret_trace.filter_temporal(filter_type, sigma_t)  # applies time cropping if needed
 
         return ret_trace
 

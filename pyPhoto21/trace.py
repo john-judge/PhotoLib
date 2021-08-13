@@ -1,6 +1,110 @@
 import numpy as np
 import matplotlib.figure as figure
 from matplotlib.offsetbox import TextArea, AnnotationBbox
+from sklearn.linear_model import LinearRegression
+from numpy.polynomial import polynomial
+from scipy.ndimage import gaussian_filter
+
+
+class Trace:
+    def __init__(self, points, int_pts, start_frame=0, end_frame=-1):
+        if end_frame < 0:
+            end_frame = len(points)
+        if type(points) != np.ndarray:
+            points = np.array(points)
+        self.points = points
+        self.start_frame = start_frame
+        self.end_frame = end_frame
+        self.int_pts = int_pts
+
+    def get_data(self):
+        t = np.linspace(self.start_frame * self.int_pts,
+                        self.end_frame * self.int_pts,
+                        self.end_frame - self.start_frame)
+        points = self.points[self.start_frame:self.end_frame]
+        return t, points
+
+    def apply_inverse(self):
+        self.points = 0 - self.points
+
+    def clip_time_window(self, window):
+        self.start_frame, self.end_frame = window
+
+    def baseline_correct_noise(self, fit_type, skip_window):
+        """ subtract background drift off of single trace """
+        t, trace = self.get_data()
+        n = len(trace)
+
+        # Skip points
+        skip_start, skip_end = skip_window
+        skip_int = [i for i in range(skip_start, skip_end)]
+        trace_skipped = np.delete(trace, skip_int)
+        t_skipped = np.delete(t, skip_int)
+
+        poly_powers = {
+            'Quadratic': 2,
+            'Cubic': 3,
+            "Polynomial-8th": 8
+        }
+        if fit_type in ["Exponential", "Linear"]:
+            t = t.reshape(-1, 1)
+            t_skipped = t_skipped.reshape(-1, 1)
+            min_val = None
+            if fit_type == "Exponential":
+                min_val = np.min(trace_skipped)
+                if min_val <= 0:
+                    trace_skipped += (-1 * min_val + 0.01)  # make all positive
+                trace_skipped = np.log(trace_skipped)
+            trace_skipped = trace_skipped.reshape(-1, 1)
+            reg = LinearRegression().fit(t_skipped, trace_skipped).predict(t)
+            if fit_type == "Exponential":
+                reg = np.exp(reg)
+                if min_val <= 0:
+                    reg -= (-1 * min_val + 0.01)
+        elif fit_type in poly_powers:
+            power = poly_powers[fit_type]
+            coeffs, stats = polynomial.polyfit(t_skipped, trace_skipped, power, full=True)
+            reg = np.array(polynomial.polyval(t, coeffs))
+        else:
+            self.points = trace
+            return trace
+
+        trace = (trace.reshape(-1, 1) - reg.reshape(-1, 1)).reshape(-1)
+        self.points = trace
+        return trace
+
+    def filter_temporal(self, filter_type, sigma_t):
+        """ Temporal filtering: 1-d binomial 8 filter (approx. Gaussian) """
+
+        t, trace = self.get_data()
+        n = len(trace)
+        m = None  # filter kernel length
+
+        if filter_type == 'Gaussian':
+            trace = gaussian_filter(trace,
+                                    sigma=sigma_t)
+        elif filter_type == 'Low Pass':  # i.e. Moving Average
+            trace = np.convolve(trace,
+                                np.ones(int(sigma_t)),
+                                'same') / int(sigma_t)
+            m = int(sigma_t)
+        elif filter_type.startswith('Binomial-'):
+            n = int(filter_type[-1])
+            binom_coeffs = (np.poly1d([0.5, 0.5]) ** n).coeffs  # normalized binomial filter
+            trace = np.convolve(trace,
+                                binom_coeffs,
+                                'same')
+            m = len(binom_coeffs)
+
+        elif filter_type != 'None':
+            print("T-Filter", filter_type, "not implemented.")
+
+        # the trace length itself is same, but now
+        # apply cropping to valid filtering domain, respecting any existing filtering
+        if m is not None:
+            self.start_frame += m
+            self.end_frame -= m
+        self.points = trace
 
 
 class TraceViewer:
@@ -40,16 +144,15 @@ class TraceViewer:
         tmp_color = self.trace_colors
         self.trace_colors = []
         for i in range(len(self.pixel_indices)):
-            if len(tmp_color) < i+1:
+            if len(tmp_color) < i + 1:
                 tmp_color.append('red')
             trace = self.data.get_display_trace(index=self.pixel_indices[i]['pixel_index'],
                                                 fp_index=self.pixel_indices[i]['fp_index'])
-            if len(trace.shape) == 1:
+            _, points = trace.get_data()
+            if len(points.shape) == 1:
                 self.traces.append(trace)
                 self.trace_colors.append(tmp_color[i])
             else:
-                self.traces.append(np.zeros(self.data.get_num_pts()))
-                self.trace_colors.append('red')
                 print("Invalid trace generated from pix index:", self.pixel_indices[i]['pixel_index'])
 
     def create_annotation_text(self, region_count, i):
@@ -113,9 +216,11 @@ class TraceViewer:
 
         for i in range(num_traces):
             trace = self.traces[i]
-
+            if isinstance(trace, Trace):
+                t, trace = trace.get_data()
+                print(t.shape, trace.shape)
             # Sometimes FP trace length doesn't match image trace length
-            if n != trace.shape[0]:
+            elif n != trace.shape[0]:
                 n = trace.shape[0]
                 t = np.linspace(0, n * int_pts, num=n)
 
@@ -126,9 +231,10 @@ class TraceViewer:
 
             # Annotation trace
             trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
-            trace_annotation_text += self.create_display_value(value_type_to_display, i, trace)
-            trace_annotation_text = TextArea(trace_annotation_text)
+
             if trace_annotation_text is not None:
+                trace_annotation_text += self.create_display_value(value_type_to_display, i, trace)
+                trace_annotation_text = TextArea(trace_annotation_text)
                 ab = AnnotationBbox(trace_annotation_text,
                                     (0.02, 0.95),
                                     xycoords='axes fraction',
@@ -152,7 +258,7 @@ class TraceViewer:
                     ab = AnnotationBbox(probe_annotation,
                                         (probe_line, y_annotate),
                                         xycoords='data',
-                                        xybox=(0.5, 1.16 - 0.1 * int(num_traces == 1)),
+                                        xybox=(0.5, 1.16 - 0.16 * int(num_traces == 1)),
                                         boxcoords=("axes fraction", "axes fraction"),
                                         box_alignment=(0., 0.5),
                                         arrowprops=dict(arrowstyle="->")
@@ -195,7 +301,3 @@ class TraceViewer:
             'probe': None,
             'measure_window': []
         }
-
-
-
-
