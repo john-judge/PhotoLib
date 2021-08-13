@@ -7,7 +7,7 @@ from scipy.ndimage import gaussian_filter
 
 
 class Trace:
-    def __init__(self, points, int_pts, start_frame=0, end_frame=-1):
+    def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False):
         if end_frame < 0:
             end_frame = len(points)
         if type(points) != np.ndarray:
@@ -16,6 +16,7 @@ class Trace:
         self.start_frame = start_frame
         self.end_frame = end_frame
         self.int_pts = int_pts
+        self.is_fp_trace = is_fp_trace
 
     def get_data(self):
         t = np.linspace(self.start_frame * self.int_pts,
@@ -25,6 +26,8 @@ class Trace:
         return t, points
 
     def apply_inverse(self):
+        if self.is_fp_trace:
+            return
         self.points = 0 - self.points
 
     def clip_time_window(self, window):
@@ -32,6 +35,8 @@ class Trace:
 
     def baseline_correct_noise(self, fit_type, skip_window):
         """ subtract background drift off of single trace """
+        if self.is_fp_trace:
+            return
         t, trace = self.get_data()
         n = len(trace)
 
@@ -75,7 +80,8 @@ class Trace:
 
     def filter_temporal(self, filter_type, sigma_t):
         """ Temporal filtering: 1-d binomial 8 filter (approx. Gaussian) """
-
+        if self.is_fp_trace:
+            return
         t, trace = self.get_data()
         n = len(trace)
         m = None  # filter kernel length

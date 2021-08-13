@@ -418,7 +418,7 @@ class GUI:
                                        "Unsupported file type.\nSupported: " + supported_file_str)
                 else:
                     break
-        if self.freeze_input:
+        if self.freeze_input and not self.data.get_is_loaded_from_file():
             file = None
             self.notify_window("File Input Error",
                                "Cannot load file during acquisition")

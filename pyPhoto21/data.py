@@ -194,7 +194,7 @@ class Data:
             images = self.get_acqui_images()
         if images is None:
             return None
-        if len(images.shape) > 3:
+        if len(images.shape) != 3:
             print("Issue in data.py: get display frame image shape:", images.shape)
             return None
 
@@ -242,7 +242,7 @@ class Data:
         traces = self.get_fp_data()
         if trial is None:
             traces = np.average(traces, axis=0)
-        return traces[:, fp_index]
+        return Trace(traces[:, fp_index], self.get_int_pts(), is_fp_trace=True)
 
     @staticmethod
     def get_frame_mask(h, w, index=None):
@@ -269,6 +269,7 @@ class Data:
             return self.get_display_fp_trace(fp_index)
 
         images = self.get_acqui_images()
+        print(images.shape)
         if images is None:
             print("get_display_trace: No images to display.")
             return None
@@ -336,7 +337,7 @@ class Data:
                                      self.get_num_pts(),
                                      self.get_num_fp()),
                                     dtype=np.int16)
-        if trial is None:
+        if trial is None or self.get_is_loaded_from_file() or len(self.fp_data.shape) < 3:
             return self.fp_data
         return self.fp_data[trial, :, :]
 
@@ -345,7 +346,7 @@ class Data:
         if self.acqui_images is None:
             return None
         if self.get_is_loaded_from_file():
-            if trial is None:
+            if trial is None or len(self.acqui_images.shape) < 4:
                 return self.acqui_images
             else:
                 return self.acqui_images[trial]
@@ -360,6 +361,12 @@ class Data:
         if self.rli_images is None:
             return None
         if self.get_is_loaded_from_file():
+            if type(self.rli_images) == dict and 'rli_low' in self.rli_images:
+                h, w = self.rli_images['rli_low'].shape
+                return np.concatenate((self.rli_images['rli_low'].reshape(1, h, w),
+                                       self.rli_images['rli_high'].reshape(1, h, w),
+                                       self.rli_images['rli_max'].reshape(1, h, w)),
+                                      axis=0)
             return self.rli_images
         if trial is None:
             return self.rli_images[:, 0, :, :, :]
