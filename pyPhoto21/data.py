@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib.path import Path
 
 from pyPhoto21.analysis.core import AnalysisCore
-from pyPhoto21.trace import Trace
+from pyPhoto21.viewers.trace import Trace
 
 
 class Data:
@@ -269,7 +269,6 @@ class Data:
             return self.get_display_fp_trace(fp_index)
 
         images = self.get_acqui_images()
-        print(images.shape)
         if images is None:
             print("get_display_trace: No images to display.")
             return None
@@ -428,9 +427,11 @@ class Data:
             self.hardware.set_num_pts(value=value)
 
     def calculate_light_rli_frame(self, margins=40):
+        d = self.hardware.get_num_dark_rli()
+        while margins * 2 >= d:
+            margins //= 2
         if self.get_is_loaded_from_file():
             return self.get_rli_images()[1, :, :]
-        d = self.hardware.get_num_dark_rli()
         n = self.get_num_rli_pts()
         rli_light_frames = self.get_rli_images()[d+margins+1:n-1-margins, :, :]
         if rli_light_frames is None:
@@ -438,9 +439,11 @@ class Data:
         return np.average(rli_light_frames, axis=0)
 
     def calculate_dark_rli_frame(self, margins=40):
+        d = self.hardware.get_num_dark_rli()
+        while margins * 2 >= d:
+            margins //= 2
         if self.get_is_loaded_from_file():
             return self.get_rli_images()[0, :, :]
-        d = self.hardware.get_num_dark_rli()
         rli_dark_frames = self.get_rli_images()[margins+1:d-margins-1, :, :]
         if rli_dark_frames is None:
             return None

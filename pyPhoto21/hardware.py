@@ -117,12 +117,12 @@ class Hardware:
             return 0
         return self.lib.getNumPulses(self.controller, kwargs['channel'])
 
-    # set the interval between pulses during acquisition
+    # set the interval between pulses during acquisition, ms->frames
     def set_int_pulses(self, **kwargs):
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
-        num_frames = int(int(kwargs['value'] // self.get_int_pts()))
+        num_frames = int(float(kwargs['value'] // self.get_int_pts()))
         self.lib.setIntPulses(self.controller, kwargs['channel'], num_frames)
 
     def get_int_pulses(self, **kwargs):
@@ -149,7 +149,7 @@ class Hardware:
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
-        num_frames = int(int(kwargs['value'] // self.get_int_pts()))
+        num_frames = int(float(kwargs['value'] // self.get_int_pts()))
         self.lib.setIntBursts(self.controller, kwargs['channel'], num_frames)
 
     def get_int_bursts(self, **kwargs):
@@ -227,13 +227,13 @@ class Hardware:
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return 0
-        return self.lib.getStimOnset(self.controller, kwargs['channel']) * self.get_int_pts()
+        return self.lib.getStimOnset(self.controller, kwargs['channel'])
 
     def get_stim_duration(self, **kwargs):
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return 0
-        return self.lib.getStimDuration(self.controller, kwargs['channel']) * self.get_int_pts()
+        return self.lib.getStimDuration(self.controller, kwargs['channel'])
 
     def set_stim_onset(self, **kwargs):
         if not self.hardware_enabled:
@@ -242,8 +242,7 @@ class Hardware:
         v = kwargs['value']
         if v is None or type(v) != int:
             v = 0
-        v = int(v // self.get_int_pts())
-        return self.lib.setStimOnset(self.controller, kwargs['channel'], v)
+        self.lib.setStimOnset(self.controller, kwargs['channel'], float(v))
 
     def set_stim_duration(self, **kwargs):
         if not self.hardware_enabled:
@@ -252,8 +251,8 @@ class Hardware:
         v = kwargs['value']
         if v is None or type(v) != int:
             v = 0
-        v = int(v // self.get_int_pts())
-        return self.lib.setStimDuration(self.controller, kwargs['channel'], v)
+        self.lib.setStimDuration(self.controller, kwargs['channel'], float(v))
+        print("New stim duration:", self.lib.getStimDuration(self.controller, kwargs['channel']))
 
     def start_livefeed(self, lf_frame):
         # live feed flags are [produced_image, stop_livefeed]

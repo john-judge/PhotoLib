@@ -224,7 +224,6 @@ class TraceViewer:
             trace = self.traces[i]
             if isinstance(trace, Trace):
                 t, trace = trace.get_data()
-                print(t.shape, trace.shape)
             # Sometimes FP trace length doesn't match image trace length
             elif n != trace.shape[0]:
                 n = trace.shape[0]

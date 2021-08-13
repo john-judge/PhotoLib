@@ -1,27 +1,20 @@
 import numpy as np
-import os.path
 import threading
 import time
 import string
 import PySimpleGUI as sg
 import matplotlib
-import sys
-from matplotlib.widgets import RectangleSelector
-import matplotlib.figure as figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-import matplotlib.pyplot as plt
-from tkinter import *
-import tkinter as Tk
 from webbrowser import open as open_browser
 
-from pyPhoto21.frame import FrameViewer
-from pyPhoto21.trace import TraceViewer
+from pyPhoto21.viewers.frame import FrameViewer
+from pyPhoto21.viewers.trace import TraceViewer
+from pyPhoto21.viewers.daq import DAQViewer
 from pyPhoto21.analysis.roi import ROI
-from pyPhoto21.layouts import *
-from pyPhoto21.event_mapping import EventMapping
+from pyPhoto21.gui_elements.layouts import *
+from pyPhoto21.gui_elements.event_mapping import EventMapping
 
 # from mpl_interactions import image_segmenter
-from matplotlib.widgets import Slider
 
 
 # import io
@@ -38,6 +31,7 @@ class GUI:
         self.production_mode = production_mode
         self.tv = TraceViewer(self.data)
         self.fv = FrameViewer(self.data, self.tv)
+        self.dv = DAQViewer(self.data)
         self.roi = ROI(self.data)
         self.layouts = Layouts(data)
         self.window = None
@@ -92,6 +86,7 @@ class GUI:
         self.window.Maximize()
         self.plot_trace()
         self.plot_frame()
+        self.plot_daq_timeline()
         self.main_workflow_loop()
         self.window.close()
 
@@ -101,14 +96,14 @@ class GUI:
         events = ''
         while True:
             event, values = window.read()
-            if history_debug and event is not None:
+            if history_debug and event is not None and not self.production_mode:
                 events += str(event) + '\n'
             if event == exit_event or event == sg.WIN_CLOSED:
                 if self.is_recording():
-                    print("Cleaning up hardware before exiting. Waiting until safe to exit (or at most 8 seconds)...")
+                    print("Cleaning up hardware before exiting. Waiting until safe to exit (or at most 3 seconds)...")
 
                     self.hardware.set_stop_flag(True)
-                    timeout = 8
+                    timeout = 3
                     while self.hardware.get_stop_flag() and timeout > 0:
                         time.sleep(1)
                         timeout -= 1
@@ -123,15 +118,19 @@ class GUI:
                     ev['args']['values'] = values[event]
                     ev['args']['event'] = event
                 ev['function'](**ev['args'])
-        if history_debug:
+        if history_debug and not self.production_mode:
             print("**** History of Events ****\n", events)
 
     def is_recording(self):
         return self.freeze_input and not self.data.get_is_loaded_from_file()
 
+    def plot_daq_timeline(self):
+        fig = self.dv.get_fig()
+        self.draw_figure(self.window['daq_canvas'].TKCanvas, fig)
+        self.dv.update()
+
     def plot_trace(self):
         fig = self.tv.get_fig()
-
         self.draw_figure_w_toolbar(self.window['trace_canvas'].TKCanvas,
                                    fig,
                                    self.window['trace_canvas_controls'].TKCanvas)
@@ -165,6 +164,15 @@ class GUI:
         figure_canvas_agg.draw_idle()
         toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
         toolbar.update()
+        figure_canvas_agg.get_tk_widget().pack(fill='none', expand=True)
+
+    @staticmethod
+    def draw_figure(canvas, fig):
+        if canvas.children:
+            for child in canvas.winfo_children():
+                child.destroy()
+        figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
+        figure_canvas_agg.draw_idle()
         figure_canvas_agg.get_tk_widget().pack(fill='none', expand=True)
 
     def freeze_hardware_settings(self, v=True, include_buttons=True):
@@ -364,8 +372,10 @@ class GUI:
     def set_camera_program(self, **kwargs):
         program_name = kwargs['values']
         program_index = self.data.display_camera_programs.index(program_name)
-        if program_index == 0 and self.data.get_num_pts() > 200:
-            self.set_num_pts(values='200')
+        if program_index == 0 and self.data.get_num_pts() > 10:
+            self.set_num_pts(values='1')
+            self.data.set_num_dark_rli(1)
+            self.data.set_num_light_rli(1)
         self.data.set_camera_program(program_index)
         self.window["Acquisition Duration"].update(self.data.get_acqui_duration())
 
@@ -565,18 +575,18 @@ class GUI:
 
     def set_acqui_onset(self, **kwargs):
         v = kwargs['values']
-        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=15000):
+        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=5000):
             v = v[:-1]
-        if self.validate_numeric_input(v, decimal=True, max_val=15000):
+        if self.validate_numeric_input(v, decimal=True, max_val=5000):
             num_frames = float(v) // self.data.get_int_pts()
             self.hardware.set_acqui_onset(acqui_onset=num_frames)
 
     def set_num_pts(self, **kwargs):
         v = kwargs['values']
 
-        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=15000):
+        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=5000):
             v = v[:-1]
-        if len(v) > 0 and self.validate_numeric_input(v, decimal=True, max_val=15000):
+        if len(v) > 0 and self.validate_numeric_input(v, decimal=True, max_val=5000):
             acqui_duration = float(v) * self.data.get_int_pts()
             self.data.set_num_pts(value=int(v))  # Data method resizes data
             self.window["Number of Points"].update(v)
@@ -585,6 +595,7 @@ class GUI:
             self.data.set_num_pts(value=0)  # Data method resizes data
             self.window["Number of Points"].update('')
             self.window["Acquisition Duration"].update('')
+        self.dv.update()
 
     def set_acqui_duration(self, **kwargs):
         v = kwargs['values']
@@ -605,6 +616,7 @@ class GUI:
             self.data.set_num_pts(value=0)
             self.window["Acquisition Duration"].update('')
             self.window["Number of Points"].update('')
+        self.dv.update()
 
     @staticmethod
     def pass_no_arg_calls(**kwargs):
@@ -624,10 +636,12 @@ class GUI:
         if len(v) > 0 and self.validate_numeric_input(v, max_digits=5, max_val=max_val):
             fn_to_call(value=int(v))
             window[kwargs['event']].update(v)
-            print("called:", fn_to_call)
+            if not self.production_mode:
+                print("called:", fn_to_call)
             if 'call2' in kwargs:
                 kwargs['call2'](value=int(v))
-                print("called:", kwargs['call2'])
+                if not self.production_mode:
+                    print("called:", kwargs['call2'])
         else:
             fn_to_call(value=None)
             window[kwargs['event']].update('')
@@ -643,10 +657,14 @@ class GUI:
         if len(v) > 0 and self.validate_numeric_input(v, max_digits=6):
             fn_to_call(value=int(v), channel=ch)
             window[kwargs['event']].update(v)
-            print("called:", fn_to_call)
+            if not self.production_mode:
+                print("called:", fn_to_call)
         else:
             fn_to_call(value=0, channel=ch)
             window[kwargs['event']].update('')
+
+        # update DAQ timeline visualization
+        self.dv.update()
 
     def launch_roi_settings(self, **kwargs):
         w = sg.Window('ROI Identification Settings',

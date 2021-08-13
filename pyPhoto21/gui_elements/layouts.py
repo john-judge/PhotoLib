@@ -344,13 +344,9 @@ class Layouts:
         return frame_viewer_layout + \
                [tab_group_basic + tab_group_advanced]
 
-    def create_daq_config_tab(self):
-        camera_programs = self.data.display_camera_programs
+    def create_acqui_controls_tab(self):
         cell_size = (10, 1)
-        double_cell_size = (20, 1)
-
-        return [[sg.Text("TTL Output Controls")],
-                [sg.Text('(ms)', size=cell_size),
+        return [[sg.Text('', size=cell_size),
                  sg.Text('ONSET', size=cell_size),
                  sg.Text('DURATION', size=cell_size)],
                 [sg.Text("Acquisition", size=cell_size),
@@ -382,10 +378,13 @@ class Layouts:
                               default_text=str(self.data.get_stim_duration(2)),
                               enable_events=True,
                               size=cell_size),
-                 sg.Text(" ms", size=cell_size)],
-                [sg.Text("", size=double_cell_size)],
-                [sg.Text("Acquisition Controls")],
-                [sg.Text("Number of Points:", size=double_cell_size),
+                 sg.Text(" ms", size=cell_size)]]
+
+    def create_ttl_output_tab(self):
+        camera_programs = self.data.display_camera_programs
+        cell_size = (10, 1)
+        double_cell_size = (20, 1)
+        return [[sg.Text("Number of Points:", size=double_cell_size),
                  sg.InputText(key="Number of Points",
                               default_text=str(self.data.get_num_pts()),
                               enable_events=True,
@@ -394,9 +393,12 @@ class Layouts:
                  sg.Combo(camera_programs,
                           enable_events=True,
                           default_value=camera_programs[self.data.get_camera_program()],
-                          key="-CAMERA PROGRAM-")],
-                [sg.Text("", size=double_cell_size)],
-                [sg.Text("", size=double_cell_size),
+                          key="-CAMERA PROGRAM-")]]
+
+    def create_pulses_tab(self):
+        cell_size = (10, 1)
+        double_cell_size = (20, 1)
+        return [[sg.Text("", size=double_cell_size),
                  sg.Text("Stimulator #1", size=cell_size),
                  sg.Text("Stimulator #2", size=cell_size)],
                 [sg.Text("Number of pulses:", size=double_cell_size),
@@ -436,10 +438,13 @@ class Layouts:
                               default_text=str(self.data.hardware.get_int_bursts(channel=2)),
                               enable_events=True,
                               size=cell_size),
-                 sg.Text(" ms", size=cell_size)],
-                [sg.Text("", size=double_cell_size)],
-                [sg.Text("Trial Controls")],
-                [sg.Text("Number of Trials:", size=double_cell_size),
+                 sg.Text(" ms", size=cell_size)]]
+
+    def create_trials_tab(self):
+        cell_size = (10, 1)
+        double_cell_size = (20, 1)
+
+        return [[sg.Text("Number of Trials:", size=double_cell_size),
                  sg.InputText(key="num_trials",
                               default_text=str(self.data.get_num_trials()),
                               enable_events=True,
@@ -450,8 +455,12 @@ class Layouts:
                               default_text=str(self.data.get_int_trials()),
                               enable_events=True,
                               size=cell_size),
-                 sg.Text(" s", size=cell_size)],
-                [sg.Text("", size=double_cell_size)],
+                 sg.Text(" s", size=cell_size)]]
+
+    def create_records_tab(self):
+        cell_size = (10, 1)
+        double_cell_size = (20, 1)
+        return [[sg.Text("", size=double_cell_size)],
                 [sg.Text("Record (Sets of Trials) Controls")],
                 [sg.Text("Number of Recordings:", size=double_cell_size),
                  sg.InputText(key="num_records",
@@ -464,12 +473,21 @@ class Layouts:
                               default_text=str(self.data.get_int_records()),
                               enable_events=True,
                               size=cell_size),
-                 sg.Text(" s", size=cell_size)],
-                [sg.Canvas(key='daq_canvas', size=self.plot_size)]]
+                 sg.Text(" s", size=cell_size)]]
 
-    def create_display_tab(self, gui):
+    def create_daq_config_tab(self):
+        daq_timeline_canvas = [[sg.Canvas(key='daq_canvas', size=self.plot_size)]]
+        daq_config_tab_group = [
+            [sg.TabGroup([[
+                sg.Tab('Onset/Duration', self.create_acqui_controls_tab() + self.create_ttl_output_tab()),
+                sg.Tab('Pulses', self.create_pulses_tab()),
+                sg.Tab('Trials', self.create_trials_tab() + self.create_records_tab()),
+            ]])]]
+        return daq_timeline_canvas + daq_config_tab_group
+
+    @staticmethod
+    def create_display_tab(gui):
         button_size = (12, 1)
-        double_button_size = (20, 1)
         display_value_options = gui.tv.get_display_value_options()
         return [
             [sg.Text("Value:", size=button_size),
@@ -528,7 +546,11 @@ class Layouts:
                 "int_trials",
                 "Auto RLI",
                 "Auto Save",
-                "Increment Trial",
+                ]
+
+    @staticmethod
+    def list_file_navigation_fields():
+        return ["Increment Trial",
                 "Decrement Trial",
                 "Increment Record",
                 "Decrement Record",
@@ -541,8 +563,7 @@ class Layouts:
                 "Record Number",
                 "Slice Number",
                 'num_records',
-                'int_records'
-                ]
+                'int_records']
 
     @staticmethod
     def list_hardware_events():
