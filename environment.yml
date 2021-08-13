@@ -1,4 +1,4 @@
-name: PhotoLib
+name: Photo21
 channels:
   - conda-forge
   - defaults
@@ -167,5 +167,11 @@ dependencies:
   - zlib=1.2.11=h62dcd97_4
   - zstd=1.4.9=h19a0ad4_0
   - pip:
+    - altgraph==0.17
+    - future==0.18.2
     - mpl-interactions==0.17.12
-prefix: C:\Users\jjudge3\Anaconda3\envs\PhotoLib
+    - pefile==2021.5.24
+    - pyinstaller==4.5.1
+    - pyinstaller-hooks-contrib==2021.2
+    - pywin32-ctypes==0.2.0
+prefix: C:\Users\RedShirtImaging\anaconda3\envs\Photo21

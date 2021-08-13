@@ -6,6 +6,12 @@
 **/*.zda
 **/*.roi
 
+## Pyinstaller build and dist
+build
+dist
+*.exe
+*.spec
+
 ## Debug data
 *.txt
 *.png
