@@ -7,7 +7,9 @@ import cv2 as cv
 # Analysis functionality shared by many features
 class AnalysisCore:
 
-    def __init__(self):
+    def __init__(self, meta):
+
+        self.meta = meta  # Metadata object.
 
         # Filtering settings
         self.is_temporal_filer_enabled = False

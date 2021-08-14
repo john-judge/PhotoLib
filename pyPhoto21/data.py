@@ -16,23 +16,41 @@ class Data2(File):
         self.db = Database()
         self.meta = Metadata()
 
+        # Analysis
+        self.core = AnalysisCore(self.meta)
+
+        # Little Dave reference data
+        self.display_widths = [2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024]
+        self.display_heights = [1024, 100, 320, 160, 160, 80, 60, 40]
+        self.display_camera_programs = ["200 Hz   2048x1024",
+                                        "2000 Hz  2048x100",
+                                        "1000 Hz  1024x320",
+                                        "2000 Hz  1024x160",
+                                        "2000 Hz  1024x160",
+                                        "4000 Hz  1024x80",
+                                        "5000 Hz  1024x60",
+                                        "7500 Hz  1024x40"]
+
+        self.sync_defaults_into_hardware()
+
+
     def find_unused_filenames(self, extensions=('.npy', '.pbz2'), path=None):
         # gets filenames to save to, avoiding overwrites, recognizing all extensions
-        filenames = [self.create_filename(self.current_slice,
-                                      self.current_location,
-                                      self.current_record,
-                                      ext,
-                                      path=path)
+        filenames = [self.get_filename(self.current_slice,
+                                       self.current_location,
+                                       self.current_record,
+                                       ext,
+                                       path=path)
                      for ext in extensions]
 
         while any([self.file_exists(fn) for fn in filenames]):
             self.set_override_filename(None)
             self.increment_record()
-            filenames = [self.create_filename(self.current_slice,
-                                              self.current_location,
-                                              self.current_record,
-                                              ext,
-                                              path=path)
+            filenames = [self.get_filename(self.current_slice,
+                                           self.current_location,
+                                           self.current_record,
+                                           ext,
+                                           path=path)
                          for ext in extensions]
         return filenames
 

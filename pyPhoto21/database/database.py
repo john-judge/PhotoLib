@@ -10,10 +10,61 @@ import os
 
 class Database(File):
 
-    def __init__(self):
+    def __init__(self, metadata):
         super().__init__()
-        self.override_filename = None
-        self.current_slice = 0
-        self.current_location = 0
-        self.current_record = 0
+        self.meta = metadata
+        self.extension = '.npy'
+        self.memmap_file = None
+        self.open_filename = None
 
+    def get_current_filename(self, no_path=False):
+        fn = ''
+        if not no_path:
+            fn = self.get_save_dir()
+        if self.open_filename is not None:
+            return fn + self.open_filename
+        if self.override_filename is not None:
+            return fn + self.override_filename
+        return fn + self.get_filename(self.meta.get_slice_num(),
+                               self.meta.get_location_num(),
+                               self.meta.get_record_num(),
+                               extension=self.extension)
+
+    # https://numpy.org/doc/stable/reference/generated/numpy.memmap.html#numpy.memmap
+    def load_mmap_file(self):
+        fn = self.get_current_filename()
+        self.memmap_file = np.memmap(fn,
+                                     dtype=np.uint16,
+                                     mode='r+',  # reading and writing
+                                     shape=self.meta.get_record_array_shape())
+        self.open_filename = fn
+
+    def clear_or_resize_mmap_file(self):
+        # should avoid overwriting data by renaming current file
+        i = 0
+        new_name = self.open_filename + ".archive_" + self.pad_zero(i, dst_len=2)
+        while self.file_exists(new_name) or i > 100:
+            i += 1
+            new_name = self.open_filename + ".archive_" + self.pad_zero(i, dst_len=2)
+        try:
+            os.rename(self.open_filename, new_name)
+        except Exception as e:
+            print("Could not archive current data file: ",
+                  self.open_filename,
+                  "Delete or move this file, or choose a new file to proceed with array resize.",
+                  "\nActual exception:")
+            print(e)
+            return
+        self.load_mmap_file()
+
+    def load_trial_data_raw(self, trial):
+        return self.memmap_file[trial, 0, :, :, :]
+
+    def load_trial_data_processed(self, trial):
+        return self.memmap_file[trial, 1, :, :, :]
+
+    def load_data_raw(self):
+        return self.memmap_file[:, 0, :, :, :]
+
+    def load_data_processed(self):
+        return self.memmap_file[:, 1, :, :, :]
