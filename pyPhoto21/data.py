@@ -3,6 +3,46 @@ from matplotlib.path import Path
 
 from pyPhoto21.analysis.core import AnalysisCore
 from pyPhoto21.viewers.trace import Trace
+from pyPhoto21.database.database import Database
+from pyPhoto21.database.metadata import Metadata
+from pyPhoto21.database.file import File
+
+
+# This class will supersede Data...
+class Data2(File):
+
+    def __init__(self):
+        super.__init__()
+        self.db = Database()
+        self.meta = Metadata()
+
+    def find_unused_filenames(self, extensions=('.npy', '.pbz2'), path=None):
+        # gets filenames to save to, avoiding overwrites, recognizing all extensions
+        filenames = [self.create_filename(self.current_slice,
+                                      self.current_location,
+                                      self.current_record,
+                                      ext,
+                                      path=path)
+                     for ext in extensions]
+
+        while any([self.file_exists(fn) for fn in filenames]):
+            self.set_override_filename(None)
+            self.increment_record()
+            filenames = [self.create_filename(self.current_slice,
+                                              self.current_location,
+                                              self.current_record,
+                                              ext,
+                                              path=path)
+                         for ext in extensions]
+        return filenames
+
+    def save_metadata_to_file(self, filename):
+        """ Pickle the instance of Metadata class """
+        self.dump_python_object_to_pickle(filename, self.meta,)
+
+    def load_metadata_from_file(self, filename):
+        """ Read instance of Metadata class and load into usage"""
+        self.meta = self.retrieve_python_object_from_pickle(filename)
 
 
 class Data:
