@@ -10,7 +10,10 @@ from pyPhoto21.database.database import Database
 #
 class Metadata:
     """ A simple class that stores hardware settings
-        and analysis metadata, intended to be easily pickleable """
+        and analysis metadata, intended to be easily pickleable and
+        easily swapped into the program
+        Do not place methods here, because they will be needlessly
+        pickled to file """
     def __init__(self):
         self.current_slice = 0
         self.current_location = 0
@@ -21,10 +24,29 @@ class Metadata:
         self.int_trials = 10  # ms
         self.num_records = 1
         self.int_records = 15  # seconds
+        self.camera_program = 7
+        self.height = 40
+        self.width = 1024
+        self.num_pulses = [1, 1]
+        self.int_pulses = [15, 15]
+        self.num_bursts = [1, 1]
+        self.int_bursts = [15, 15]
+        self.acqui_onset = 0
+        self.stim_onset = [0, 0]
+        self.stim_duration = [1, 1]
+
+        # Larger data
+        self.rli_low = None
+        self.rli_high = None
+        self.rli_max = None
+        self.fp_data = None
+
+        self.num_pts = 2000
+        self.int_pts = 0.5
 
         self.current_trial_index = 0
 
-        self.num_fp_pts = None  # will default to 4 unless loaded from file
+        self.num_fp = None  # will default to 4 unless loaded from file
 
         self.file_metadata = {}
 
@@ -33,8 +55,6 @@ class Metadata:
         self.auto_save_data = False
 
         # Workflow Settings
-        self.is_loaded_from_file = False
-        self.is_live_feed_enabled = False
         self.display_value_option_index = 0
 
         self.auto_save_enabled = True
@@ -45,76 +65,11 @@ class Metadata:
         # Time Window cropping
         self.crop_window = [0, -1]
 
-    def get_record_array_shape(self):
-        return (self.get_num_trials(),
-                2,
-                self.get_num_pts(),
-                self.get_display_height(),
-                self.get_display_width())
+        # TraceViewer settings
 
-    def get_slice_num(self):
-        return self.current_slice
+        # FrameViewer settings
 
-    def get_location_num(self):
-        return self.current_location
-
-    def get_record_num(self):
-        return self.current_record
-
-    def increment_slice(self, num=1):
-        self.current_slice += num
-        self.current_location = 0
-        self.current_record = 0
-        self.data.set_current_trial_index(0)
-
-    def increment_location(self, num=1):
-        self.current_location += num
-        self.current_record = 0
-        self.data.set_current_trial_index(0)
-
-    def increment_record(self, num=1):
-        self.current_record += num
-        self.data.set_current_trial_index(0)
-
-    def decrement_slice(self, num=1):
-        self.current_slice -= num
-        if self.current_slice >= 0:
-            self.current_location = 0
-            self.current_record = 0
-            self.data.set_current_trial_index(0)
-        else:
-            self.current_slice = 0
-
-    def decrement_location(self, num=1):
-        self.current_location -= num
-        if self.current_location >= 0:
-            self.current_record = 0
-            self.data.set_current_trial_index(0)
-        else:
-            self.current_location = 0
-
-    def decrement_record(self, num=1):
-        self.current_record -= 1
-
-    def set_slice(self, v):
-        if v > self.current_slice:
-            self.increment_slice(v - self.current_slice)
-        elif v < self.current_slice:
-            self.decrement_slice(self.current_slice - v)
-
-    def set_record(self, v):
-        if v > self.current_record:
-            self.increment_record(v - self.current_record)
-        elif v < self.current_record:
-            self.decrement_record(self.current_record - v)
-
-    def set_location(self, v):
-        if v > self.current_location:
-            self.increment_location(v - self.current_location)
-        if v < self.current_location:
-            self.decrement_location(self.current_location - v)
-
-
+        # Analysis Settings
 
 
 class LegacyData:

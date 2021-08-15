@@ -29,9 +29,9 @@ class File:
     def get_filename(self, slice_num, location_num, record_num, extension, path=None):
         if self.override_filename is not None:
             return self.override_filename
-        fn = self.pad_zero(slice_num) + '-' + \
-             self.pad_zero(location_num) + '-' + \
-             self.pad_zero(record_num) + extension
+        fn = self.pad_zero(slice_num) + '-'  \
+            + self.pad_zero(location_num) + '-' \
+            + self.pad_zero(record_num) + extension
         if path is None:
             return fn
         return path + '/' + fn
@@ -61,4 +61,3 @@ class File:
 
     def set_override_filename(self, fn):
         self.override_filename = fn
-

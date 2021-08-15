@@ -4,20 +4,31 @@ from matplotlib.path import Path
 from pyPhoto21.analysis.core import AnalysisCore
 from pyPhoto21.viewers.trace import Trace
 from pyPhoto21.database.database import Database
-from pyPhoto21.database.metadata import Metadata
 from pyPhoto21.database.file import File
 
 
 # This class will supersede Data...
-class Data2(File):
+class Data(File):
 
-    def __init__(self):
-        super.__init__()
+    # Parsed events from GUI are handed to Data for backend effects.
+    def __init__(self, hardware):
+        super().__init__()
+
+        # interaction with other modules. It is the Data class' responsibility to sync all these.
+        self.hardware = hardware
         self.db = Database()
-        self.meta = Metadata()
+        self.core = AnalysisCore(self.db.meta)
 
-        # Analysis
-        self.core = AnalysisCore(self.meta)
+        # Internal (non-user facing) settings and flags
+        self.is_loaded_from_file = False
+        self.is_live_feed_enabled = False
+        self.current_trial_index = 0
+
+        # Memory not written to file
+        # raw RLI frames are not written to file or even shown.
+        # We will calculate averages before writing in metadata.
+        self.rli_images = None
+        self.livefeed_frame = None
 
         # Little Dave reference data
         self.display_widths = [2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024]
@@ -31,14 +42,65 @@ class Data2(File):
                                         "5000 Hz  1024x60",
                                         "7500 Hz  1024x40"]
 
-        self.sync_defaults_into_hardware()
+        self.sync_hardware_from_metadata()
 
+    def sync_analysis_from_metadata(self):
+        pass
+
+    def sync_hardware_from_metadata(self):
+        if self.get_is_loaded_from_file():
+            print("Settings loaded from data file will be overwritten with currnet hardware settings.")
+            self.set_is_loaded_from_file(False)
+
+        # Settings that don't matter to File
+        self.set_camera_program(self.db.meta.camera_program, force_resize=True)
+        self.set_num_dark_rli(280, force_resize=True)  # currently not user-configurable
+        self.set_num_light_rli(200, force_resize=True)  # currently not user-configurable
+
+        self.hardware.set_num_pulses(value=self.db.meta.num_pulses[0],
+                                     channel=1)
+        self.hardware.set_num_pulses(value=self.db.meta.num_pulses[1],
+                                     channel=2)
+
+        self.hardware.set_int_pulses(value=self.db.meta.int_pulses[0],
+                                     channel=1)
+        self.hardware.set_int_pulses(value=self.db.meta.int_pulses[1],
+                                     channel=2)
+
+        self.hardware.set_num_bursts(value=self.db.meta.num_bursts[0],
+                                     channel=1)
+        self.hardware.set_num_bursts(value=self.db.meta.num_bursts[1],
+                                     channel=2)
+
+        self.hardware.set_int_bursts(value=self.db.meta.int_bursts[0],
+                                     channel=1)
+        self.hardware.set_int_bursts(value=self.db.meta.int_bursts[1],
+                                     channel=2)
+
+        self.hardware.set_acqui_onset(acqui_onset=self.db.meta.acqui_onset)
+
+        self.hardware.set_stim_onset(value=self.db.meta.stim_onset[0],
+                                     channel=1)
+        self.hardware.set_stim_onset(value=self.db.meta.stim_onset[1],
+                                     channel=2)
+        self.hardware.set_stim_duration(value=self.db.meta.stim_duration[0],
+                                        channel=1)
+        self.hardware.set_stim_duration(value=self.db.meta.stim_duration[1],
+                                        channel=2)
+
+    def set_meta(self, meta):
+        """ Given a Metadata class instance, replace in current settings
+            The GUI will update itself after the call to here returns """
+        self.db.meta = meta
+        self.core.meta = meta
+        self.sync_hardware_from_metadata()
+        self.sync_analysis_from_metadata()
 
     def find_unused_filenames(self, extensions=('.npy', '.pbz2'), path=None):
         # gets filenames to save to, avoiding overwrites, recognizing all extensions
-        filenames = [self.get_filename(self.current_slice,
-                                       self.current_location,
-                                       self.current_record,
+        filenames = [self.get_filename(self.db.meta.current_slice,
+                                       self.db.meta.current_location,
+                                       self.db.meta.current_record,
                                        ext,
                                        path=path)
                      for ext in extensions]
@@ -46,9 +108,9 @@ class Data2(File):
         while any([self.file_exists(fn) for fn in filenames]):
             self.set_override_filename(None)
             self.increment_record()
-            filenames = [self.get_filename(self.current_slice,
-                                           self.current_location,
-                                           self.current_record,
+            filenames = [self.get_filename(self.db.meta.current_slice,
+                                           self.db.meta.current_location,
+                                           self.db.meta.current_record,
                                            ext,
                                            path=path)
                          for ext in extensions]
@@ -56,78 +118,139 @@ class Data2(File):
 
     def save_metadata_to_file(self, filename):
         """ Pickle the instance of Metadata class """
-        self.dump_python_object_to_pickle(filename, self.meta,)
+        self.dump_python_object_to_pickle(filename, self.db.meta)
 
     def load_metadata_from_file(self, filename):
         """ Read instance of Metadata class and load into usage"""
-        self.meta = self.retrieve_python_object_from_pickle(filename)
+        self.db.meta = self.retrieve_python_object_from_pickle(filename)
 
+    def get_record_array_shape(self):
+        return (self.get_num_trials(),
+                2,
+                self.get_num_pts(),
+                self.get_display_height(),
+                self.get_display_width())
 
-class Data:
+    def get_slice_num(self):
+        return self.db.meta.current_slice
 
-    def __init__(self, hardware):
-        self.hardware = hardware
-        self.num_trials = 5
-        self.int_trials = 10  # ms
-        self.num_records = 1
-        self.int_records = 15  # seconds
+    def get_location_num(self):
+        return self.db.meta.current_location
 
-        self.current_trial_index = 0
+    def get_record_num(self):
+        return self.db.meta.current_record
 
-        self.num_fp_pts = None  # will default to 4 unless loaded from file
+    def increment_slice(self, num=1):
+        self.db.meta.current_slice += num
+        self.db.meta.current_location = 0
+        self.db.meta.current_record = 0
+        self.db.meta.data.set_current_trial_index(0)
 
-        self.file_metadata = {}
+    def increment_location(self, num=1):
+        self.db.meta.current_location += num
+        self.db.meta.current_record = 0
+        self.set_current_trial_index(0)
 
-        # Little Dave reference data
-        self.display_widths = [2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024]
-        self.display_heights = [1024, 100, 320, 160, 160, 80, 60, 40]
-        self.display_camera_programs = ["200 Hz   2048x1024",
-                                        "2000 Hz  2048x100",
-                                        "1000 Hz  1024x320",
-                                        "2000 Hz  1024x160",
-                                        "2000 Hz  1024x160",
-                                        "4000 Hz  1024x80",
-                                        "5000 Hz  1024x60",
-                                        "7500 Hz  1024x40"]
+    def increment_record(self, num=1):
+        self.db.meta.current_record += num
+        self.set_current_trial_index(0)
 
-        # Management and Automation
-        self.schedule_rli_flag = False  # TO DO: include take RLI and division
-        self.auto_save_data = False
+    def decrement_slice(self, num=1):
+        self.db.meta.current_slice -= num
+        if self.db.meta.current_slice >= 0:
+            self.db.meta.current_location = 0
+            self.db.meta.current_record = 0
+            self.set_current_trial_index(0)
+        else:
+            self.db.meta.current_slice = 0
 
-        # Analysis
-        self.core = AnalysisCore()
+    def decrement_location(self, num=1):
+        self.db.meta.current_location -= num
+        if self.db.meta.current_location >= 0:
+            self.db.meta.current_record = 0
+            self.set_current_trial_index(0)
+        else:
+            self.db.meta.current_location = 0
 
-        # Memory
-        self.rli_images = None
-        self.acqui_images = None
-        self.fp_data = None
-        self.livefeed_frame = None
+    def decrement_record(self, num=1):
+        self.db.meta.current_record -= 1
 
-        # Settings
-        self.is_loaded_from_file = False
-        self.is_live_feed_enabled = False
-        self.display_value_option_index = 0
+    def set_slice(self, v):
+        if v > self.db.meta.current_slice:
+            self.db.meta.increment_slice(v - self.db.meta.current_slice)
+        elif v < self.db.meta.current_slice:
+            self.db.meta.decrement_slice(self.db.meta.current_slice - v)
 
-        self.auto_save_enabled = True
-        self.schedule_rli_enabled = False
-        self.is_rli_division_enabled = True
-        self.is_data_inverse_enabled = True
+    def set_record(self, v):
+        if v > self.db.meta.current_record:
+            self.db.meta.increment_record(v - self.db.meta.current_record)
+        elif v < self.db.meta.current_record:
+            self.db.meta.decrement_record(self.db.meta.current_record - v)
 
-        self.sync_defaults_into_hardware()
+    def set_location(self, v):
+        if v > self.db.meta.current_location:
+            self.db.meta.increment_location(v - self.db.meta.current_location)
+        if v < self.db.meta.current_location:
+            self.db.meta.decrement_location(self.db.meta.current_location - v)
 
-        # Time Window cropping
-        self.crop_window = [0, -1]
+    # This is the allocated memory size, not necessarily the current camera state
+    # However, the Hardware class should be prepared to init camera to this width
+    def get_display_width(self):
+        if self.get_is_loaded_from_file():
+            return self.db.meta.width
+        return self.display_widths[self.get_camera_program()]
+
+    # This is the allocated memory size, not necessarily the current camera state
+    # However, the Hardware class should be prepared to init camera to this height
+    def get_display_height(self):
+        if self.get_is_loaded_from_file():
+            return self.db.meta.height
+        return self.display_heights[self.get_camera_program()]
+
+    ''' Attributes controlled at Data level '''
+
+    def get_num_fp(self):
+        if self.get_is_loaded_from_file():
+            return self.db.meta.num_fp
+        return 4  # Little Dave: Fixed at 4 field potential measurements with NI-USB
+
+    def set_num_fp(self, value):
+        self.db.meta.num_fp = value
+
+    def set_camera_program(self, program, force_resize=False):
+        curr_program = self.hardware.get_camera_program()
+        if force_resize or curr_program != program:
+            self.hardware.set_camera_program(program=program)
+            self.db.meta.camera_program = program
+            self.db.meta.width = self.get_display_width()
+            self.db.meta.height = self.get_display_height()
+            self.db.clear_or_resize_mmap_file()
+
+    def get_camera_program(self):
+        if self.get_is_loaded_from_file():
+            return self.db.meta.camera_program
+        return self.hardware.get_camera_program()
 
     def set_crop_window(self, v, index=None):
         if index is None:
-            self.crop_window = v
+            self.db.meta.crop_window = v
         elif index == 0 or index == 1:
-            self.crop_window[index] = v
+            self.db.meta.crop_window[index] = v
 
     def get_crop_window(self, index=None):
         if index is None:
-            return self.crop_window
-        return self.crop_window[index]
+            return self.db.meta.crop_window
+        return self.db.meta.crop_window[index]
+
+    def get_num_pts(self):
+        if self.get_is_loaded_from_file():
+            return self.db.meta.num_pts
+        return self.hardware.get_num_pts()
+
+    def get_num_pulses(self, ch):
+        if self.get_is_loaded_from_file():
+            return self.db.meta.num_pulses[ch - 1]
+        return self.hardware.get_num_pulses(channel=ch)
 
     # The purpose of this linspace is to
     # allow us to remove trace points without
@@ -142,102 +265,27 @@ class Data:
                            end_frames * int_pts,
                            end_frames - start_frames)
 
-    def sync_defaults_into_hardware(self):
-        if self.get_is_loaded_from_file():
-            print("Settings loaded from data file will be overwritten with currnet hardware settings.")
-            self.set_is_loaded_from_file(False)
-
-        # Settings that don't matter to File
-        self.set_camera_program(7, force_resize=True)
-        self.set_num_dark_rli(280, force_resize=True)
-        self.set_num_light_rli(200, force_resize=True)
-
-        self.hardware.set_num_pulses(value=1,
-                                     channel=1)
-        self.hardware.set_num_pulses(value=1,
-                                     channel=2)
-
-        self.hardware.set_int_pulses(value=15,
-                                     channel=1)
-        self.hardware.set_int_pulses(value=15,
-                                     channel=2)
-
-        self.hardware.set_num_bursts(value=1,
-                                     channel=1)
-        self.hardware.set_num_bursts(value=1,
-                                     channel=2)
-
-        self.hardware.set_int_bursts(value=15,
-                                     channel=1)
-        self.hardware.set_int_bursts(value=15,
-                                     channel=2)
-
-        self.hardware.set_acqui_onset(acqui_onset=0)
-
-        self.hardware.set_stim_onset(value=0,
-                                     channel=1)
-        self.hardware.set_stim_onset(value=0,
-                                     channel=2)
-        self.hardware.set_stim_duration(value=1,
-                                        channel=1)
-        self.hardware.set_stim_duration(value=1,
-                                        channel=2)
-
     # We allocate twice the memory since C++ needs room for CDS subtraction
     def allocate_image_memory(self):
         w = self.get_display_width()
         h = self.get_display_height()
+
+        # raw RLI frames are not written to file or even shown.
+        # We will calculate averages before writing in metadata.
         self.rli_images = np.zeros((self.get_num_trials(),
                                     2,
                                     self.get_num_rli_pts(),
                                     h,
                                     w,),
                                    dtype=np.uint16)
-        self.acqui_images = np.zeros((self.get_num_trials(),
-                                      2,  # extra mem for C++ reassembly
-                                      self.get_num_pts(),
-                                      h,
-                                      w),
-                                     dtype=np.uint16)
-        self.fp_data = np.zeros((self.get_num_trials(),
-                                 self.get_num_pts(),
-                                 self.get_num_fp()),
-                                dtype=np.int16)
+        self.db.meta.fp_data = np.zeros((self.get_num_trials(),
+                                         self.get_num_pts(),
+                                         self.get_num_fp()),
+                                        dtype=np.int16)
 
-    def set_camera_program(self, program, force_resize=False):
-        curr_program = self.hardware.get_camera_program()
-        if force_resize or curr_program != program:
-            self.hardware.set_camera_program(program=program)
-            self.resize_image_memory()
+        self.db.clear_or_resize_mmap_file()
 
-    def get_camera_program(self):
-        if self.get_is_loaded_from_file():
-            return self.file_metadata['camera_program']
-        return self.hardware.get_camera_program()
-
-    def resize_image_memory(self):
-        w = self.get_display_width()
-        h = self.get_display_height()
-        if self.rli_images is not None and self.acqui_images is not None:
-
-            self.rli_images = np.resize(self.rli_images, (self.get_num_trials(),
-                                                          2,
-                                                          self.get_num_rli_pts(),
-                                                          h,
-                                                          w))
-            self.acqui_images = np.resize(self.acqui_images, (self.get_num_trials(),
-                                                              2,
-                                                              self.get_num_pts(),
-                                                              h,
-                                                              w))
-            self.fp_data = np.resize(self.fp_data,
-                                     (self.get_num_trials(),
-                                      self.get_num_fp(),
-                                      self.get_num_pts()))
-
-        else:
-            self.allocate_image_memory()
-
+    # Move to GUI? or FV?
     # Based on system state, create/get the frame that should be displayed.
     # index can be an integer or a list of [start:end] over which to average
     def get_display_frame(self, index=None, get_rli=False, binning=1, raw_override=False):
@@ -320,6 +368,7 @@ class Data:
             return None
         return mask
 
+    # Move to GUI? or TV?
     # returns a Trace object representing trace
     def get_display_trace(self, index=None, fp_index=None):
         trial = self.get_current_trial_index()
@@ -367,104 +416,30 @@ class Data:
 
         return ret_trace
 
-    # Returns the full (x2) memory for hardware to use
-    def get_acqui_memory(self):
-        trial = self.get_current_trial_index()
-        if self.acqui_images is None:
-            self.allocate_image_memory()
-        if trial is None:
-            return self.acqui_images
-        return self.acqui_images[trial, :, :, :, :]
-
-    # Returns the full (x2) memory for hardware to use
-    def get_rli_memory(self):
-        trial = self.get_current_trial_index()
-        if self.rli_images is None:
-            self.allocate_image_memory()
-        if trial is None:
-            return self.rli_images
-        return self.rli_images[trial, :, :, :, :]
-
     def get_fp_data(self):
         trial = self.get_current_trial_index()
-        if self.fp_data is None:
-            self.allocate_image_memory()
-        if self.fp_data is None:
-            self.fp_data = np.zeros((self.get_num_trials(),
-                                     self.get_num_pts(),
-                                     self.get_num_fp()),
-                                    dtype=np.int16)
-        if trial is None or self.get_is_loaded_from_file() or len(self.fp_data.shape) < 3:
-            return self.fp_data
-        return self.fp_data[trial, :, :]
+        if self.db.meta.fp_data is None:
+            self.db.meta.fp_data = np.zeros((self.get_num_trials(),
+                                             self.get_num_pts(),
+                                             self.get_num_fp()),
+                                            dtype=np.int16)
+        if trial is None:
+            return self.db.meta.fp_data
+        return self.db.meta.fp_data[trial, :, :]
 
     def get_acqui_images(self):
         trial = self.get_current_trial_index()
-        if self.acqui_images is None:
-            return None
-        if self.get_is_loaded_from_file():
-            if trial is None or len(self.acqui_images.shape) < 4:
-                return self.acqui_images
-            else:
-                return self.acqui_images[trial]
-
         if trial is None:
-            return self.acqui_images[:, 0, :, :, :]
+            return self.db.load_data_raw()
         else:
-            return self.acqui_images[trial, 0, :, :, :]
+            return self.db.load_trial_data_raw(trial)
 
     def get_rli_images(self):
         trial = self.get_current_trial_index()
-        if self.rli_images is None:
-            return None
-        if self.get_is_loaded_from_file():
-            if type(self.rli_images) == dict and 'rli_low' in self.rli_images:
-                h, w = self.rli_images['rli_low'].shape
-                return np.concatenate((self.rli_images['rli_low'].reshape(1, h, w),
-                                       self.rli_images['rli_high'].reshape(1, h, w),
-                                       self.rli_images['rli_max'].reshape(1, h, w)),
-                                      axis=0)
-            return self.rli_images
         if trial is None:
             return self.rli_images[:, 0, :, :, :]
         else:
             return self.rli_images[trial, 0, :, :, :]
-
-    def clear_data_memory(self):
-        # deleting the refs may trigger garbage collection (ideally)
-        del self.acqui_images
-        del self.rli_images
-        del self.fp_data
-        self.rli_images = None
-        self.acqui_images = None
-        self.fp_data = None
-
-    # trial is ignored if data is from file
-    def set_acqui_images(self, data, from_file=False):
-        trial = self.get_current_trial_index()
-        self.set_is_loaded_from_file(from_file)
-        if from_file:
-            self.acqui_images = data
-            return
-        if trial is None:
-            self.acqui_images[:, 0, :, :, :] = data[:, :, :, :]
-        else:
-            if len(data.shape) > 3:
-                self.acqui_images[trial, 0, :, :, :] = data[trial, :, :, :]
-            else:
-                self.acqui_images[trial, 0, :, :, :] = data[:, :, :]
-
-    # trial is ignored if data is from file
-    def set_rli_images(self, data, from_file=False):
-        trial = self.get_current_trial_index()
-        self.set_is_loaded_from_file(from_file)
-        if from_file:
-            self.rli_images = data
-        elif trial is not None:
-            self.rli_images[trial, 0, :, :, :] = data[:, :, :]
-
-    def set_fp_data(self, data):
-        self.fp_data = data
 
     def set_num_pts(self, value=1, force_resize=False):
         if type(value) != int or value < 1:
@@ -473,45 +448,45 @@ class Data:
         if force_resize or tmp != value:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.acqui_images, (self.get_num_trials(),
-                                          2,  # extra mem for C++ reassembly
-                                          self.get_num_pts(),
-                                          w,
-                                          h))
-            self.fp_data = np.resize(self.fp_data,
+            self.db.clear_or_resize_mmap_file()
+            self.db.meta.fp_data = np.resize(self.db.meta.fp_data,
                                      (self.get_num_trials(),
                                       self.get_num_fp(),
                                       self.get_num_pts()))
             self.hardware.set_num_pts(value=value)
 
+    # Populate meta.rli_high from RLI raw frames
     def calculate_light_rli_frame(self, margins=40):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
-        if self.get_is_loaded_from_file():
-            return self.get_rli_images()[1, :, :]
+        if self.get_is_loaded_from_file() or self.db.meta.rli_high is not None:
+            return self.db.meta.rli_high
         n = self.get_num_rli_pts()
-        rli_light_frames = self.get_rli_images()[d+margins+1:n-1-margins, :, :]
+        rli_light_frames = self.get_rli_images()[d + margins + 1:n - 1 - margins, :, :]
         if rli_light_frames is None:
             return None
-        return np.average(rli_light_frames, axis=0)
+        self.db.meta.rli_high = np.average(rli_light_frames, axis=0)
+        return self.db.meta.rli_high
 
     def calculate_dark_rli_frame(self, margins=40):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
-        if self.get_is_loaded_from_file():
-            return self.get_rli_images()[0, :, :]
-        rli_dark_frames = self.get_rli_images()[margins+1:d-margins-1, :, :]
+        if self.get_is_loaded_from_file() or self.db.meta.rli_low is not None:
+            return self.db.meta.rli_low
+        rli_dark_frames = self.get_rli_images()[margins + 1:d - margins - 1, :, :]
         if rli_dark_frames is None:
             return None
-        return np.average(rli_dark_frames, axis=0)
+        self.db.meta.rli_low = np.average(rli_dark_frames, axis=0)
+        return self.db.meta.rli_low
 
     def calculate_max_rli_frame(self):
-        if self.get_is_loaded_from_file():
-            return self.get_rli_images()[2, :, :]
+        if self.get_is_loaded_from_file()  or self.db.meta.rli_max is not None:
+            return self.db.meta.rli_max
         rli_frames = self.get_rli_images()
-        return np.max(rli_frames, axis=0)
+        self.db.meta.rli_max = np.max(rli_frames, axis=0)
+        return self.db.meta.rli_max
 
     def calculate_rli(self):
         light = self.calculate_light_rli_frame()
@@ -546,64 +521,33 @@ class Data:
                                         h))
             self.hardware.set_num_light_rli(light_rli=light_rli)
 
-    # This is the allocated memory size, not necessarily the current camera state
-    # However, the Hardware class should be prepared to init camera to this width
-    def get_display_width(self):
-        if self.get_is_loaded_from_file():
-            w = self.file_metadata['raw_width']
-            if w < 1:
-                w = self.get_acqui_images().shape[-2]
-            return w
-        return self.display_widths[self.get_camera_program()]
 
-    # This is the allocated memory size, not necessarily the current camera state
-    # However, the Hardware class should be prepared to init camera to this height
-    def get_display_height(self):
-        if self.get_is_loaded_from_file():
-            h = self.file_metadata['raw_height']
-            if h < 1:
-                h = self.get_acqui_images().shape[-1]
-            return h
-        return self.display_heights[self.get_camera_program()]
-
-    ''' Attributes controlled at Data level '''
-
-    def get_num_fp(self):
-        if self.get_is_loaded_from_file():
-            if 'num_fp' in self.file_metadata:
-                return self.file_metadata['num_fp']
-        return 4  # Little Dave: Fixed at 4 field potential measurements with NI-USB
-
-    def set_num_fp(self, value):
-        self.num_fp_pts = value
 
     def get_num_trials(self):
-        if self.get_is_loaded_from_file() and 'num_trials' in self.file_metadata:
-            return self.file_metadata['num_trials']
-        return self.num_trials
+        return self.db.meta.num_trials
 
     def set_num_trials(self, value):
-        self.num_trials = value
+        self.db.meta.num_trials = value
 
     def get_int_trials(self):
-        if self.get_is_loaded_from_file() and 'int_trials' in self.file_metadata:
-            return self.file_metadata['int_trials']
-        return self.int_trials
+        return self.db.meta.int_trials
 
     def set_int_trials(self, value):
-        self.int_trials = value
+        self.db.meta.int_trials = value
+
+
 
     def get_num_records(self):
-        return self.num_records
+        return self.db.meta.num_records
 
     def set_num_records(self, value):
-        self.num_records = value
+        self.db.meta.num_records = value
 
     def get_int_records(self):
-        return self.int_records
+        return self.db.meta.int_records
 
     def set_int_records(self, value):
-        self.int_records = value
+        self.db.meta.int_records = value
 
     def get_is_loaded_from_file(self):
         return self.is_loaded_from_file
@@ -612,72 +556,47 @@ class Data:
         self.is_loaded_from_file = value
 
     def get_is_auto_save_enabled(self):
-        return self.auto_save_enabled
+        return self.db.meta.auto_save_enabled
 
     def set_is_auto_save_enabled(self, value):
-        self.auto_save_enabled = value
+        self.db.meta.auto_save_enabled = value
 
     def get_is_schedule_rli_enabled(self):
-        return self.schedule_rli_enabled
+        return self.db.meta.schedule_rli_enabled
 
     def set_is_schedule_rli_enabled(self, value):
-        self.schedule_rli_enabled = value
+        self.db.meta.schedule_rli_enabled = value
 
     ''' Attributes controlled at Hardware level '''
 
     def get_int_pts(self):
-        if self.get_is_loaded_from_file() and 'int_pts' in self.file_metadata:
-            int_pts = self.file_metadata['int_pts']
-            if int_pts > 0:
-                return int_pts
+        if self.get_is_loaded_from_file():
+            return self.db.meta.int_pts
         return self.hardware.get_int_pts()
 
-    # Is this even needed?
-    def get_duration(self):
-        return self.hardware.get_duration()
-
     def get_acqui_duration(self):
+        if self.get_is_loaded_from_file():
+            return self.db.meta.num_pts * self.db.meta.int_pts
         return self.hardware.get_acqui_duration()
 
-    def get_num_pts(self):
-        if self.get_is_loaded_from_file():
-            num_pts = 0
-            if 'points_per_trace' in self.file_metadata:
-                num_pts = self.file_metadata['points_per_trace']
-            elif 'num_pts' in self.file_metadata:
-                num_pts = self.file_metadata['num_pts']
-            if num_pts > 0:
-                return num_pts
-            else:
-                return self.get_acqui_images().shape[-3]
-        return self.hardware.get_num_pts()
-
     def get_num_rli_pts(self):
-        if self.get_is_loaded_from_file():
-            if 'rli_pts_dark' in self.file_metadata and 'rli_pts_light' in self.file_metadata:
-                return self.file_metadata['rli_pts_dark'] + self.file_metadata['rli_pts_light']
-            else:
-                return 3  # legacy ZDA format
         return self.hardware.get_num_dark_rli() + self.hardware.get_num_light_rli()
-
-    def get_num_pulses(self, ch):
-        return self.hardware.get_num_pulses(channel=ch)
 
     def get_acqui_onset(self):
         if self.get_is_loaded_from_file():
-            return self.file_metadata['acquisition_onset']
+            return self.db.meta.acqui_onset
         return self.hardware.get_acqui_onset()
 
     def get_stim_onset(self, ch):
         if ch == 1 or ch == 2:
             if self.get_is_loaded_from_file():
-                return self.file_metadata['stimulation' + str(ch) + '_onset']
+                return self.db.meta.stim_onset[ch-1]
             return self.hardware.get_stim_onset(channel=ch)
 
     def get_stim_duration(self, ch):
         if ch == 1 or ch == 2:
             if self.get_is_loaded_from_file():
-                return self.file_metadata['stimulation' + str(ch) + '_duration']
+                return self.db.meta.stim_duration[ch-1]
             return self.hardware.get_stim_duration(channel=ch)
 
     def get_current_trial_index(self):
@@ -694,16 +613,16 @@ class Data:
         self.current_trial_index = max(self.current_trial_index - 1, 0)
 
     def get_is_rli_division_enabled(self):
-        return self.is_rli_division_enabled
+        return self.db.meta.is_rli_division_enabled
 
     def set_is_rli_division_enabled(self, v):
-        self.is_rli_division_enabled = v
+        self.db.meta.is_rli_division_enabled = v
 
     def get_is_data_inverse_enabled(self):
-        return self.is_data_inverse_enabled
+        return self.db.meta.is_data_inverse_enabled
 
     def set_is_data_inverse_enabled(self, v):
-        self.is_data_inverse_enabled = v
+        self.db.meta.is_data_inverse_enabled = v
 
     def get_is_livefeed_enabled(self):
         return self.is_live_feed_enabled
@@ -712,10 +631,10 @@ class Data:
         self.is_live_feed_enabled = v
 
     def get_display_value_option_index(self):
-        return self.display_value_option_index
+        return self.db.meta.display_value_option_index
 
     def set_display_value_option_index(self, v):
-        self.display_value_option_index = v
+        self.db.meta.display_value_option_index = v
 
     def get_livefeed_frame(self):
         if self.get_is_livefeed_enabled():
