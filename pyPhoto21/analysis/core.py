@@ -1,7 +1,9 @@
 import numpy as np
-
+import threading
 from skimage.transform import downscale_local_mean
 import cv2 as cv
+
+from pyPhoto21.analysis.process import Processor
 
 
 # Analysis functionality shared by many features
@@ -10,11 +12,9 @@ class AnalysisCore:
     def __init__(self, meta):
 
         self.meta = meta  # Metadata object.
+        self.full_data_processor = Processor()
 
         # Filtering settings
-        self.is_temporal_filer_enabled = False
-        self.temporal_filter_radius = 25.0
-        self.temporal_filter_type_index = 0
         self.temporal_filter_options = [
             'None',
             'Gaussian',
@@ -23,8 +23,6 @@ class AnalysisCore:
             'Binomial-6',
             'Binomial-4',
         ]
-        self.is_spatial_filer_enabled = False
-        self.spatial_filter_sigma = 1.0
 
         # Baseline Correction settings
         self.baseline_correction_options = [
@@ -35,66 +33,61 @@ class AnalysisCore:
             'Quadratic',
             'Cubic'
         ]
-        self.baseline_correction_type_index = 0
-        self.baseline_skip_window = [94, 134]
-
-        # Time window selection
-        self.time_window = [0, -1]
 
         # Display frame cached by analysis submodules
         self.current_processed_frame = None
         self.show_processed_data = False
 
+        # Start data processor listening for jobs in background
+        threading.Thread(target=self.full_data_processor.process_continually, args=(), daemon=True).start()
+
+    def is_processed_data_up_to_date(self):
+        return not self.full_data_processor.get_is_data_up_to_date()
+
+    def stop_background_processing(self):
+        self.full_data_processor.stop_processor()
+
     def set_is_temporal_filter_enabled(self, v):
-        self.is_temporal_filer_enabled = v
+        self.meta.is_temporal_filer_enabled = v
 
     def get_is_temporal_filter_enabled(self):
-        return self.is_temporal_filer_enabled
+        return self.meta.is_temporal_filer_enabled
 
     def get_temporal_filter_radius(self):
-        return self.temporal_filter_radius
+        return self.meta.temporal_filter_radius
 
     def set_temporal_filter_radius(self, v):
-        self.temporal_filter_radius = v
+        self.meta.temporal_filter_radius = v
 
     def get_temporal_filter_options(self):
         return self.temporal_filter_options
 
     def get_temporal_filter_index(self):
-        return self.temporal_filter_type_index
+        return self.meta.temporal_filter_type_index
 
     def set_temporal_filter_index(self, v):
-        self.temporal_filter_type_index = v
+        self.meta.temporal_filter_type_index = v
 
     def set_is_spatial_filter_enabled(self, v):
-        self.is_spatial_filer_enabled = v
+        self.meta.is_spatial_filer_enabled = v
 
     def get_is_spatial_filter_enabled(self):
-        return self.is_spatial_filer_enabled
+        return self.meta.is_spatial_filer_enabled
 
     def set_spatial_filter_sigma(self, v):
-        self.spatial_filter_sigma = v
+        self.meta.spatial_filter_sigma = v
 
     def get_spatial_filter_sigma(self):
-        return self.spatial_filter_sigma
+        return self.meta.spatial_filter_sigma
 
     def get_baseline_correction_options(self):
         return self.baseline_correction_options
 
     def get_baseline_correction_type_index(self):
-        return self.baseline_correction_type_index
+        return self.meta.baseline_correction_type_index
 
     def set_baseline_correction_type_index(self, v):
-        self.baseline_correction_type_index = v
-
-    def get_time_window(self):
-        return self.time_window
-
-    def set_time_window_start(self, v):
-        self.time_window[0] = v
-
-    def set_time_window_end(self, v):
-        self.time_window[1] = v
+        self.meta.baseline_correction_type_index = v
 
     def get_processed_display_frame(self):
         return self.current_processed_frame
@@ -122,6 +115,9 @@ class AnalysisCore:
             The temporal axis is assumed to be the third from the end. """
         return np.mean(data, axis=-3) / np.std(data, axis=-3)
 
+    def full_binning_(self):
+        j = Job(self.create_binned_data, )
+
     @staticmethod
     def create_binned_data(data, binning_factor=2):
         """ binning utility function """
@@ -145,10 +141,10 @@ class AnalysisCore:
 
     def set_baseline_skip_window(self, kind, index, value):
         if index == 0 or index == 1:
-            self.baseline_skip_window[index] = value
+            self.meta.baseline_skip_window[index] = value
 
     def get_baseline_skip_window(self):
-        return self.baseline_skip_window
+        return self.meta.baseline_skip_window
 
     @staticmethod
     def get_half_width(location, trace):

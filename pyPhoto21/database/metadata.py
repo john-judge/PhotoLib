@@ -32,6 +32,7 @@ class Metadata:
         self.version = 6  # Little Dave version
 
         # Larger data
+        # There's only 1 RLI recording per set of trials
         self.rli_low = None
         self.rli_high = None
         self.rli_max = None
@@ -58,4 +59,11 @@ class Metadata:
         # FrameViewer settings
 
         # Analysis Settings
+        self.baseline_correction_type_index = 0
+        self.baseline_skip_window = [94, 134]
+        self.is_temporal_filer_enabled = False
+        self.temporal_filter_radius = 25.0
+        self.temporal_filter_type_index = 0
+        self.is_spatial_filer_enabled = False
+        self.spatial_filter_sigma = 1.0
 

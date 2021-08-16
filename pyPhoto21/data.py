@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from matplotlib.path import Path
 
@@ -7,6 +9,7 @@ from pyPhoto21.database.database import Database
 from pyPhoto21.database.file import File
 from pyPhoto21.database.legacy import LegacyData
 from pyPhoto21.database.metadata import Metadata
+from pyPhoto21.analysis.process import Processor, Job
 
 
 # This class will supersede Data...
@@ -19,6 +22,7 @@ class Data(File):
         self.hardware = hardware
         self.db = Database()
         self.core = AnalysisCore(self.db.meta)
+        self.full_data_processor = Processor()
         super().__init__(self.db.meta)
 
         # Internal (non-user facing) settings and flags
@@ -52,6 +56,7 @@ class Data(File):
 
     def sync_analysis_from_metadata(self):
         pass
+        # give jobs to processor
 
     # numpy autosaves the image arrays; only need to save meta actively
     def save_metadata_to_compressed_file(self):
@@ -340,8 +345,7 @@ class Data(File):
 
         # raw RLI frames are not written to file or even shown.
         # We will calculate averages before writing in metadata.
-        self.rli_images = np.zeros((self.get_num_trials(),
-                                    2,
+        self.rli_images = np.zeros((2,
                                     self.get_num_rli_pts(),
                                     h,
                                     w,),
@@ -504,12 +508,17 @@ class Data(File):
         else:
             return self.db.load_trial_data_raw(trial)
 
-    def get_rli_images(self):
+    def get_processed_images(self, blocking=True):
         trial = self.get_current_trial_index()
+        while blocking and not self.core.full_data_processor.get_is_data_up_to_date():
+            time.sleep(0.2)
         if trial is None:
-            return self.rli_images[:, 0, :, :, :]
+            return self.db.load_data_processed()
         else:
-            return self.rli_images[trial, 0, :, :, :]
+            return self.db.load_trial_data_processed(trial)
+
+    def get_rli_images(self):
+        return self.rli_images[0, :, :, :]
 
     def set_num_pts(self, value=1, force_resize=False, prevent_resize=False):
         if type(value) != int or value < 1:
@@ -572,8 +581,7 @@ class Data(File):
         if (force_resize or tmp != dark_rli) and not prevent_resize:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (self.get_num_trials(),
-                                        2,
+            np.resize(self.rli_images, (2,
                                         self.get_num_rli_pts(),
                                         w,
                                         h))
@@ -584,8 +592,7 @@ class Data(File):
         if (force_resize or tmp != light_rli) and not prevent_resize:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (self.get_num_trials(),
-                                        2,  # extra mem for C++ reassembly
+            np.resize(self.rli_images, (2,  # extra mem for C++ reassembly
                                         self.get_num_rli_pts(),
                                         w,
                                         h))

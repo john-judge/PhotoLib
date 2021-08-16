@@ -43,8 +43,8 @@ class Database(File):
         arr_shape = (self.meta.num_trials,
                      2,
                      self.meta.num_pts,
-                     self.meta.width,
-                     self.meta.height)
+                     self.meta.height,
+                     self.meta.width)
         self.memmap_file = np.memmap(fn,
                                      dtype=np.uint16,
                                      mode=mode,

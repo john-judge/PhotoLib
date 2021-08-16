@@ -6,9 +6,10 @@ from queue import Queue
 
 class Processor:
     """ Processes data in background """
-    def __init__(self):
-        self.queued_jobs = Queue()
-        self.is_active = True
+    def __init__(self, db):
+        self.db = db
+        self.dirty = False  # True if processing settings have been updated
+        self.is_active = False
         self.sleep_interval = 2.0
         self.stop_worker_flag = False
 
@@ -17,31 +18,41 @@ class Processor:
         while self.stop_worker_flag:
             time.sleep(1)
 
+    # call this to signal processor to start its workflow
+    # from the top
+    def update_full_processed_data(self):
+        self.dirty = True
+
     # Launch this looped worker as separate thread
     def process_continually(self):
         while not self.stop_worker_flag:
-            if self.queued_jobs.empty():
+            if not self.dirty:
                 self.is_active = False
                 time.sleep(self.sleep_interval * 3)
             else:
                 self.is_active = True
-                job = self.queued_jobs.get()
-                job.process()
+                self.process()
+                self.is_active = False
+                self.dirty = False
 
             time.sleep(self.sleep_interval)
 
-    def get_is_active(self):
-        return self.is_active
-
-    def submit_processing_job(self, job):
-        self.queued_jobs.put(job)
-
-
-class Job:
-    def __init__(self, fns_to_call, args_to_call):
-        self.functions = fns_to_call
-        self.args = args_to_call
+    def get_is_data_up_to_date(self):
+        return not self.is_active and not self.dirty
 
     def process(self):
-        for i in range(len(self.functions)):
-            self.functions[i](self.args[i])
+        raw = self.db.load_data_raw()
+        process = self.db.load_data_processed()
+
+        # RLI division
+
+        # data inversing
+
+        # baseline correction
+
+        # binning
+
+        # spatial filter
+
+        # temporal filter
+
