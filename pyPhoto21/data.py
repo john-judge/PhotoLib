@@ -324,17 +324,19 @@ class Data(File):
             return self.core.get_processed_display_frame()
         images = None
         if get_rli:
-            images = self.get_rli_images()
+            images = self.calculate_rli()
         else:
             images = self.get_acqui_images()
         if images is None:
             return None
-        if len(images.shape) != 3:
+        if not get_rli and len(images.shape) != 3:
             print("Issue in data.py: get display frame image shape:", images.shape)
             return None
 
         ret_frame = None
-        if type(index) == int and (index < images.shape[0]) and index >= 0:
+        if get_rli:
+            ret_frame = images
+        elif type(index) == int and (index < images.shape[0]) and index >= 0:
             ret_frame = images[index, :, :]
         elif type(index) == list and len(index) == 2:
             ret_frame = np.average(images[index[0]:index[1], :, :], axis=0)
@@ -510,7 +512,7 @@ class Data(File):
         return self.db.meta.rli_low
 
     def calculate_max_rli_frame(self):
-        if self.get_is_loaded_from_file()  or self.db.meta.rli_max is not None:
+        if self.get_is_loaded_from_file() or self.db.meta.rli_max is not None:
             return self.db.meta.rli_max
         rli_frames = self.get_rli_images()
         self.db.meta.rli_max = np.max(rli_frames, axis=0)
@@ -520,9 +522,11 @@ class Data(File):
         light = self.calculate_light_rli_frame()
         dark = self.calculate_dark_rli_frame()
         if light is None or dark is None:
-            return None
+            return np.zeros((self.get_display_height(),
+                             self.get_display_width()),
+                            dtype=np.uint16)
         diff = (light - dark).astype(np.float32)
-        diff[diff == 0] = 0.0001  # avoid div by 0
+        diff[diff == 0] = 0.000001  # avoid div by 0
         return diff
 
     def set_num_dark_rli(self, dark_rli, force_resize=False, prevent_resize=False):
