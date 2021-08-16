@@ -10,10 +10,9 @@ from pyPhoto21.database.metadata import Metadata
 class LegacyData(File):
 
     def __init__(self):
-        super().__init__()
+        super().__init__(None)
 
-    def load_zda(self, filename, db):
-        meta = Metadata()
+    def load_zda(self, filename, db, meta):
 
         raw_data, metadata_dict, rli, fp_data = self.read_zda_to_variables(filename)
         self.populate_meta(meta, metadata_dict)

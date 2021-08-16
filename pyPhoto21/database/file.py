@@ -8,9 +8,9 @@ import _pickle as cPickle
 
 class File:
 
-    def __init__(self):
+    def __init__(self, meta):
         self.save_dir = os.getcwd()
-        self.override_filename = None
+        self.meta = meta
 
     def set_save_dir(self, directory):
         self.save_dir = directory
@@ -27,11 +27,15 @@ class File:
         return os.listdir(self.get_save_dir())
 
     def get_filename(self, slice_num, location_num, record_num, extension, path=None):
-        if self.override_filename is not None:
-            return self.override_filename
-        fn = self.pad_zero(slice_num) + '-'  \
-            + self.pad_zero(location_num) + '-' \
-            + self.pad_zero(record_num) + extension
+        fn = ''
+        if self.meta.override_filename is not None:
+            fn = self.meta.override_filename
+        else:
+            fn = self.pad_zero(slice_num) + '-'  \
+                + self.pad_zero(location_num) + '-' \
+                + self.pad_zero(record_num) + extension
+        if not fn.endswith(extension):
+            fn = fn.split(".")[0] + extension
         if path is None:
             return fn
         return path + '\\' + fn
@@ -53,13 +57,13 @@ class File:
             print(e)
 
     @staticmethod
-    def dump_python_object_to_pickle(filename, obj, extension='.pbz2'):
-        if len(extension) > 0 and extension[0] != '.':
-            extension = '.' + extension
+    def dump_python_object_to_pickle(filename, obj):
         with bz2.BZ2File(filename, 'w') as f:
             cPickle.dump(obj, f)
 
-    def set_override_filename(self, fn, append_path=True):
-        if append_path:
-            fn = self.get_save_dir() + "\\" + fn
-        self.override_filename = fn
+    @staticmethod
+    def strip_path(filename):
+        return filename.split("/")[-1].split("\\")[-1]
+
+    def set_override_filename(self, fn):
+        self.meta.override_filename = fn

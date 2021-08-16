@@ -6,6 +6,7 @@ from pyPhoto21.viewers.trace import Trace
 from pyPhoto21.database.database import Database
 from pyPhoto21.database.file import File
 from pyPhoto21.database.legacy import LegacyData
+from pyPhoto21.database.metadata import Metadata
 
 
 # This class will supersede Data...
@@ -13,17 +14,18 @@ class Data(File):
 
     # Parsed events from GUI are handed to Data for backend effects.
     def __init__(self, hardware):
-        super().__init__()
 
         # interaction with other modules. It is the Data class' responsibility to sync all these.
         self.hardware = hardware
         self.db = Database()
         self.core = AnalysisCore(self.db.meta)
+        super().__init__(self.db.meta)
 
         # Internal (non-user facing) settings and flags
         self.is_loaded_from_file = False
         self.is_live_feed_enabled = False
         self.current_trial_index = 0
+        self.metadata_extension = '.pbz2'
 
         # Memory not written to file
         # raw RLI frames are not written to file or even shown.
@@ -53,12 +55,11 @@ class Data(File):
 
     # numpy autosaves the image arrays; only need to save meta actively
     def save_metadata_to_compressed_file(self):
-        pass
+        self.save_metadata_to_file(self.db.get_current_filename(extension=self.metadata_extension))
 
     def sync_hardware_from_metadata(self):
-        if self.get_is_loaded_from_file():
-            print("Settings loaded from data file will be overwritten with currnet hardware settings.")
-            self.set_is_loaded_from_file(False)
+        # if self.get_is_loaded_from_file():
+        #     self.set_is_loaded_from_file(False)
 
         # Settings that don't matter to File
         self.set_camera_program(self.db.meta.camera_program, prevent_resize=True)
@@ -97,50 +98,62 @@ class Data(File):
         self.hardware.set_stim_duration(value=self.db.meta.stim_duration[1],
                                         channel=2)
 
-    def set_meta(self, meta):
+    def set_meta(self, meta, suppress_resize=False):
         """ Given a Metadata class instance, replace in current settings
             The GUI will update itself after the call to here returns """
         self.db.meta = meta
         self.core.meta = meta
         self.sync_hardware_from_metadata()
         self.sync_analysis_from_metadata()
+        if not suppress_resize:
+            self.allocate_image_memory()
 
     def find_unused_filenames(self, extensions=('.npy', '.pbz2')):
         # gets filenames to save to, avoiding overwrites, recognizing all extensions
-        filenames = [self.get_filename(self.db.meta.current_slice,
-                                       self.db.meta.current_location,
-                                       self.db.meta.current_record,
-                                       ext,
-                                       path=None)  # no path, as file_exists doesn't want it
+        filenames = [self.db.get_current_filename(no_path=True, extension=ext)
+                     # no path, as file_exists doesn't want it
                      for ext in extensions]
 
+        orig_override_fn = self.db.meta.override_filename
+        i = 0
         while any([self.file_exists(fn) for fn in filenames]):
-            self.set_override_filename(None)
-            self.increment_record()
-            filenames = [self.get_filename(self.db.meta.current_slice,
-                                           self.db.meta.current_location,
-                                           self.db.meta.current_record,
-                                           ext,
-                                           path=None)
+            if orig_override_fn is not None:
+                i += 1
+                self.set_override_filename(orig_override_fn + "(" + self.pad_zero(i) + ")")
+            else:
+                self.increment_record()
+            filenames = [self.db.get_current_filename(no_path=True, extension=ext)
                          for ext in extensions]
         return filenames
 
     def load_from_file(self, file):
+        self.set_is_loaded_from_file(True)
+        print("Loading from:", file)
+        orig_path_prefix = file.split(".")[0]
+        file = file.split("\\")[-1].split('/')[-1]
         file_prefix, extension = file.split('.')
-        meta_file = file_prefix + ".pbz2"
-        data_file = file_prefix + '.npy'
+
+        self.set_override_filename(file_prefix)
+        meta_no_path, data_no_path = self.find_unused_filenames()
+        data_file = self.db.get_current_filename(no_path=False, extension='.npy')
+        meta_file = self.db.get_current_filename(no_path=False, extension='.pbz2')
+
         if extension == "zda":
-            self.set_override_filename(data_file)
-            meta_obj = LegacyData().load_zda(file, self.db)  # side-effect is to create and populate .npy file
-            self.set_meta(meta_obj)
+            data_file, meta_file = self.find_unused_filenames()
+            new_meta = Metadata()
+            new_meta.override_filename = self.meta.override_filename
+            meta_obj = LegacyData().load_zda(orig_path_prefix + '.zda',
+                                             self.db,
+                                             new_meta)  # side-effect is to create and populate .npy file
+            self.set_meta(meta_obj, suppress_resize=True)
+            self.save_metadata_to_file(meta_file)
         elif extension in ['npy', 'pbz2']:
-            if not self.file_exists(meta_file.split("\\")[0]):
-                print("Corresponding metadata file", meta_file, "not found.")
+            if not self.file_exists(meta_no_path):
+                print("Corresponding metadata file", meta_no_path, "not found.")
                 return
-            if not self.file_exists(data_file.split("\\")[0]):
-                print("Corresponding data file", data_file, "not found.")
-                return
-            self.set_override_filename(data_file)
+            if not self.file_exists(data_no_path):
+                print("Corresponding data file", data_no_path, "not found. Loading as preference-only file.")
+
             meta_obj = self.load_metadata_from_file(meta_file)
             self.db.load_mmap_file()
             self.set_meta(meta_obj)
@@ -411,7 +424,6 @@ class Data(File):
             print("get_display_trace: No images to display.")
             return None
 
-        print(index, index.shape, type(index))
         ret_trace = None
         if index is None:
             return ret_trace
@@ -480,9 +492,9 @@ class Data(File):
         if (force_resize or tmp != value) and not prevent_resize:
             self.db.clear_or_resize_mmap_file()
             self.db.meta.fp_data = np.resize(self.db.meta.fp_data,
-                                     (self.get_num_trials(),
-                                      self.get_num_fp(),
-                                      self.get_num_pts()))
+                                             (self.get_num_trials(),
+                                              self.get_num_fp(),
+                                              self.get_num_pts()))
         self.hardware.set_num_pts(value=value)
 
     # Populate meta.rli_high from RLI raw frames
@@ -618,13 +630,13 @@ class Data(File):
     def get_stim_onset(self, ch):
         if ch == 1 or ch == 2:
             if self.get_is_loaded_from_file():
-                return self.db.meta.stim_onset[ch-1]
+                return self.db.meta.stim_onset[ch - 1]
             return self.hardware.get_stim_onset(channel=ch)
 
     def get_stim_duration(self, ch):
         if ch == 1 or ch == 2:
             if self.get_is_loaded_from_file():
-                return self.db.meta.stim_duration[ch-1]
+                return self.db.meta.stim_duration[ch - 1]
             return self.hardware.get_stim_duration(channel=ch)
 
     def get_current_trial_index(self):

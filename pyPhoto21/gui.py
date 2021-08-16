@@ -14,6 +14,7 @@ from pyPhoto21.analysis.roi import ROI
 from pyPhoto21.gui_elements.layouts import *
 from pyPhoto21.gui_elements.event_mapping import EventMapping
 
+
 # from mpl_interactions import image_segmenter
 
 
@@ -272,10 +273,11 @@ class GUI:
         # we spawn a new thread to acquire in the background.
         # meanwhile the original thread returns and keeps handling GUI clicks
         # but updates to Data/Hardware fields will be frozen
-        #self.record_in_background()
+        # self.record_in_background()
         threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
 
     ''' RLI Controller functions '''
+
     def take_rli_core(self):
         self.hardware.take_rli(images=self.data.get_rli_memory())
         self.data.set_is_loaded_from_file(False)
@@ -296,6 +298,7 @@ class GUI:
         threading.Thread(target=self.take_rli_in_background, args=(), daemon=True).start()
 
     ''' Live Feed Controller functions '''
+
     def start_livefeed(self, **kwargs):
         if self.data.get_is_livefeed_enabled():
             return
@@ -522,8 +525,7 @@ class GUI:
     def unload_file(self):
         if self.data.get_is_loaded_from_file():
             self.unfreeze_hardware_settings()
-            self.data.set_is_loaded_from_file(value=False)
-            self.data.clear_data_memory()
+            self.data.set_is_loaded_from_file(False)
             self.fv.update_new_image()
 
     @staticmethod
