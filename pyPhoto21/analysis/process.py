@@ -12,11 +12,18 @@ class Processor:
         self.is_active = False
         self.sleep_interval = 2.0
         self.stop_worker_flag = False
+        self.pause = False
 
     def stop_processor(self):
         self.stop_worker_flag = True
         while self.stop_worker_flag:
             time.sleep(1)
+
+    def pause_processor(self):
+        self.pause = True
+
+    def unpause_processor(self):
+        self.pause = False
 
     # call this to signal processor to start its workflow
     # from the top
