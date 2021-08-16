@@ -20,11 +20,11 @@ class LegacyData(File):
         self.populate_meta_rli(meta, rli)
         self.populate_meta_fp(meta, fp_data)
         db.meta = meta
-        self.create_npy_file(db, filename, raw_data)
+        self.create_npy_file(db, raw_data)
         return meta
 
-    def create_npy_file(self, db, filename, raw_data):
-        db.load_mmap_file()  # loads correct dimensions since we already set meta
+    def create_npy_file(self, db, raw_data):
+        db.clear_or_resize_mmap_file()  # loads correct dimensions since we already set meta
         arr = db.load_data_raw()
         arr[:, :, :, :] = raw_data[:, :, :, :]
 

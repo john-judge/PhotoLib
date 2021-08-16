@@ -59,5 +59,7 @@ class File:
         with bz2.BZ2File(filename, 'w') as f:
             cPickle.dump(obj, f)
 
-    def set_override_filename(self, fn):
+    def set_override_filename(self, fn, append_path=True):
+        if append_path:
+            fn = self.get_save_dir() + "\\" + fn
         self.override_filename = fn
