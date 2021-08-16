@@ -14,8 +14,5 @@ else:
 hardware = Hardware()
 data = Data(hardware)
 
-# The file class can later break the sync between Data and Hardware (for analysis)
-file = Metadata(data)
-
 # Now GUI will show the consistent settings from Data
-gui = GUI(data, hardware, file, production_mode=PRODUCTION_MODE)
+gui = GUI(data, production_mode=PRODUCTION_MODE)

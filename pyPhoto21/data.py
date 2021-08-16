@@ -5,6 +5,7 @@ from pyPhoto21.analysis.core import AnalysisCore
 from pyPhoto21.viewers.trace import Trace
 from pyPhoto21.database.database import Database
 from pyPhoto21.database.file import File
+from pyPhoto21.database.legacy import LegacyData
 
 
 # This class will supersede Data...
@@ -42,9 +43,16 @@ class Data(File):
                                         "5000 Hz  1024x60",
                                         "7500 Hz  1024x40"]
 
+        # Init actions
+        self.allocate_image_memory()
         self.sync_hardware_from_metadata()
+        self.sync_analysis_from_metadata()
 
     def sync_analysis_from_metadata(self):
+        pass
+
+    # numpy autosaves the image arrays; only need to save meta actively
+    def save_metadata_to_compressed_file(self):
         pass
 
     def sync_hardware_from_metadata(self):
@@ -116,13 +124,33 @@ class Data(File):
                          for ext in extensions]
         return filenames
 
+    def load_from_file(self, file):
+        file_prefix, extension = file.split('.')
+        meta_file = file_prefix + ".pbz2"
+        data_file = file_prefix + '.npy'
+        if extension == "zda":
+            self.set_override_filename(data_file)
+            meta_obj = LegacyData().load_zda(file, self.db)  # side-effect is to create and populate .npy file
+            self.set_meta(meta_obj)
+        elif extension in ['npy', 'pbz2']:
+            if not self.file_exists(meta_file):
+                print("Corresponding metadata file", meta_file, "not found.")
+                return
+            if not self.file_exists(data_file):
+                print("Corresponding data file", data_file, "not found.")
+                return
+            self.set_override_filename(data_file)
+            meta_obj = self.load_metadata_from_file(meta_file)
+            self.db.load_mmap_file()
+            self.set_meta(meta_obj)
+
     def save_metadata_to_file(self, filename):
         """ Pickle the instance of Metadata class """
         self.dump_python_object_to_pickle(filename, self.db.meta)
 
     def load_metadata_from_file(self, filename):
         """ Read instance of Metadata class and load into usage"""
-        self.db.meta = self.retrieve_python_object_from_pickle(filename)
+        return self.retrieve_python_object_from_pickle(filename)
 
     def get_record_array_shape(self):
         return (self.get_num_trials(),
@@ -144,7 +172,7 @@ class Data(File):
         self.db.meta.current_slice += num
         self.db.meta.current_location = 0
         self.db.meta.current_record = 0
-        self.db.meta.data.set_current_trial_index(0)
+        self.set_current_trial_index(0)
 
     def increment_location(self, num=1):
         self.db.meta.current_location += num

@@ -20,23 +20,30 @@ class Database(File):
 
     def get_current_filename(self, no_path=False):
         fn = ''
-        if not no_path:
-            fn = self.get_save_dir()
         if self.open_filename is not None:
             return fn + self.open_filename
         if self.override_filename is not None:
             return fn + self.override_filename
-        return fn + self.get_filename(self.meta.current_slice,
-                                      self.meta.current_location,
-                                      self.meta.current_record,
-                                      extension=self.extension)
+
+        path = None
+        if not no_path:
+            path = self.get_save_dir()
+        return self.get_filename(self.meta.current_slice,
+                                 self.meta.current_location,
+                                 self.meta.current_record,
+                                 extension=self.extension,
+                                 path=path)
 
     # https://numpy.org/doc/stable/reference/generated/numpy.memmap.html#numpy.memmap
     def load_mmap_file(self):
         fn = self.get_current_filename()
+        mode = 'w+'  # allows create/overwrite
+        if self.file_exists(fn):
+            print("r+")
+            mode = 'r+'
         self.memmap_file = np.memmap(fn,
                                      dtype=np.uint16,
-                                     mode='r+',  # reading and writing
+                                     mode='r+',
                                      shape=(self.meta.num_trials,
                                             2,
                                             self.meta.num_pts,

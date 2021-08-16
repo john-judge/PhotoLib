@@ -22,12 +22,11 @@ from pyPhoto21.gui_elements.event_mapping import EventMapping
 
 class GUI:
 
-    def __init__(self, data, hardware, file, production_mode=True):
+    def __init__(self, data, production_mode=True):
         matplotlib.use("TkAgg")
         sg.theme('DarkBlue12')
         self.data = data
-        self.hardware = hardware
-        self.file = file
+        self.hardware = data.hardware
         self.production_mode = production_mode
         self.tv = TraceViewer(self.data)
         self.fv = FrameViewer(self.data, self.tv)
@@ -201,7 +200,7 @@ class GUI:
         return max(0, sleep_sec - self.get_trial_sleep_time())
 
     def save_file_in_background(self):
-        self.file.save_to_compressed_file()
+        self.data.save_metadata_to_compressed_file()
         self.update_tracking_num_fields()
 
     # returns True if stop flag is set
@@ -406,14 +405,14 @@ class GUI:
         v = kwargs['values']
         if len(v) < 1:
             return
-        valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+        valid_chars = "\\/:-_.() %s%s" % (string.ascii_letters, string.digits)
         v = ''.join(c for c in v if c in valid_chars)
         kwargs['window'][kwargs['event']].update(v)
-        self.file.set_override_filename(v)
+        self.data.set_override_filename(v)
 
     def choose_save_dir(self, **kwargs):
         folder = self.browse_for_folder()
-        self.file.set_save_dir(folder)
+        self.data.set_save_dir(folder)
         print("New save location:", folder)
 
     def browse_for_file(self, file_extensions):
@@ -468,7 +467,7 @@ class GUI:
                 folder = values["folder_window.browse"]
                 break
         if self.is_recording():
-            folder = self.file.get_save_dir()
+            folder = self.data.get_save_dir()
             self.notify_window("Warning",
                                "You are changing the save location during acquisition." +
                                "I don't recommend scattering your files. " +
@@ -479,17 +478,17 @@ class GUI:
 
     def load_roi_file(self, **kwargs):
         filename = self.browse_for_file(['roi'])
-        data_obj = self.file.retrieve_python_object_from_pickle(filename)
+        data_obj = self.data.retrieve_python_object_from_pickle(filename)
         self.roi.load_roi_data(data_obj)
 
     def save_roi_file(self, **kwargs):
         data_obj, filename = self.roi.dump_roi_data()
-        self.file.dump_python_object_to_pickle(filename,
+        self.data.dump_python_object_to_pickle(filename,
                                                data_obj,
                                                extension='roi')
 
     def load_data_file_in_background(self, file):
-        self.file.load_from_file(file)
+        self.data.load_from_file(file)
         # Sync GUI
         self.file_gui_fields_sync()
         # Freeze input fields to hardware
@@ -498,7 +497,7 @@ class GUI:
         self.fv.update_new_image()
 
     def load_data_file(self):
-        file = self.browse_for_file(['zda', 'pbz2'])
+        file = self.browse_for_file(['npy', 'pbz2', 'zda'])
         if file is not None:
             self.freeze_hardware_settings(include_buttons=False, freeze_file_flip=False)
             print("Loading from file:", file, "\nThis will take a few seconds...")
@@ -798,11 +797,11 @@ class GUI:
             self.event_mapping = EventMapping(self).get_event_mapping()
 
     def update_tracking_num_fields(self, **kwargs):
-        self.window["Slice Number"].update(self.file.get_slice_num())
-        self.window["Location Number"].update(self.file.get_location_num())
-        self.window["Record Number"].update(self.file.get_record_num())
+        self.window["Slice Number"].update(self.data.get_slice_num())
+        self.window["Location Number"].update(self.data.get_location_num())
+        self.window["Record Number"].update(self.data.get_record_num())
         self.window["Trial Number"].update(self.data.get_current_trial_index())
-        self.window["File Name"].update(self.file.get_filename(no_path=True))
+        self.window["File Name"].update(self.data.db.get_current_filename(no_path=True))
 
     def set_current_trial_index(self, **kwargs):
         if 'value' in kwargs:
@@ -812,17 +811,17 @@ class GUI:
 
     def set_slice(self, **kwargs):
         value = int(kwargs['value'])
-        self.file.set_slice(value)
+        self.data.set_slice(value)
         self.fv.update_new_image()
 
     def set_record(self, **kwargs):
         value = int(kwargs['value'])
-        self.file.set_record(value)
+        self.data.set_record(value)
         self.fv.update_new_image()
 
     def set_location(self, **kwargs):
         value = int(kwargs['value'])
-        self.file.set_location(value)
+        self.data.set_location(value)
         self.fv.update_new_image()
 
     def get_background_option_index(self):
