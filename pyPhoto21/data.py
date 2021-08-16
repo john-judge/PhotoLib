@@ -116,14 +116,17 @@ class Data(File):
 
         orig_override_fn = self.db.meta.override_filename
         i = 0
-        while any([self.file_exists(fn) for fn in filenames]):
+        while any([self.file_exists(fn) for fn in filenames]) and i < 100:
             if orig_override_fn is not None:
                 i += 1
                 self.set_override_filename(orig_override_fn + "(" + self.pad_zero(i) + ")")
             else:
                 self.increment_record()
+                i += 1
             filenames = [self.db.get_current_filename(no_path=True, extension=ext)
                          for ext in extensions]
+        if i >= 100:
+            print("Searched over 100 possible filenames... Probably an issue?")
         return filenames
 
     def load_from_file(self, file):
@@ -132,31 +135,32 @@ class Data(File):
         orig_path_prefix = file.split(".")[0]
         file = file.split("\\")[-1].split('/')[-1]
         file_prefix, extension = file.split('.')
-
         self.set_override_filename(file_prefix)
-        meta_no_path, data_no_path = self.find_unused_filenames()
-        data_file = self.db.get_current_filename(no_path=False, extension='.npy')
-        meta_file = self.db.get_current_filename(no_path=False, extension='.pbz2')
 
         if extension == "zda":
+            # We will auto-create some files, so find names:
+            meta_no_path, data_no_path = self.find_unused_filenames()
+
             data_file, meta_file = self.find_unused_filenames()
             new_meta = Metadata()
             new_meta.override_filename = self.meta.override_filename
-            meta_obj = LegacyData().load_zda(orig_path_prefix + '.zda',
-                                             self.db,
-                                             new_meta)  # side-effect is to create and populate .npy file
-            self.set_meta(meta_obj, suppress_resize=True)
+            self.set_meta(new_meta, suppress_resize=True)
+            LegacyData().load_zda(orig_path_prefix + '.zda',
+                                  self.db,
+                                  new_meta)  # side-effect is to create and populate .npy file
             self.save_metadata_to_file(meta_file)
         elif extension in ['npy', 'pbz2']:
+            meta_no_path = self.db.get_current_filename(no_path=True, extension='.pbz2')
+            meta_file = self.db.get_current_filename(no_path=False, extension='.pbz2')
+            data_no_path = self.db.get_current_filename(no_path=True, extension='.npy')
             if not self.file_exists(meta_no_path):
                 print("Corresponding metadata file", meta_no_path, "not found.")
                 return
             if not self.file_exists(data_no_path):
                 print("Corresponding data file", data_no_path, "not found. Loading as preference-only file.")
-
             meta_obj = self.load_metadata_from_file(meta_file)
-            self.db.load_mmap_file()
-            self.set_meta(meta_obj)
+            self.set_meta(meta_obj, suppress_resize=True)
+            self.db.load_mmap_file(mode="r+")
 
     def save_metadata_to_file(self, filename):
         """ Pickle the instance of Metadata class """
@@ -187,15 +191,19 @@ class Data(File):
         self.db.meta.current_location = 0
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
+        self.db.load_mmap_file()
 
     def increment_location(self, num=1):
         self.db.meta.current_location += num
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
+        self.db.meta.override_filename = None
+        self.db.load_mmap_file()
 
     def increment_record(self, num=1):
         self.db.meta.current_record += num
         self.set_current_trial_index(0)
+        self.db.load_mmap_file()
 
     def decrement_slice(self, num=1):
         self.db.meta.current_slice -= num
@@ -203,37 +211,55 @@ class Data(File):
             self.db.meta.current_location = 0
             self.db.meta.current_record = 0
             self.set_current_trial_index(0)
+            self.db.load_mmap_file()
         else:
             self.db.meta.current_slice = 0
+            if num > 1:
+                self.db.load_mmap_file()
 
     def decrement_location(self, num=1):
         self.db.meta.current_location -= num
         if self.db.meta.current_location >= 0:
             self.db.meta.current_record = 0
             self.set_current_trial_index(0)
+            self.db.load_mmap_file()
         else:
             self.db.meta.current_location = 0
+            if num > 1:
+                self.db.load_mmap_file()
 
     def decrement_record(self, num=1):
-        self.db.meta.current_record -= 1
+        self.db.meta.current_record -= num
+        if self.db.meta.current_record >= 0:
+            self.db.load_mmap_file()
+        else:
+            self.db.meta.current_record = 0
+            if num > 1:
+                self.db.load_mmap_file()
 
     def set_slice(self, v):
         if v > self.db.meta.current_slice:
             self.db.meta.increment_slice(v - self.db.meta.current_slice)
+            self.db.load_mmap_file()
         elif v < self.db.meta.current_slice:
             self.db.meta.decrement_slice(self.db.meta.current_slice - v)
+            self.db.load_mmap_file()
 
     def set_record(self, v):
         if v > self.db.meta.current_record:
             self.db.meta.increment_record(v - self.db.meta.current_record)
+            self.db.load_mmap_file()
         elif v < self.db.meta.current_record:
             self.db.meta.decrement_record(self.db.meta.current_record - v)
+            self.db.load_mmap_file()
 
     def set_location(self, v):
         if v > self.db.meta.current_location:
             self.db.meta.increment_location(v - self.db.meta.current_location)
+            self.db.load_mmap_file()
         if v < self.db.meta.current_location:
             self.db.meta.decrement_location(self.db.meta.current_location - v)
+            self.db.load_mmap_file()
 
     # This is the allocated memory size, not necessarily the current camera state
     # However, the Hardware class should be prepared to init camera to this width
@@ -647,7 +673,7 @@ class Data(File):
 
     def increment_current_trial_index(self):
         self.current_trial_index = min(self.current_trial_index + 1,
-                                       self.get_num_trials())
+                                       self.get_num_trials() - 1)
 
     def decrement_current_trial_index(self):
         self.current_trial_index = max(self.current_trial_index - 1, 0)

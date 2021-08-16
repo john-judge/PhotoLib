@@ -23,7 +23,7 @@ class Database(File):
             extension = self.extension
         path = ''
         if not no_path:
-            path = self.get_save_dir() + "//"
+            path = self.get_save_dir() + "\\"
         if self.meta.override_filename is not None:
             return path + self.meta.override_filename + extension
 
@@ -36,11 +36,10 @@ class Database(File):
     # https://numpy.org/doc/stable/reference/generated/numpy.memmap.html#numpy.memmap
     def load_mmap_file(self, mode='w+'):  # w+ allows create/overwrite. Set mode=None to auto-determine
         fn = self.get_current_filename(no_path=True, extension=self.extension)
-        if mode is None:
-            mode = 'w+'
-            if self.file_exists(fn):
-                print("r+")
-                mode = 'r+'
+        if self.file_exists(fn):
+            print("File exists. Prevent overwrite. r+")
+            mode = 'r+'
+        fn = self.get_current_filename(no_path=False, extension=self.extension)
         arr_shape = (self.meta.num_trials,
                      2,
                      self.meta.num_pts,

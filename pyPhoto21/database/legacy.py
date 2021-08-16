@@ -20,7 +20,6 @@ class LegacyData(File):
         self.populate_meta_fp(meta, fp_data)
         db.meta = meta
         self.create_npy_file(db, raw_data)
-        return meta
 
     def create_npy_file(self, db, raw_data):
         db.clear_or_resize_mmap_file()  # loads correct dimensions since we already set meta

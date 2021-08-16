@@ -241,14 +241,14 @@ class GUI:
 
             for trial in range(self.data.get_num_trials()):
                 self.data.set_current_trial_index(trial)
-                self.update_tracking_num_fields()
+
                 is_last_trial = (trial == self.data.get_num_trials() - 1)
                 if self.get_is_schedule_rli_enabled():
                     self.take_rli_core()
                 self.hardware.record(images=self.data.get_acqui_memory(),
                                      fp_data=self.data.get_fp_data())
                 self.data.set_current_trial_index(trial)
-                self.fv.update_new_image()
+                self.update_tracking_num_fields()
                 print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
                 if not is_last_trial:
                     print("\t\t", sleep_trial, "seconds until next trial...")
@@ -804,6 +804,7 @@ class GUI:
         self.window["Record Number"].update(self.data.get_record_num())
         self.window["Trial Number"].update(self.data.get_current_trial_index())
         self.window["File Name"].update(self.data.db.get_current_filename(no_path=True))
+        self.fv.update_new_image()
 
     def set_current_trial_index(self, **kwargs):
         if 'value' in kwargs:

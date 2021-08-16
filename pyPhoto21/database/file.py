@@ -36,7 +36,7 @@ class File:
                 + self.pad_zero(record_num) + extension
         if not fn.endswith(extension):
             fn = fn.split(".")[0] + extension
-        if path is None:
+        if path is None or len(path) == 0:
             return fn
         return path + '\\' + fn
 

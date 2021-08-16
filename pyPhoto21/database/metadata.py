@@ -36,9 +36,9 @@ class Metadata:
         self.rli_high = None
         self.rli_max = None
         self.fp_data = None
-        self.num_fp = None  # will default to 4 unless loaded from file
+        self.num_fp = 4
 
-        self.num_pts = 2000
+        self.num_pts = 600
         self.int_pts = 0.5
 
         # Management and Automation / Workflow Settings
