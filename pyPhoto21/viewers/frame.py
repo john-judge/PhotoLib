@@ -77,10 +77,11 @@ class FrameViewer:
         return self.fig
 
     def change_frame(self, event):
-        new_ind = int(self.smax.val) % self.num_frames
-        if new_ind != self.ind:
-            self.ind = new_ind
-            self.update()
+        if not self.get_show_rli_flag():
+            new_ind = int(self.smax.val) % self.num_frames
+            if new_ind != self.ind:
+                self.ind = new_ind
+                self.update()
 
     def onrelease(self, event):
         if self.press and not self.moving:
@@ -188,15 +189,13 @@ class FrameViewer:
                                                          get_rli=self.show_rli,
                                                          binning=self.get_digital_binning())
 
-
-
     def start_livefeed_animation(self):
         print("Starting livefeed animation...")
         self.refresh_current_frame()
         self.ax = self.fig.add_subplot(1, 1, 1)
 
         self.livefeed_im = self.ax.imshow(self.current_frame.astype(np.uint16),
-                                          interpolation = 'nearest',
+                                          interpolation='nearest',
                                           aspect='auto',
                                           cmap='jet')
         self.fig.canvas.draw_idle()
@@ -239,9 +238,8 @@ class FrameViewer:
         # choose correct data dimensions for viewer
         refresh_ind = False
         if self.show_rli:
-            n_frames = self.data.get_num_rli_pts()
-            refresh_ind = (n_frames != self.num_frames)
-            self.num_frames = n_frames
+            refresh_ind = False
+            self.num_frames = 1
         else:
             n_frames = self.data.get_num_pts()
             refresh_ind = (n_frames != self.num_frames)

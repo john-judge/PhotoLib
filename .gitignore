@@ -5,6 +5,8 @@
 **/*.pbz2
 **/*.zda
 **/*.roi
+**/*.npy
+**/*.npy.archive_*
 
 ## Pyinstaller build and dist
 build

@@ -11,7 +11,7 @@ class EventMapping:
                 'args': {}
             },
             'Save': {
-                'function': gui.file.save_to_compressed_file,
+                'function': gui.data.save_metadata_to_compressed_file,
                 'args': {}
             },
             'Auto Save': {
@@ -266,32 +266,32 @@ class EventMapping:
             },
             "Increment Record": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.increment_record,
+                'args': {'call': gui.data.increment_record,
                          'call2': gui.update_tracking_num_fields}
             },
             "Decrement Record": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.decrement_record,
+                'args': {'call': gui.data.decrement_record,
                          'call2': gui.update_tracking_num_fields}
             },
             "Increment Location": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.increment_location,
+                'args': {'call': gui.data.increment_location,
                          'call2': gui.update_tracking_num_fields}
             },
             "Decrement Location": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.decrement_location,
+                'args': {'call': gui.data.decrement_location,
                          'call2': gui.update_tracking_num_fields}
             },
             "Increment Slice": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.increment_slice,
+                'args': {'call': gui.data.increment_slice,
                          'call2': gui.update_tracking_num_fields}
             },
             "Decrement Slice": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.decrement_slice,
+                'args': {'call': gui.data.decrement_slice,
                          'call2': gui.update_tracking_num_fields}
             },
             "Trial Number": {
