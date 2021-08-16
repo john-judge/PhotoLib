@@ -35,15 +35,16 @@ class Database(File):
                                  path=path)
 
     # https://numpy.org/doc/stable/reference/generated/numpy.memmap.html#numpy.memmap
-    def load_mmap_file(self):
+    def load_mmap_file(self, mode='w+'):  # w+ allows create/overwrite. Set mode=None to auto-determine
         fn = self.get_current_filename()
-        mode = 'w+'  # allows create/overwrite
-        if self.file_exists(fn):
-            print("r+")
-            mode = 'r+'
+        if mode is None:
+            mode = 'w+'
+            if self.file_exists(fn):
+                print("r+")
+                mode = 'r+'
         self.memmap_file = np.memmap(fn,
                                      dtype=np.uint16,
-                                     mode='r+',
+                                     mode=mode,
                                      shape=(self.meta.num_trials,
                                             2,
                                             self.meta.num_pts,
@@ -53,17 +54,19 @@ class Database(File):
 
     def clear_or_resize_mmap_file(self):
         # should avoid overwriting data by renaming current file
-        if self.file_exists(self.get_current_filename()):
+        if self.meta.auto_save_enabled and self.file_exists(self.get_current_filename(no_path=True)):
+            print("Archiving file: ", self.get_current_filename())
             i = 0
-            new_name = self.open_filename + ".archive_" + self.pad_zero(i, dst_len=2)
+            new_name = self.get_current_filename(no_path=True) + ".archive_" + self.pad_zero(i, dst_len=2)
             while self.file_exists(new_name) or i > 100:
                 i += 1
-                new_name = self.open_filename + ".archive_" + self.pad_zero(i, dst_len=2)
+                new_name = self.get_current_filename(no_path=True) + ".archive_" + self.pad_zero(i, dst_len=2)
             try:
-                os.rename(self.open_filename, new_name)
+                new_name = self.get_current_filename() + ".archive_" + self.pad_zero(i, dst_len=2)
+                os.rename(self.get_current_filename(), new_name)
             except Exception as e:
                 print("Could not archive current data file: ",
-                      self.open_filename,
+                      self.get_current_filename(),
                       "Delete or move this file, or choose a new file to proceed with array resize.",
                       "\nActual exception:")
                 print(e)

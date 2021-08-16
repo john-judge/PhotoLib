@@ -44,9 +44,9 @@ class Data(File):
                                         "7500 Hz  1024x40"]
 
         # Init actions
-        self.allocate_image_memory()
         self.sync_hardware_from_metadata()
         self.sync_analysis_from_metadata()
+        self.allocate_image_memory()
 
     def sync_analysis_from_metadata(self):
         pass
@@ -61,9 +61,10 @@ class Data(File):
             self.set_is_loaded_from_file(False)
 
         # Settings that don't matter to File
-        self.set_camera_program(self.db.meta.camera_program, force_resize=True)
-        self.set_num_dark_rli(280, force_resize=True)  # currently not user-configurable
-        self.set_num_light_rli(200, force_resize=True)  # currently not user-configurable
+        self.set_camera_program(self.db.meta.camera_program, prevent_resize=True)
+        self.set_num_pts(self.db.meta.num_pts, prevent_resize=True)
+        self.set_num_dark_rli(280, prevent_resize=True)  # currently not user-configurable
+        self.set_num_light_rli(200, prevent_resize=True)  # currently not user-configurable
 
         self.hardware.set_num_pulses(value=self.db.meta.num_pulses[0],
                                      channel=1)
@@ -104,13 +105,13 @@ class Data(File):
         self.sync_hardware_from_metadata()
         self.sync_analysis_from_metadata()
 
-    def find_unused_filenames(self, extensions=('.npy', '.pbz2'), path=None):
+    def find_unused_filenames(self, extensions=('.npy', '.pbz2')):
         # gets filenames to save to, avoiding overwrites, recognizing all extensions
         filenames = [self.get_filename(self.db.meta.current_slice,
                                        self.db.meta.current_location,
                                        self.db.meta.current_record,
                                        ext,
-                                       path=path)
+                                       path=None)  # no path, as file_exists doesn't want it
                      for ext in extensions]
 
         while any([self.file_exists(fn) for fn in filenames]):
@@ -120,7 +121,7 @@ class Data(File):
                                            self.db.meta.current_location,
                                            self.db.meta.current_record,
                                            ext,
-                                           path=path)
+                                           path=None)
                          for ext in extensions]
         return filenames
 
@@ -133,10 +134,10 @@ class Data(File):
             meta_obj = LegacyData().load_zda(file, self.db)  # side-effect is to create and populate .npy file
             self.set_meta(meta_obj)
         elif extension in ['npy', 'pbz2']:
-            if not self.file_exists(meta_file):
+            if not self.file_exists(meta_file.split("\\")[0]):
                 print("Corresponding metadata file", meta_file, "not found.")
                 return
-            if not self.file_exists(data_file):
+            if not self.file_exists(data_file.split("\\")[0]):
                 print("Corresponding data file", data_file, "not found.")
                 return
             self.set_override_filename(data_file)
@@ -245,10 +246,10 @@ class Data(File):
     def set_num_fp(self, value):
         self.db.meta.num_fp = value
 
-    def set_camera_program(self, program, force_resize=False):
+    def set_camera_program(self, program, force_resize=False, prevent_resize=False):
         curr_program = self.hardware.get_camera_program()
-        if force_resize or curr_program != program:
-            self.hardware.set_camera_program(program=program)
+        self.hardware.set_camera_program(program=program)
+        if (force_resize or curr_program != program) and not prevent_resize:
             self.db.meta.camera_program = program
             self.db.meta.width = self.get_display_width()
             self.db.meta.height = self.get_display_height()
@@ -383,7 +384,7 @@ class Data(File):
         """ Return a frame mask given a polygon """
         if index is None or type(index) != np.ndarray or index.shape[0] == 1:
             return None
-        x, y = np.meshgrid(np.arange(w), np.arange(h))  # make a canvas with coordinates
+        x, y = np.meshgrid(np.arange(h), np.arange(w))  # make a canvas with coordinates
         x, y = x.flatten(), y.flatten()
         points = np.vstack((x, y)).T
 
@@ -393,7 +394,7 @@ class Data(File):
         mask_where = np.where(mask)
         if np.size(mask_where) < 1:
             print("frame mask: filled shape is empty:", index, mask_where)
-            return None
+            return mask
         return mask
 
     # Move to GUI? or TV?
@@ -408,6 +409,7 @@ class Data(File):
             print("get_display_trace: No images to display.")
             return None
 
+        print(index, index.shape, type(index))
         ret_trace = None
         if index is None:
             return ret_trace
@@ -469,19 +471,17 @@ class Data(File):
         else:
             return self.rli_images[trial, 0, :, :, :]
 
-    def set_num_pts(self, value=1, force_resize=False):
+    def set_num_pts(self, value=1, force_resize=False, prevent_resize=False):
         if type(value) != int or value < 1:
             return
         tmp = self.get_num_pts()
-        if force_resize or tmp != value:
-            w = self.get_display_width()
-            h = self.get_display_height()
+        if (force_resize or tmp != value) and not prevent_resize:
             self.db.clear_or_resize_mmap_file()
             self.db.meta.fp_data = np.resize(self.db.meta.fp_data,
                                      (self.get_num_trials(),
                                       self.get_num_fp(),
                                       self.get_num_pts()))
-            self.hardware.set_num_pts(value=value)
+        self.hardware.set_num_pts(value=value)
 
     # Populate meta.rli_high from RLI raw frames
     def calculate_light_rli_frame(self, margins=40):
@@ -525,9 +525,9 @@ class Data(File):
         diff[diff == 0] = 0.0001  # avoid div by 0
         return diff
 
-    def set_num_dark_rli(self, dark_rli, force_resize=False):
+    def set_num_dark_rli(self, dark_rli, force_resize=False, prevent_resize=False):
         tmp = self.hardware.get_num_dark_rli()
-        if force_resize or tmp != dark_rli:
+        if (force_resize or tmp != dark_rli) and not prevent_resize:
             w = self.get_display_width()
             h = self.get_display_height()
             np.resize(self.rli_images, (self.get_num_trials(),
@@ -535,11 +535,11 @@ class Data(File):
                                         self.get_num_rli_pts(),
                                         w,
                                         h))
-            self.hardware.set_num_dark_rli(dark_rli=dark_rli)
+        self.hardware.set_num_dark_rli(dark_rli=dark_rli)
 
-    def set_num_light_rli(self, light_rli, force_resize=False):
+    def set_num_light_rli(self, light_rli, force_resize=False, prevent_resize=False):
         tmp = self.hardware.get_num_light_rli()
-        if force_resize or tmp != light_rli:
+        if (force_resize or tmp != light_rli) and not prevent_resize:
             w = self.get_display_width()
             h = self.get_display_height()
             np.resize(self.rli_images, (self.get_num_trials(),
@@ -547,9 +547,7 @@ class Data(File):
                                         self.get_num_rli_pts(),
                                         w,
                                         h))
-            self.hardware.set_num_light_rli(light_rli=light_rli)
-
-
+        self.hardware.set_num_light_rli(light_rli=light_rli)
 
     def get_num_trials(self):
         return self.db.meta.num_trials
@@ -562,8 +560,6 @@ class Data(File):
 
     def set_int_trials(self, value):
         self.db.meta.int_trials = value
-
-
 
     def get_num_records(self):
         return self.db.meta.num_records

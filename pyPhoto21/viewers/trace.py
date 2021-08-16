@@ -155,6 +155,7 @@ class TraceViewer:
             trace = self.data.get_display_trace(index=self.pixel_indices[i]['pixel_index'],
                                                 fp_index=self.pixel_indices[i]['fp_index'])
             _, points = trace.get_data()
+            print(points.shape)
             if len(points.shape) == 1:
                 self.traces.append(trace)
                 self.trace_colors.append(tmp_color[i])

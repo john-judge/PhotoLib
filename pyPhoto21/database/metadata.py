@@ -38,20 +38,12 @@ class Metadata:
         self.fp_data = None
         self.num_fp = None  # will default to 4 unless loaded from file
 
-
         self.num_pts = 2000
         self.int_pts = 0.5
 
-        self.current_trial_index = 0
-
-
-        # Management and Automation
-        self.schedule_rli_flag = False  # TO DO: include take RLI and division
-        self.auto_save_data = False
-
-        # Workflow Settings
+        # Management and Automation / Workflow Settings
+        self.schedule_rli_flag = False
         self.display_value_option_index = 0
-
         self.auto_save_enabled = True
         self.schedule_rli_enabled = False
         self.is_rli_division_enabled = True

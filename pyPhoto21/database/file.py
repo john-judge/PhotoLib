@@ -34,7 +34,7 @@ class File:
             + self.pad_zero(record_num) + extension
         if path is None:
             return fn
-        return path + '/' + fn
+        return path + '\\' + fn
 
     @staticmethod
     def pad_zero(i, dst_len=2):
