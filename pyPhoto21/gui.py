@@ -578,8 +578,8 @@ class GUI:
     @staticmethod
     def launch_github_page(**kwargs):
         urls = {
-            'technical': 'https://github.com/john-judge/PhotoLib',
-            'user': 'https://github.com/john-judge/PhotoLib/blob/master/README.md'  # Update this to user tutorial link
+            'technical': 'https://github.com/john-judge/PhotoLib#photolib',
+            'user': 'https://github.com/john-judge/PhotoLib/blob/master/TUTORIAL.md'  # Update this to user tutorial link
         }
         if 'kind' in kwargs and kwargs['kind'] in urls:
             open_browser(urls[kwargs['kind']], new=2)

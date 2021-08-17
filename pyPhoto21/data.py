@@ -595,6 +595,13 @@ class Data(File):
         else:
             return self.db.load_trial_data_raw(trial)
 
+    def get_acqui_memory(self):
+        trial = self.get_current_trial_index()
+        if trial is None:
+            print("data.py: get_acqui_memory: Trial index not found. Getting trial 0.")
+            trial = 0
+        return self.db.load_trial_all_data(trial)
+
     # Assumes caller is responsible for locking the processed memmapped file
     def get_processed_images(self):
         trial = self.get_current_trial_index()
@@ -608,6 +615,9 @@ class Data(File):
 
     def get_rli_images(self):
         return self.rli_images[0, :, :, :]
+
+    def get_rli_memory(self):
+        return self.rli_images[:, :, :, :]
 
     def set_num_pts(self, value=1, force_resize=False, prevent_resize=False, suppress_processing=True):
         if type(value) != int or value < 1:
