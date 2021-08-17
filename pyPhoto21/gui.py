@@ -415,8 +415,9 @@ class GUI:
 
     def choose_save_dir(self, **kwargs):
         folder = self.browse_for_folder()
-        self.data.set_save_dir(folder)
-        print("New save location:", folder)
+        if folder is not None:
+            self.data.set_save_dir(folder)
+            print("New save location:", folder)
 
     def browse_for_file(self, file_extensions):
         file_window = sg.Window('File Browser',
@@ -453,7 +454,7 @@ class GUI:
         return file
 
     def browse_for_folder(self):
-        folder_window = sg.Window('File Browser',
+        folder_window = sg.Window('Folder Browser',
                                   self.layouts.create_folder_browser(),
                                   finalize=True,
                                   element_justification='center',
@@ -477,6 +478,8 @@ class GUI:
                                "Keeping this save directory:\n" +
                                folder)
         folder_window.close()
+        if len(folder) < 1:
+            return None
         return folder
 
     def load_roi_file(self, **kwargs):
@@ -493,11 +496,26 @@ class GUI:
     def load_data_file_in_background(self, file):
         self.data.load_from_file(file)
         # Sync GUI
-        self.file_gui_fields_sync()
+        self.sync_gui_fields_to_meta()
         # Freeze input fields to hardware
 
         print("File Loaded.")
         self.fv.update_new_image()
+        self.tv.update_new_traces()
+
+    def load_preference(self):
+        file = self.browse_for_file(['pbz2'])
+        if file is not None:
+            print("Loading from preference file:", file)
+            self.data.load_preference_file(file)
+            self.sync_gui_fields_to_meta()
+            self.fv.update_new_image()
+            self.tv.update_new_traces()
+
+    def save_preference(self):
+        folder = self.browse_for_folder()
+        if folder is not None:
+            self.data.save_preference_file(folder)
 
     def load_data_file(self):
         file = self.browse_for_file(['npy', 'pbz2', 'zda'])
@@ -508,17 +526,59 @@ class GUI:
             threading.Thread(target=self.load_data_file_in_background, args=(file,), daemon=True).start()
 
     # Pull all file-based data from Data and sync GUI fields
-    def file_gui_fields_sync(self):
+    def sync_gui_fields_to_meta(self):
         w = self.window
+        base_skip = self.data.core.get_baseline_skip_window()
+        int_pts = self.data.get_int_pts()
+
+        # Hardware settings
         w['Number of Points'].update(self.data.get_num_pts())
-        w['int_trials'].update(self.data.get_int_trials())
-        w['num_trials'].update(self.data.get_num_trials())
+        w['int_records'].update(self.data.get_int_records())
+        w['num_records'].update(self.data.get_num_records())
         w['Acquisition Onset'].update(self.data.get_acqui_onset())
         w['Acquisition Duration'].update(self.data.get_acqui_duration())
         w['Stimulator #1 Onset'].update(self.data.get_stim_onset(1))
         w['Stimulator #2 Onset'].update(self.data.get_stim_onset(2))
         w['Stimulator #1 Duration'].update(self.data.get_stim_duration(1))
         w['Stimulator #2 Duration'].update(self.data.get_stim_duration(2))
+        w['int_trials'].update(self.data.get_int_trials())
+        w['num_trials'].update(self.data.get_num_trials())
+        w['-CAMERA PROGRAM-'].update(self.data.display_camera_programs[self.data.get_camera_program()])
+
+        # Analysis Settings
+        w["Select Baseline Correction"].update(self.data.core.get_baseline_correction_options()[
+                                                   self.data.core.get_baseline_correction_type_index()])
+        w["Baseline Skip Window Start frames"].update(base_skip[0])
+        w["Baseline Skip Window End frames"].update(base_skip[1])
+        w["Baseline Skip Window Start (ms)"].update(base_skip[0] * int_pts)
+        w["Baseline Skip Window End (ms)"].update(base_skip[1] * int_pts)
+        w['T-Filter'].update(self.data.core.get_is_temporal_filter_enabled())
+        w['Select Temporal Filter'].update(self.data.core.get_temporal_filter_index())
+        w['Temporal Filter Radius'].update(self.data.core.get_temporal_filter_radius())
+        w['S-Filter'].update(self.data.core.get_is_spatial_filter_enabled())
+        w['Spatial Filter Sigma'].update(self.data.core.get_spatial_filter_sigma())
+        w['RLI Division'].update(self.data.get_is_rli_division_enabled())
+        w['Data Inverse'].update(self.data.get_is_data_inverse_enabled())
+        w['Digital Binning'].update(self.data.meta.binning)
+        w['Data Inverse'].update(self.data.get_is_data_inverse_enabled())
+
+        # ROI Settings
+        t_pre_stim = self.roi.get_time_window('pre_stim')
+        t_stim = self.roi.get_time_window('stim')
+        if t_pre_stim[1] == -1:
+            t_pre_stim[1] = self.data.get_num_pts()
+        if t_stim[1] == -1:
+            t_stim[1] = self.data.get_num_pts()
+        w['Identify ROI'].update(self.data.meta.is_roi_enabled)
+        w['Time Window End (ms) stim'].update(t_stim[1] * int_pts)
+        w['Time Window Start (ms) stim'].update(t_stim[0] * int_pts)
+        w['Time Window End frames stim'].update(t_stim[1])
+        w['Time Window Start frames stim'].update(t_stim[0])
+        w['Time Window End (ms) pre-stim'].update(t_pre_stim[1] * int_pts)
+        w['Time Window Start (ms) pre-stim'].update(t_pre_stim[0] * int_pts)
+        w['Time Window End frames pre-stim'].update(t_pre_stim[1])
+        w['Time Window Start frames pre-stim'].update(t_pre_stim[0])
+
         self.update_tracking_num_fields()
 
     # disable file-viewing mode, allowing acquisition to resume

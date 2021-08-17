@@ -390,6 +390,14 @@ class EventMapping:
                          'kind': None,
                          'form': 'frames'}
             },
+            "Save Preference": {
+                'function': gui.save_preference,
+                'args': {}
+            },
+            "Load Preference": {
+                'function': gui.load_preference,
+                'args': {}
+            }
 
         }
 

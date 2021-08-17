@@ -52,12 +52,15 @@ class Data(File):
                                         "7500 Hz  1024x40"]
 
         # Init actions
-        self.sync_hardware_from_metadata()
-        self.sync_analysis_from_metadata()
-        self.allocate_image_memory()
+        self.sync_from_metadata()
 
         # Start data processor listening for jobs in background
         threading.Thread(target=self.full_data_processor.process_continually, args=(), daemon=True).start()
+
+    def sync_from_metadata(self):
+        self.sync_hardware_from_metadata()
+        self.sync_analysis_from_metadata()
+        self.allocate_image_memory()
 
     def is_processed_data_up_to_date(self):
         return not self.full_data_processor.get_is_data_up_to_date()
@@ -131,8 +134,7 @@ class Data(File):
             The GUI will update itself after the call to here returns """
         self.db.meta = meta
         self.core.meta = meta
-        self.sync_hardware_from_metadata()
-        self.sync_analysis_from_metadata()
+        self.sync_from_metadata()
         if not suppress_resize:
             self.allocate_image_memory()
 
@@ -162,11 +164,25 @@ class Data(File):
             print("filenames:", filenames)
         return filenames
 
+    # assumes file has already been validated to exist
+    def load_preference_file(self, file):
+        file_prefix, extension = file.split('.')
+        if extension != 'pbz2':
+            print("Failed to load", file, "\n\t Only .pbz2 files are supported.")
+            return
+        meta_obj = self.load_metadata_from_file(file)
+        self.set_meta(meta_obj, suppress_resize=True)
+
+    def save_preference_file(self, folder):
+        meta_file = folder + "\\" + self.db.get_current_filename(no_path=True, extension='.pbz2')
+        self.save_metadata_to_file(meta_file)
+        print("Saved your preferences to:\n", meta_file)
+
     def load_from_file(self, file):
         self.set_is_loaded_from_file(True)
         print("Loading from:", file)
         orig_path_prefix = file.split(".")[0]
-        file = file.split("\\")[-1].split('/')[-1]
+        file = self.strip_path(file)
         file_prefix, extension = file.split('.')
         self.set_override_filename(file_prefix)
 
@@ -483,7 +499,7 @@ class Data(File):
         """ Return a frame mask given a polygon """
         if index is None or type(index) != np.ndarray or index.shape[0] == 1:
             return None
-        x, y = np.meshgrid(np.arange(h), np.arange(w))  # make a canvas with coordinates
+        x, y = np.meshgrid(np.arange(w), np.arange(h))  # make a canvas with coordinates
         x, y = x.flatten(), y.flatten()
         points = np.vstack((x, y)).T
 
@@ -532,7 +548,10 @@ class Data(File):
         if ret_trace is None:
             return None
 
-        ret_trace = Trace(ret_trace, self.get_int_pts())
+        ret_trace = Trace(ret_trace,
+                          self.get_int_pts(),
+                          start_frame=self.meta.crop_window[0],
+                          end_frame=self.meta.crop_window[0])
         if using_preprocessed:
             self.drop_processing_lock()
             ret_trace.clip_time_window(self.meta.crop_window)

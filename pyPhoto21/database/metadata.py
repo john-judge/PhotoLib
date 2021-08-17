@@ -49,14 +49,15 @@ class Metadata:
         self.schedule_rli_enabled = False
         self.is_rli_division_enabled = True
         self.is_data_inverse_enabled = True
+
         self.override_filename = '00-00-00'
 
-        # Time Window cropping
-        self.crop_window = [0, -1]
-
         # TraceViewer settings
+        self.crop_window = [0, -1]  # Time Window cropping applied to the temporal axis.
 
         # FrameViewer settings
+        self.show_rli = True
+        self.binning = 1
 
         # Analysis Settings
         self.baseline_correction_type_index = 0
@@ -66,5 +67,8 @@ class Metadata:
         self.temporal_filter_type_index = 0
         self.is_spatial_filer_enabled = False
         self.spatial_filter_sigma = 1.0
-        self.binning = 1
+
+        # ROI Identification
+        self.is_roi_enabled = False
+
 

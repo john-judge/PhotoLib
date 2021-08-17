@@ -23,7 +23,7 @@ class Layouts:
     def create_menu(self):
         menu_def = [['Photo21 LilDave', ['Help', 'About']],
                     ['File', ['Open', 'Choose Save Directory', 'Exit']],
-                    ['Preference', ['Paste', ['Special', 'Normal', ], 'Undo'], ],
+                    ['Preference', ['Save Preference', 'Load Preference'], ],
                     ['Toolbar', ['---', 'Command 1', 'Command 2',
                                  '---', 'Command 3', 'Command 4']]]
         toolbar_buttons = [[sg.Button('', image_data=self.close64[22:],
@@ -190,10 +190,10 @@ class Layouts:
                        button_color=('black', 'green'),
                        size=long_button_size),
              sg.Checkbox('Identify ROI',
-                         default=False,
+                         default=self.data.meta.is_roi_enabled,
                          enable_events=True,
                          key="Identify ROI",
-                         size=button_size)],
+                         size=long_button_size)],
         ]
 
     @staticmethod
@@ -215,7 +215,10 @@ class Layouts:
                       default_value=background_options[gui.get_background_option_index()],
                       key="Select Background")],
             [sg.Button("Load Image", button_color=('gray', 'black'))],
-            [sg.Text("Digital Binning:"), sg.InputText('1', key="Digital Binning", size=(5, 1), enable_events=True)]
+            [sg.Text("Digital Binning:"), sg.InputText(default_text=gui.data.meta.binning,
+                                                       key="Digital Binning",
+                                                       size=(5, 1),
+                                                       enable_events=True)]
         ]
 
     def create_dsp_tab(self):

@@ -10,7 +10,7 @@ from pyPhoto21.analysis.hyperslicer import HyperSlicer
 
 
 class FrameViewer:
-    def __init__(self, data, tv, show_rli=True):
+    def __init__(self, data, tv):
         self.data = data
         self.hyperslicer = None
         self.num_frames = None
@@ -27,8 +27,6 @@ class FrameViewer:
         self.shapes = []
 
         self.smax = None
-        self.show_rli = None
-        self.set_show_rli_flag(show_rli)
 
         self.fig = figure.Figure(constrained_layout=True)
         self.ax = None
@@ -185,7 +183,7 @@ class FrameViewer:
 
     def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
-                                                         get_rli=self.show_rli,
+                                                         get_rli=self.data.db.meta.show_rli,
                                                          binning=self.get_digital_binning())
 
     def start_livefeed_animation(self):
@@ -218,10 +216,10 @@ class FrameViewer:
         # self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw_idle()
         if self.hyperslicer is not None and update_hyperslicer:
-            self.hyperslicer.update_data(show_rli=self.show_rli)
+            self.hyperslicer.update_data(show_rli=self.data.db.meta.show_rli)
 
     def get_show_rli_flag(self):
-        return self.show_rli
+        return self.data.db.meta.show_rli
 
     def redraw_slider(self):
         # Adjust the slider values to match the data dimensions
@@ -236,7 +234,7 @@ class FrameViewer:
     def update_num_frames(self):
         # choose correct data dimensions for viewer
         refresh_ind = False
-        if self.show_rli:
+        if self.data.db.meta.show_rli:
             refresh_ind = False
             self.num_frames = 1
         else:
@@ -247,7 +245,7 @@ class FrameViewer:
             self.ind = self.num_frames // 2
 
     def set_show_rli_flag(self, value, update=False):
-        self.show_rli = value
+        self.data.db.meta.show_rli = value
         if update:
             self.update_new_image()
         else:
@@ -262,4 +260,4 @@ class FrameViewer:
         return self.data.db.meta.binning
 
     def launch_hyperslicer(self):
-        self.hyperslicer = HyperSlicer(self.data, show_rli=self.show_rli)
+        self.hyperslicer = HyperSlicer(self.data, show_rli=self.data.db.meta.show_rli)
