@@ -27,13 +27,10 @@ class File:
         return os.listdir(self.get_save_dir())
 
     def get_filename(self, slice_num, location_num, record_num, extension, path=None):
-        fn = ''
-        if self.meta.override_filename is not None:
-            fn = self.meta.override_filename
-        else:
-            fn = self.pad_zero(slice_num) + '-'  \
-                + self.pad_zero(location_num) + '-' \
-                + self.pad_zero(record_num) + extension
+
+        fn = self.pad_zero(slice_num) + '-'  \
+            + self.pad_zero(location_num) + '-' \
+            + self.pad_zero(record_num) + extension
         if not fn.endswith(extension):
             fn = fn.split(".")[0] + extension
         if path is None or len(path) == 0:
@@ -65,5 +62,3 @@ class File:
     def strip_path(filename):
         return filename.split("/")[-1].split("\\")[-1]
 
-    def set_override_filename(self, fn):
-        self.meta.override_filename = fn

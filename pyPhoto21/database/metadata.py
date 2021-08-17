@@ -49,8 +49,7 @@ class Metadata:
         self.schedule_rli_enabled = False
         self.is_rli_division_enabled = True
         self.is_data_inverse_enabled = True
-
-        self.override_filename = '00-00-00'
+        self.is_trial_averaging_enabled = False
 
         # TraceViewer settings
         self.crop_window = [0, -1]  # Time Window cropping applied to the temporal axis.

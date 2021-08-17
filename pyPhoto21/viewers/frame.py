@@ -35,6 +35,7 @@ class FrameViewer:
         self.current_frame = None
         self.im = None
         self.livefeed_im = None
+        self.update_num_frames()
         self.populate_figure()
 
         self.update()
@@ -59,7 +60,11 @@ class FrameViewer:
         # Rest of the plot is the image
         self.ax = self.fig.add_subplot(gs[1:-1, :])  # leaves last row blank -- for Slider
         axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
-        self.smax = Slider(axmax, 'Frame Selector', 0, np.max(self.num_frames), valinit=self.ind)
+        self.smax = Slider(axmax,
+                           'Frame Selector',
+                           0,
+                           self.num_frames,
+                           valinit=self.ind)
 
         self.refresh_current_frame()
         if self.current_frame is not None:
@@ -183,7 +188,7 @@ class FrameViewer:
 
     def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
-                                                         get_rli=self.data.db.meta.show_rli,
+                                                         get_rli=self.get_show_rli_flag(),
                                                          binning=self.get_digital_binning())
 
     def start_livefeed_animation(self):
@@ -216,7 +221,7 @@ class FrameViewer:
         # self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw_idle()
         if self.hyperslicer is not None and update_hyperslicer:
-            self.hyperslicer.update_data(show_rli=self.data.db.meta.show_rli)
+            self.hyperslicer.update_data(show_rli=self.get_show_rli_flag())
 
     def get_show_rli_flag(self):
         return self.data.db.meta.show_rli
@@ -234,7 +239,7 @@ class FrameViewer:
     def update_num_frames(self):
         # choose correct data dimensions for viewer
         refresh_ind = False
-        if self.data.db.meta.show_rli:
+        if self.get_show_rli_flag():
             refresh_ind = False
             self.num_frames = 1
         else:
@@ -260,4 +265,4 @@ class FrameViewer:
         return self.data.db.meta.binning
 
     def launch_hyperslicer(self):
-        self.hyperslicer = HyperSlicer(self.data, show_rli=self.data.db.meta.show_rli)
+        self.hyperslicer = HyperSlicer(self.data, show_rli=self.get_show_rli_flag())

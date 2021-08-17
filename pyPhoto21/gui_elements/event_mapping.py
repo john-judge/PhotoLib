@@ -44,7 +44,11 @@ class EventMapping:
             },
             '-github-': {
                 'function': gui.launch_github_page,
-                'args': {},
+                'args': {'kind': "technical"},
+            },
+            'Help': {
+                'function': gui.launch_github_page,
+                'args': {'kind': "user"},
             },
             'Digital Binning': {
                 'function': gui.set_digital_binning,
@@ -250,10 +254,6 @@ class EventMapping:
                 'function': gui.unload_file,
                 'args': {}
             },
-            'File Name': {
-                'function': gui.change_save_filename,
-                'args': {}
-            },
             "Increment Trial": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.increment_current_trial_index,
@@ -397,7 +397,16 @@ class EventMapping:
             "Load Preference": {
                 'function': gui.load_preference,
                 'args': {}
+            },
+            'Average Trials': {
+                'function': gui.toggle_average_trials,
+                'args': {}
+            },
+            "About": {
+                'function': gui.introduction,
+                'args': {}
             }
+
 
         }
 

@@ -25,6 +25,7 @@ class LegacyData(File):
         db.clear_or_resize_mmap_file()  # loads correct dimensions since we already set meta
         arr = db.load_data_raw()
         arr[:, :, :, :] = raw_data[:, :, :, :]
+        print(arr)
 
     def populate_meta(self, meta_obj, metadata_dict):
         meta_obj.version = metadata_dict['version']

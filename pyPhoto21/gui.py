@@ -403,16 +403,6 @@ class GUI:
                 break
         wind.close()
 
-    def change_save_filename(self, **kwargs):
-        # Spawn a folder browser for auto-save
-        v = kwargs['values']
-        if len(v) < 1:
-            return
-        valid_chars = "\\/:-_.() %s%s" % (string.ascii_letters, string.digits)
-        v = ''.join(c for c in v if c in valid_chars)
-        kwargs['window'][kwargs['event']].update(v)
-        self.data.set_override_filename(v)
-
     def choose_save_dir(self, **kwargs):
         folder = self.browse_for_folder()
         if folder is not None:
@@ -493,16 +483,6 @@ class GUI:
                                                data_obj,
                                                extension='roi')
 
-    def load_data_file_in_background(self, file):
-        self.data.load_from_file(file)
-        # Sync GUI
-        self.sync_gui_fields_to_meta()
-        # Freeze input fields to hardware
-
-        print("File Loaded.")
-        self.fv.update_new_image()
-        self.tv.update_new_traces()
-
     def load_preference(self):
         file = self.browse_for_file(['pbz2'])
         if file is not None:
@@ -522,8 +502,14 @@ class GUI:
         if file is not None:
             self.freeze_hardware_settings(include_buttons=False, freeze_file_flip=False)
             print("Loading from file:", file, "\nThis will take a few seconds...")
+            self.data.load_from_file(file)
+            # Sync GUI
+            self.sync_gui_fields_to_meta()
+            # Freeze input fields to hardware
 
-            threading.Thread(target=self.load_data_file_in_background, args=(file,), daemon=True).start()
+            print("File Loaded.")
+            self.fv.update_new_image()
+            self.tv.update_new_traces()
 
     # Pull all file-based data from Data and sync GUI fields
     def sync_gui_fields_to_meta(self):
@@ -561,6 +547,7 @@ class GUI:
         w['Data Inverse'].update(self.data.get_is_data_inverse_enabled())
         w['Digital Binning'].update(self.data.meta.binning)
         w['Data Inverse'].update(self.data.get_is_data_inverse_enabled())
+        w['Average Trials'].update(self.data.get_is_trial_averaging_enabled())
 
         # ROI Settings
         t_pre_stim = self.roi.get_time_window('pre_stim')
@@ -574,10 +561,10 @@ class GUI:
         w['Time Window Start (ms) stim'].update(t_stim[0] * int_pts)
         w['Time Window End frames stim'].update(t_stim[1])
         w['Time Window Start frames stim'].update(t_stim[0])
-        w['Time Window End (ms) pre-stim'].update(t_pre_stim[1] * int_pts)
-        w['Time Window Start (ms) pre-stim'].update(t_pre_stim[0] * int_pts)
-        w['Time Window End frames pre-stim'].update(t_pre_stim[1])
-        w['Time Window Start frames pre-stim'].update(t_pre_stim[0])
+        w['Time Window End (ms) pre_stim'].update(t_pre_stim[1] * int_pts)
+        w['Time Window Start (ms) pre_stim'].update(t_pre_stim[0] * int_pts)
+        w['Time Window End frames pre_stim'].update(t_pre_stim[1])
+        w['Time Window Start frames pre_stim'].update(t_pre_stim[0])
 
         self.update_tracking_num_fields()
 
@@ -589,8 +576,13 @@ class GUI:
             self.fv.update_new_image()
 
     @staticmethod
-    def launch_github_page():
-        open_browser('https://github.com/john-judge/PhotoLib', new=2)
+    def launch_github_page(**kwargs):
+        urls = {
+            'technical': 'https://github.com/john-judge/PhotoLib',
+            'user': 'https://github.com/john-judge/PhotoLib/blob/master/README.md'  # Update this to user tutorial link
+        }
+        if 'kind' in kwargs and kwargs['kind'] in urls:
+            open_browser(urls[kwargs['kind']], new=2)
 
     @staticmethod
     def launch_youtube_tutorial():
@@ -643,6 +635,16 @@ class GUI:
 
     def set_is_schedule_rli_enabled(self, value):
         self.data.set_is_schedule_rli_enabled(value)
+
+    def toggle_average_trials(self, **kwargs):
+        v = bool(kwargs['values'])
+        new_index = 0
+        if v:
+            new_index = None
+        self.data.set_is_trial_averaging_enabled(v)
+        self.set_current_trial_index(value=new_index)
+        self.window["Trial Number"].update(str(self.data.get_current_trial_index()))
+
 
     def set_acqui_onset(self, **kwargs):
         v = kwargs['values']
@@ -877,9 +879,13 @@ class GUI:
 
     def set_current_trial_index(self, **kwargs):
         if 'value' in kwargs:
-            value = int(kwargs['value'])
+            if kwargs['value'] is None:
+                value = None
+            else:
+                value = int(kwargs['value'])
             self.data.set_current_trial_index(value)
             self.fv.update_new_image()
+            self.tv.update_new_traces()
 
     def set_slice(self, **kwargs):
         value = int(kwargs['value'])
