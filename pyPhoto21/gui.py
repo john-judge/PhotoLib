@@ -579,7 +579,8 @@ class GUI:
     def launch_github_page(**kwargs):
         urls = {
             'technical': 'https://github.com/john-judge/PhotoLib#photolib',
-            'user': 'https://github.com/john-judge/PhotoLib/blob/master/TUTORIAL.md'  # Update this to user tutorial link
+            'user': 'https://github.com/john-judge/PhotoLib/blob/master/'
+                    'TUTORIAL.md#users-manual-for-pyphoto21-little-dave'  # Update this to user tutorial link
         }
         if 'kind' in kwargs and kwargs['kind'] in urls:
             open_browser(urls[kwargs['kind']], new=2)
@@ -876,6 +877,7 @@ class GUI:
         self.window["Trial Number"].update(self.data.get_current_trial_index())
         self.window["File Name"].update(self.data.db.get_current_filename(no_path=True))
         self.fv.update_new_image()
+        self.tv.update_new_traces()
 
     def set_current_trial_index(self, **kwargs):
         if 'value' in kwargs:

@@ -99,7 +99,7 @@ class Layouts:
                          default=self.data.get_is_trial_averaging_enabled(),
                          enable_events=True,
                          key="Average Trials",
-                         size=checkbox_size),
+                         size=(12, 1)),
              ],
             [sg.Text("Slice:", size=(8, 1), justification='right'),
              sg.InputText(key="Slice Number",
