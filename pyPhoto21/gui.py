@@ -532,6 +532,14 @@ class GUI:
     def launch_github_page():
         open_browser('https://github.com/john-judge/PhotoLib', new=2)
 
+    @staticmethod
+    def launch_youtube_tutorial():
+        pass
+
+    @staticmethod
+    def launch_little_dave_calendar():
+        pass
+
     # Returns True if string s is a valid numeric input
     @staticmethod
     def validate_numeric_input(s, non_zero=False, max_digits=None, min_val=None, max_val=None, decimal=False):
@@ -553,7 +561,7 @@ class GUI:
         binning = kwargs['values']
         while len(binning) > 0 and \
                 (not self.validate_numeric_input(binning, max_val=min(self.data.get_display_width(),
-                                                                      self.data.get_display_height()) // 4) \
+                                                                      self.data.get_display_height()) // 4)
                  or len(binning) > 3):
             binning = binning[:-1]
         if not self.validate_numeric_input(binning, non_zero=True):
@@ -764,9 +772,10 @@ class GUI:
         self.set_time_window_generic(self.roi.set_time_window, kwargs)
 
     def select_baseline_skip_window(self):
-        print("select_baseline_skip_window not implemented")
+        print("select_baseline_skip_window (graphical method) not implemented")
 
-    def select_time_window_workflow(self):
+    def select_time_window_workflow_generic(self):
+        # to be a generic method for helping graphically choose a time window
         pass
 
     def set_roi_k_clusters(self, **kwargs):
@@ -850,26 +859,31 @@ class GUI:
         tf_index = self.data.core.get_temporal_filter_options().index(tf_name)
         self.data.core.set_temporal_filter_index(tf_index)
         self.tv.update_new_traces()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_t_filter_radius(self, **kwargs):
         v = int(kwargs['values'])
         self.data.core.set_temporal_filter_radius(v)
         self.tv.update_new_traces()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_s_filter_sigma(self, **kwargs):
         v = float(kwargs['values'])
         self.data.core.set_spatial_filter_sigma(v)
         self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_is_t_filter_enabled(self, **kwargs):
         v = bool(kwargs['values'])
         self.data.core.set_is_temporal_filter_enabled(v)
         self.tv.update_new_traces()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_is_s_filter_enabled(self, **kwargs):
         v = bool(kwargs['values'])
         self.data.core.set_is_spatial_filter_enabled(v)
         self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_baseline_correction(self, **kwargs):
         v = kwargs['values']
@@ -877,18 +891,21 @@ class GUI:
         self.data.core.set_baseline_correction_type_index(v)
         self.tv.update_new_traces()
         self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_rli_division(self, **kwargs):
         v = bool(kwargs['values'])
         self.data.set_is_rli_division_enabled(v)
         self.tv.update_new_traces()
         self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_data_inverse(self, **kwargs):
         v = bool(kwargs['values'])
         self.data.set_is_data_inverse_enabled(v)
         self.tv.update_new_traces()
         self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
 
 
 class Toolbar(NavigationToolbar2Tk):

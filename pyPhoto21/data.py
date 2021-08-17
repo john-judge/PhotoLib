@@ -1,4 +1,5 @@
 import time
+import threading
 
 import numpy as np
 from matplotlib.path import Path
@@ -9,7 +10,7 @@ from pyPhoto21.database.database import Database
 from pyPhoto21.database.file import File
 from pyPhoto21.database.legacy import LegacyData
 from pyPhoto21.database.metadata import Metadata
-from pyPhoto21.analysis.process import Processor, Job
+from pyPhoto21.analysis.process import Processor
 
 
 # This class will supersede Data...
@@ -22,7 +23,8 @@ class Data(File):
         self.hardware = hardware
         self.db = Database()
         self.core = AnalysisCore(self.db.meta)
-        self.full_data_processor = Processor()
+
+        self.full_data_processor = Processor(self)
         super().__init__(self.db.meta)
 
         # Internal (non-user facing) settings and flags
@@ -54,9 +56,30 @@ class Data(File):
         self.sync_analysis_from_metadata()
         self.allocate_image_memory()
 
+        # Start data processor listening for jobs in background
+        threading.Thread(target=self.full_data_processor.process_continually, args=(), daemon=True).start()
+
+    def is_processed_data_up_to_date(self):
+        return not self.full_data_processor.get_is_data_up_to_date()
+
+    def stop_background_processing(self):
+        self.full_data_processor.stop_processor()
+
+    # blocks until processor daemon has stopped
+    def acquire_processing_lock(self):
+        while not self.full_data_processor.get_is_data_up_to_date():
+            time.sleep(0.5)
+        # don't need atomic operations -- this will be called from main thread,
+        # which is the only thread that should be queuing processing tasks.
+        self.full_data_processor.pause_processor()
+        while self.full_data_processor.get_is_active():
+            time.sleep(0.5)
+
+    def drop_processing_lock(self):
+        self.full_data_processor.unpause_processor()
+
     def sync_analysis_from_metadata(self):
-        pass
-        # give jobs to processor
+        self.full_data_processor.update_full_processed_data()
 
     # numpy autosaves the image arrays; only need to save meta actively
     def save_metadata_to_compressed_file(self):
@@ -124,14 +147,19 @@ class Data(File):
         while any([self.file_exists(fn) for fn in filenames]) and i < 100:
             if orig_override_fn is not None:
                 i += 1
-                self.set_override_filename(orig_override_fn + "(" + self.pad_zero(i) + ")")
+                self.db.set_override_filename(orig_override_fn + "(" + self.pad_zero(i) + ")")
+                if i % 50 == 0:
+                    print("overrideing to find ununsed fn")
             else:
                 self.increment_record()
                 i += 1
+                if i % 50 == 0:
+                    print("incrementing to find ununsed fn")
             filenames = [self.db.get_current_filename(no_path=True, extension=ext)
                          for ext in extensions]
         if i >= 100:
             print("Searched over 100 possible filenames... Probably an issue?")
+            print("filenames:", filenames)
         return filenames
 
     def load_from_file(self, file):
@@ -144,15 +172,15 @@ class Data(File):
 
         if extension == "zda":
             # We will auto-create some files, so find names:
-            meta_no_path, data_no_path = self.find_unused_filenames()
+            self.find_unused_filenames()
 
-            data_file, meta_file = self.find_unused_filenames()
             new_meta = Metadata()
             new_meta.override_filename = self.meta.override_filename
             self.set_meta(new_meta, suppress_resize=True)
             LegacyData().load_zda(orig_path_prefix + '.zda',
                                   self.db,
                                   new_meta)  # side-effect is to create and populate .npy file
+            meta_file = self.db.get_current_filename(no_path=False, extension='.pbz2')
             self.save_metadata_to_file(meta_file)
         elif extension in ['npy', 'pbz2']:
             meta_no_path = self.db.get_current_filename(no_path=True, extension='.pbz2')
@@ -197,6 +225,7 @@ class Data(File):
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
         self.db.load_mmap_file()
+        self.full_data_processor.update_full_processed_data()
 
     def increment_location(self, num=1):
         self.db.meta.current_location += num
@@ -204,11 +233,13 @@ class Data(File):
         self.set_current_trial_index(0)
         self.db.meta.override_filename = None
         self.db.load_mmap_file()
+        self.full_data_processor.update_full_processed_data()
 
     def increment_record(self, num=1):
         self.db.meta.current_record += num
         self.set_current_trial_index(0)
         self.db.load_mmap_file()
+        self.full_data_processor.update_full_processed_data()
 
     def decrement_slice(self, num=1):
         self.db.meta.current_slice -= num
@@ -217,10 +248,12 @@ class Data(File):
             self.db.meta.current_record = 0
             self.set_current_trial_index(0)
             self.db.load_mmap_file()
+            self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_slice = 0
             if num > 1:
                 self.db.load_mmap_file()
+                self.full_data_processor.update_full_processed_data()
 
     def decrement_location(self, num=1):
         self.db.meta.current_location -= num
@@ -228,43 +261,53 @@ class Data(File):
             self.db.meta.current_record = 0
             self.set_current_trial_index(0)
             self.db.load_mmap_file()
+            self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_location = 0
             if num > 1:
                 self.db.load_mmap_file()
+                self.full_data_processor.update_full_processed_data()
 
     def decrement_record(self, num=1):
         self.db.meta.current_record -= num
         if self.db.meta.current_record >= 0:
             self.db.load_mmap_file()
+            self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_record = 0
             if num > 1:
                 self.db.load_mmap_file()
+                self.full_data_processor.update_full_processed_data()
 
     def set_slice(self, v):
         if v > self.db.meta.current_slice:
             self.db.meta.increment_slice(v - self.db.meta.current_slice)
             self.db.load_mmap_file()
+            self.full_data_processor.update_full_processed_data()
         elif v < self.db.meta.current_slice:
             self.db.meta.decrement_slice(self.db.meta.current_slice - v)
             self.db.load_mmap_file()
+            self.full_data_processor.update_full_processed_data()
 
     def set_record(self, v):
         if v > self.db.meta.current_record:
             self.db.meta.increment_record(v - self.db.meta.current_record)
             self.db.load_mmap_file()
+            self.full_data_processor.update_full_processed_data()
         elif v < self.db.meta.current_record:
             self.db.meta.decrement_record(self.db.meta.current_record - v)
             self.db.load_mmap_file()
+            self.full_data_processor.update_full_processed_data()
 
     def set_location(self, v):
         if v > self.db.meta.current_location:
             self.db.meta.increment_location(v - self.db.meta.current_location)
             self.db.load_mmap_file()
+            self.full_data_processor.update_full_processed_data()
         if v < self.db.meta.current_location:
             self.db.meta.decrement_location(self.db.meta.current_location - v)
             self.db.load_mmap_file()
+            self.full_data_processor.update_full_processed_data()
 
     # This is the allocated memory size, not necessarily the current camera state
     # However, the Hardware class should be prepared to init camera to this width
@@ -290,7 +333,7 @@ class Data(File):
     def set_num_fp(self, value):
         self.db.meta.num_fp = value
 
-    def set_camera_program(self, program, force_resize=False, prevent_resize=False):
+    def set_camera_program(self, program, force_resize=False, prevent_resize=False, suppress_processing=False):
         curr_program = self.hardware.get_camera_program()
         self.hardware.set_camera_program(program=program)
         if (force_resize or curr_program != program) and not prevent_resize:
@@ -298,17 +341,21 @@ class Data(File):
             self.db.meta.width = self.get_display_width()
             self.db.meta.height = self.get_display_height()
             self.db.clear_or_resize_mmap_file()
+        if not suppress_processing:
+            self.full_data_processor.update_full_processed_data()
 
     def get_camera_program(self):
         if self.get_is_loaded_from_file():
             return self.db.meta.camera_program
         return self.hardware.get_camera_program()
 
-    def set_crop_window(self, v, index=None):
+    def set_crop_window(self, v, index=None, suppress_processing=False):
         if index is None:
             self.db.meta.crop_window = v
         elif index == 0 or index == 1:
             self.db.meta.crop_window[index] = v
+        if not suppress_processing:
+            self.full_data_processor.update_full_processed_data()
 
     def get_crop_window(self, index=None):
         if index is None:
@@ -366,10 +413,17 @@ class Data(File):
         if self.core.get_show_processed_data() and not raw_override:
             return self.core.get_processed_display_frame()
         images = None
+        using_preprocessed = False
         if get_rli:
             images = self.calculate_rli()
         else:
-            images = self.get_acqui_images()
+            # fetching data
+            if self.full_data_processor.get_is_data_up_to_date():
+                using_preprocessed = True
+                self.acquire_processing_lock()
+                images = self.get_processed_images()
+            else:
+                images = self.get_acqui_images()
         if images is None:
             return None
         if not get_rli and len(images.shape) != 3:
@@ -385,6 +439,10 @@ class Data(File):
             ret_frame = np.average(images[index[0]:index[1], :, :], axis=0)
         else:
             ret_frame = np.average(images, axis=0)
+
+        if using_preprocessed:  # can skip the minimal processing.
+            self.drop_processing_lock()
+            return ret_frame[1:-2, 1:-2]
 
         # RLI division
         if self.get_is_rli_division_enabled() and not get_rli:
@@ -402,10 +460,6 @@ class Data(File):
                       ret_frame.shape,
                       "Skipping RLI division.\n",
                       "You may be using a legacy ZDA data file (or a converted legacy data file)?")
-
-        # TO DO: technically we should apply data inversing, baseline correction, and t-filter to
-        # data when computing the display frame...
-        # Would probably need to cache processed data to make it fast enough, so forego for now.
 
         # digital binning
         ret_frame = self.core.create_binned_data(ret_frame, binning_factor=binning)
@@ -449,7 +503,14 @@ class Data(File):
         if fp_index is not None:
             return self.get_display_fp_trace(fp_index)
 
-        images = self.get_acqui_images()
+        # fetching data
+        using_preprocessed = False
+        if self.full_data_processor.get_is_data_up_to_date():
+            using_preprocessed = True
+            self.acquire_processing_lock()
+            images = self.get_processed_images()
+        else:
+            images = self.get_acqui_images()
         if images is None:
             print("get_display_trace: No images to display.")
             return None
@@ -472,6 +533,10 @@ class Data(File):
             return None
 
         ret_trace = Trace(ret_trace, self.get_int_pts())
+        if using_preprocessed:
+            self.drop_processing_lock()
+            ret_trace.clip_time_window(self.meta.crop_window)
+            return ret_trace
 
         # data inversing (BEFORE baseline correction)
         if self.get_is_data_inverse_enabled():
@@ -508,10 +573,9 @@ class Data(File):
         else:
             return self.db.load_trial_data_raw(trial)
 
-    def get_processed_images(self, blocking=True):
+    # Assumes caller is responsible for locking the processed memmapped file
+    def get_processed_images(self):
         trial = self.get_current_trial_index()
-        while blocking and not self.core.full_data_processor.get_is_data_up_to_date():
-            time.sleep(0.2)
         if trial is None:
             return self.db.load_data_processed()
         else:
@@ -520,7 +584,7 @@ class Data(File):
     def get_rli_images(self):
         return self.rli_images[0, :, :, :]
 
-    def set_num_pts(self, value=1, force_resize=False, prevent_resize=False):
+    def set_num_pts(self, value=1, force_resize=False, prevent_resize=False, suppress_processing=True):
         if type(value) != int or value < 1:
             return
         tmp = self.get_num_pts()
@@ -531,6 +595,8 @@ class Data(File):
                                               self.get_num_fp(),
                                               self.get_num_pts()))
         self.hardware.set_num_pts(value=value)
+        if not suppress_processing:
+            self.full_data_processor.update_full_processed_data()
 
     # Populate meta.rli_high from RLI raw frames
     def calculate_light_rli_frame(self, margins=40):
@@ -688,14 +754,18 @@ class Data(File):
     def get_is_rli_division_enabled(self):
         return self.db.meta.is_rli_division_enabled
 
-    def set_is_rli_division_enabled(self, v):
+    def set_is_rli_division_enabled(self, v, suppress_processing=False):
         self.db.meta.is_rli_division_enabled = v
+        if not suppress_processing:
+            self.full_data_processor.update_full_processed_data()
 
     def get_is_data_inverse_enabled(self):
         return self.db.meta.is_data_inverse_enabled
 
-    def set_is_data_inverse_enabled(self, v):
+    def set_is_data_inverse_enabled(self, v, suppress_processing=False):
         self.db.meta.is_data_inverse_enabled = v
+        if not suppress_processing:
+            self.full_data_processor.update_full_processed_data()
 
     def get_is_livefeed_enabled(self):
         return self.is_live_feed_enabled

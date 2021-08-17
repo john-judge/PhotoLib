@@ -15,7 +15,6 @@ class FrameViewer:
         self.hyperslicer = None
         self.num_frames = None
         self.ind = 0
-        self.binning = 1
         self.tv = tv  # TraceViewer
         self.show_processed_data = False
 
@@ -255,12 +254,12 @@ class FrameViewer:
             self.update_num_frames()
 
     def set_digital_binning(self, binning):
-        if binning != self.binning:
-            self.binning = binning
+        if binning != self.data.db.meta.binning:
+            self.data.db.meta.binning = binning
             self.update_new_image()
 
     def get_digital_binning(self):
-        return self.binning
+        return self.data.db.meta.binning
 
     def launch_hyperslicer(self):
         self.hyperslicer = HyperSlicer(self.data, show_rli=self.show_rli)

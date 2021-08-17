@@ -8,8 +8,8 @@ from scipy.ndimage import gaussian_filter
 
 class Trace:
     def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False):
-        if end_frame < 0:
-            end_frame = len(points)
+        if end_frame <= 0:
+            end_frame += len(points)
         if type(points) != np.ndarray:
             points = np.array(points)
         self.points = points
@@ -25,13 +25,32 @@ class Trace:
         points = self.points[self.start_frame:self.end_frame]
         return t, points
 
+    def get_data_unclipped(self):
+        return self.points
+
+    def get_start_point(self):
+        return self.start_frame
+
+    def get_end_point(self):
+        return self.end_frame
+
     def apply_inverse(self):
         if self.is_fp_trace:
             return
         self.points = 0 - self.points
 
+    # apply crop window, w/o overriding existing window
     def clip_time_window(self, window):
-        self.start_frame, self.end_frame = window
+        n = len(self.points)
+        start, end = window
+        while end <= 0:
+            end += n
+        self.start_frame = max(self.start_frame, start)
+        self.end_frame = min(self.end_frame, end)
+
+    def clear_crop_window(self):
+        self.start_frame = 0
+        self.end_frame = len(self.points)
 
     def baseline_correct_noise(self, fit_type, skip_window):
         """ subtract background drift off of single trace """

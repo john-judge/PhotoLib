@@ -1,5 +1,4 @@
 import numpy as np
-import threading
 from skimage.transform import downscale_local_mean
 import cv2 as cv
 
@@ -12,7 +11,6 @@ class AnalysisCore:
     def __init__(self, meta):
 
         self.meta = meta  # Metadata object.
-        self.full_data_processor = Processor()
 
         # Filtering settings
         self.temporal_filter_options = [
@@ -38,15 +36,6 @@ class AnalysisCore:
         self.current_processed_frame = None
         self.show_processed_data = False
 
-        # Start data processor listening for jobs in background
-        threading.Thread(target=self.full_data_processor.process_continually, args=(), daemon=True).start()
-
-    def is_processed_data_up_to_date(self):
-        return not self.full_data_processor.get_is_data_up_to_date()
-
-    def stop_background_processing(self):
-        self.full_data_processor.stop_processor()
-
     def set_is_temporal_filter_enabled(self, v):
         self.meta.is_temporal_filer_enabled = v
 
@@ -65,7 +54,7 @@ class AnalysisCore:
     def get_temporal_filter_index(self):
         return self.meta.temporal_filter_type_index
 
-    def set_temporal_filter_index(self, v):
+    def set_temporal_filter_index(self, v, suppress_processing=False):
         self.meta.temporal_filter_type_index = v
 
     def set_is_spatial_filter_enabled(self, v):
@@ -97,12 +86,6 @@ class AnalysisCore:
             print("Not a valid processed display frame (core.py)!")
         self.current_processed_frame = image
 
-    def get_skip_window_start(self):
-        return self.skip_window_start
-
-    def set_skip_window_start(self, value=0):
-        self.skip_window_start = value
-
     def set_show_processed_data(self, v):
         self.show_processed_data = v
 
@@ -115,15 +98,16 @@ class AnalysisCore:
             The temporal axis is assumed to be the third from the end. """
         return np.mean(data, axis=-3) / np.std(data, axis=-3)
 
-    def full_binning_(self):
-        j = Job(self.create_binned_data, )
-
-    @staticmethod
-    def create_binned_data(data, binning_factor=2):
+    def create_binned_data(self, data, binning_factor=2):
         """ binning utility function """
         if binning_factor < 2:
             return data
-        return downscale_local_mean(data, (binning_factor, binning_factor))
+        return self.create_binned_data_ndim(data, (binning_factor, binning_factor))
+
+    @staticmethod
+    def create_binned_data_ndim(data, bin_shape):
+        """ binning utility function: for N-D data"""
+        return downscale_local_mean(data, bin_shape)
 
     def filter_spatial(self, frame, filter_type='Gaussian'):
         """ Spatial filtering: Gaussian """
@@ -138,6 +122,21 @@ class AnalysisCore:
                                         (filter_size, filter_size),
                                         sigma_s)
         return frame
+
+    def filter_spatial_4dim(self, frames, filter_type='Gaussian'):
+        """ Spatial filtering: Gaussian, for 4-d array of 2-d images """
+        if self.get_is_spatial_filter_enabled():
+            sigma_s = self.get_spatial_filter_sigma()
+            if filter_type == 'Gaussian':
+                filter_size = int(sigma_s * 3)
+                if filter_size % 2 == 0:
+                    filter_size += 1
+                for tr in range(frames.shape[0]):
+                    for t in range(frames.shape[1]):
+                        frames = cv.GaussianBlur(frames[tr, t, :, :].astype(np.float32),
+                                                 (filter_size, filter_size),
+                                                 sigma_s)
+        return frames
 
     def set_baseline_skip_window(self, kind, index, value):
         if index == 0 or index == 1:
