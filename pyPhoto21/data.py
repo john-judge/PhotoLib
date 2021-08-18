@@ -518,22 +518,22 @@ class Data(File):
 
     @staticmethod
     def get_background_options():
-        return ['None', 'Max Amp', 'MaxAmp/SD', 'Mean Amp', 'MeanAmp/SD']
+        return ['Frame Selector Amp', 'Max Amp', 'MaxAmp/SD', 'Mean Amp', 'MeanAmp/SD']
 
-    def apply_temporal_aggregration_frame(self, images, index):
+    def apply_temporal_aggregration_frame(self, images):
         ret_frame = None
         agg_type = self.get_background_options()[self.get_background_option_index()]
 
-        if agg_type == 'None':
+        if agg_type == 'Amp at Frame Selector':
             pass
         elif agg_type == 'Max Amp':
-            ret_frame = np.max(ret_frame, axis=0)
+            ret_frame = np.max(images, axis=0)
         elif agg_type == 'MaxAmp/SD':
-            ret_frame = np.max(ret_frame, axis=0) / np.std(ret_frame, axis=0)
+            ret_frame = np.max(images, axis=0) / np.std(images, axis=0)
         elif agg_type == 'Mean Amp':
-            ret_frame = np.average(ret_frame, axis=0)
+            ret_frame = np.average(images, axis=0)
         elif agg_type == 'MeanAmp/SD':
-            ret_frame = np.average(ret_frame, axis=0) / np.std(ret_frame, axis=0)
+            ret_frame = np.average(images, axis=0) / np.std(images, axis=0)
         return ret_frame
 
     # Based on system state, create/get the frame that should be displayed.
@@ -565,12 +565,14 @@ class Data(File):
         # Temporal selection index: a single time index or a time window
         ret_frame = None
         if type(index) == int and (index < images.shape[0]) and index >= 0:
-            ret_frame = images[index, :, :]
+            if "Frame Selector" not in self.get_background_options()[self.get_background_option_index()]:
+                ret_frame = self.apply_temporal_aggregration_frame(images)
+            else:
+                ret_frame = images[index, :, :]
         elif type(index) == list and len(index) == 2:
-            ret_frame = self.apply_temporal_aggregration_frame(images[index[0]:index[1], :, :],
-                                                               index)
+            ret_frame = self.apply_temporal_aggregration_frame(images[index[0]:index[1], :, :])
         else:
-            ret_frame = self.apply_temporal_aggregration_frame(images, index)
+            ret_frame = self.apply_temporal_aggregration_frame(images)
 
         if self.full_data_processor.enabled and using_preprocessed:  # can skip the minimal processing.
             self.drop_processing_lock()
@@ -599,6 +601,9 @@ class Data(File):
 
         # spatial filtering
         ret_frame = self.core.filter_spatial(ret_frame)
+
+        if ret_frame is None:
+            return None
 
         # crop out 1px borders
         ret_frame = ret_frame[1:-2, 1:-2]

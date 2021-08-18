@@ -945,6 +945,8 @@ class GUI:
         bg_name = kwargs['values']
         bg_index = self.data.get_background_options().index(bg_name)
         self.data.db.meta.background_option_index = bg_index
+        self.fv.update_new_image()
+        self.tv.update_new_traces()
 
     # value to display in trace viewer
     def get_display_value_option_index(self):
