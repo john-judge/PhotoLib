@@ -66,6 +66,11 @@ Typically:
 ```
 Find these dependencies and make sure their directories are included in your system environment's PATH variable or add them to one of the DLL search paths.
 
+## Architecture
+### Overview
+![modules (1)](https://user-images.githubusercontent.com/40705003/129975800-95b877ed-b8da-46f5-83bb-48e716169ebb.png)
+
+
 ## Related Projects and Applications
 - [PhotoZ](https://github.com/john-judge/PhotoZ_upgrades.git) for data acquisition and analysis with GUI entirely in C++
 - [ZDA_Explorer](https://github.com/john-judge/ZDA_Explorer.git) for flexible data analysis scripting with PhotoZ raw data
