@@ -189,7 +189,7 @@ class GUI:
                 self.window[ev].update(disabled=v)
 
     def unfreeze_hardware_settings(self):
-        self.freeze_hardware_settings(v=False, include_buttons=True)
+        self.freeze_hardware_settings(v=False)
 
     def get_trial_sleep_time(self):
         sleep_sec = self.data.get_int_trials()
@@ -218,7 +218,6 @@ class GUI:
 
     def record_in_background(self):
         self.freeze_hardware_settings()
-        self.data.acquire_processing_lock()  # lock processor to avoid interference with image reassembly.
         self.hardware.set_stop_flag(False)
 
         sleep_trial = self.get_trial_sleep_time()
@@ -247,6 +246,8 @@ class GUI:
             if exit_recording:
                 break
 
+            self.data.acquire_processing_lock()  # lock processor to avoid interference with image reassembly.
+
             for trial in range(self.data.get_num_trials()):
                 self.data.set_current_trial_index(trial)
 
@@ -256,8 +257,7 @@ class GUI:
                 acqui_mem = self.data.get_acqui_memory()
                 self.hardware.record(images=acqui_mem,
                                      fp_data=self.data.get_fp_data())
-                acqui_mem.flush()  # this is a memmapped file, write back before Viewers pull from it.
-                time.sleep(0.2)
+
                 self.data.set_current_trial_index(trial)
                 self.update_tracking_num_fields()
                 print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
@@ -266,6 +266,9 @@ class GUI:
                     exit_recording = self.sleep_and_check_stop_flag(sleep_time=sleep_trial)
                 if exit_recording:
                     break
+
+            self.data.drop_processing_lock()
+            time.sleep(0.2)
 
             if self.get_is_auto_save_enabled():
                 threading.Thread(target=self.save_file_in_background, args=(), daemon=True).start()
@@ -279,7 +282,6 @@ class GUI:
         print("Recording ended.")
         # done recording
         self.unfreeze_hardware_settings()
-        self.data.drop_processing_lock()
 
     def record(self, **kwargs):
         # we spawn a new thread to acquire in the background.

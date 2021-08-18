@@ -8,8 +8,8 @@ from scipy.ndimage import gaussian_filter
 
 class Trace:
     def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False):
-        if end_frame <= 0:
-            end_frame += len(points)
+        if end_frame == -1:
+            end_frame = len(points)
         if type(points) != np.ndarray:
             points = np.array(points)
         self.points = points
@@ -46,8 +46,8 @@ class Trace:
     def clip_time_window(self, window):
         n = len(self.points)
         start, end = window
-        while end <= 0:
-            end += n
+        if end == -1:
+            end = n
         self.start_frame = max(self.start_frame, start)
         self.end_frame = min(self.end_frame, end)
 
@@ -65,8 +65,13 @@ class Trace:
         # Skip points
         skip_start, skip_end = skip_window
         skip_int = [i for i in range(skip_start, skip_end)]
-        trace_skipped = np.delete(trace, skip_int)
-        t_skipped = np.delete(t, skip_int)
+        trace_skipped = trace
+        t_skipped = t
+        if skip_end >= trace.shape[0]:
+            print("Invalid skip window!", skip_window)
+        else:
+            trace_skipped = np.delete(trace, skip_int)
+            t_skipped = np.delete(t, skip_int)
 
         poly_powers = {
             'Quadratic': 2,

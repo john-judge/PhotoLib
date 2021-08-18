@@ -100,7 +100,8 @@ class Layouts:
              sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size,
                        tooltip='View real-time camera output.'),
              sg.Button("Record", button_color=('black', 'red'), size=button_size,
-                       tooltip='Record images while electrically stimulating')],
+                       tooltip='Record images while electrically stimulating')
+             ],
             [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
                          size=checkbox_size, tooltip='Automatically save .npy/.pbz2 between records (sets of trials)'),
              sg.Button("Save Analysis", button_color=('white', 'green'), size=button_size,
@@ -625,7 +626,7 @@ class Layouts:
                 "num_trials",
                 "int_trials",
                 "Auto RLI",
-                "Auto Save",
+                "Auto Save"
                 ]
 
     @staticmethod
@@ -647,7 +648,7 @@ class Layouts:
 
     @staticmethod
     def list_hardware_events():
-        return ["Live Feed", "Take RLI", "Record"]
+        return ["Live Feed", "Take RLI", "Record", "Reset Cam"]
 
     @staticmethod
     def list_file_events():

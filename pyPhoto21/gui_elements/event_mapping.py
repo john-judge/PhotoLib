@@ -443,7 +443,7 @@ class EventMapping:
             'Export all of the above': {
                 'function': gui.export_all_data,
                 'args': {}
-            },
+            }
 
 
         }

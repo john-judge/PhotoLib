@@ -6,6 +6,10 @@ from queue import Queue
 from pyPhoto21.viewers.trace import Trace
 
 
+# Reasons to make disabled: disrupts acqui threads, sync flags aren't good enough probably due
+# to file linearization, and benefit is minimal anyway.
+
+# However, we will give user a button to process fully.
 class Processor:
     """ Processes data in background """
     def __init__(self, data):
@@ -17,7 +21,7 @@ class Processor:
         self.pause = False
         self.t_linspace = None
 
-        self.enabled = False
+        self.enabled = False  # set to False to disable background processing permanently
 
     def stop_processor(self):
         self.stop_worker_flag = True
@@ -44,21 +48,20 @@ class Processor:
         if not self.enabled:
             return
         while not self.stop_worker_flag:
-            if not self.dirty:
-                self.is_active = False
-                time.sleep(self.sleep_interval * 3)
+            if not self.dirty or self.pause:
+                if self.pause:
+                    time.sleep(self.sleep_interval * 3)
             else:
-                while self.pause:  # wait while other threads use the data.
-                    time.sleep(self.sleep_interval)
                 self.is_active = True
                 start = time.time()
                 self.process()
                 end = time.time()
-                self.is_active = False
                 self.dirty = False
-                print("Processor daemon finished a processing run in ", end - start, "seconds.")
+                print("Processor daemon spent ", end - start, "seconds in a processing run.")
 
+            self.is_active = False
             time.sleep(self.sleep_interval)
+
         self.stop_worker_flag = False
         self.dirty = False
         self.is_active = False
@@ -73,17 +76,17 @@ class Processor:
 
     # check for pause, stop, or dirty flags. Returns true if should abort processing.
     def check_flags_while_active(self):
-        return self.dirty or self.stop_worker_flag  # True -> abort job and start over
+        return self.dirty or self.stop_worker_flag or self.pause  # True -> abort job and start over
 
     def process(self):
-        if not self.enabled:
-            return
         raw = self.data.db.load_data_raw()
         process = self.data.db.load_data_processed()
         process[:, :, :, :] = raw[:, :, :, :]
-        if self.check_flags_while_active():
+        if self.enabled and self.check_flags_while_active():
             return
 
+        if not self.enabled:
+            print("RLI division...")
         # RLI division
         if self.data.get_is_rli_division_enabled():
             rli_frame = self.data.calculate_rli()
@@ -99,51 +102,58 @@ class Processor:
             elif rli_frame is not None:
                 print("Processor daemon: RLI and data shapes don't match. Skipping"
                       " RLI division.")
-        if self.check_flags_while_active():
+        if self.enabled and self.check_flags_while_active():
             return
 
+        if not self.enabled:
+            print("binning...")
         # binning
         if self.data.meta.binning > 1:
             bin_shape = (1, 1, self.data.meta.binning, self.data.meta.binning)
             process = self.data.core.create_binned_data_ndim(process, bin_shape)
-        if self.check_flags_while_active():
+        if self.enabled and self.check_flags_while_active():
             return
 
+        if not self.enabled:
+            print("Inversing...")
         # data inversing
         if self.data.get_is_data_inverse_enabled():
             process = 0 - process
-        if self.check_flags_while_active():
+        if self.enabled and self.check_flags_while_active():
             return
-
-        # baseline correction AND temporal filter AND any t-window cropping if it supersedes
-        start = 0
-        end = process.shape[1]
-        fit_type = self.data.core.get_baseline_correction_options()[self.data.core.get_baseline_correction_type_index()]
-        skip_window = self.data.core.get_baseline_skip_window()
-        for tr in range(process.shape[0]):
-            for h in range(process.shape[2]):
-                for w in range(process.shape[3]):
-                    trace = Trace(process[tr, :, h, w],
-                                  self.data.get_int_pts())
-                    trace.baseline_correct_noise(fit_type, skip_window)  # baseline correction
-                    if self.data.core.get_is_temporal_filter_enabled():  # temporal filtering
-                        filter_type = self.data.core.get_temporal_filter_options()[self.data.core.get_temporal_filter_index()]
-                        sigma_t = self.data.core.get_temporal_filter_radius()
-                        trace.filter_temporal(filter_type, sigma_t)  # applies time cropping if needed
-                    trace.clip_time_window(self.data.meta.crop_window)  # apply additional cropping while we're here
-                    process[tr, :, h, w] = trace.get_data_unclipped()
-                    start = max(start, trace.get_start_point())
-                    end = min(end, trace.get_end_point())
-        if self.check_flags_while_active():
-            return
-
-        # We track final time cropping this way:
-        self.data.meta.crop_window = [start, end]
-        self.t_linspace = self.get_linspace(start, end)
 
         # spatial filter
         process = self.data.core.filter_spatial_4dim(process)
-        process.flush()  # process is a memmap array, write to file if this is in copy-on-write mode
+
+        """ This section takes way too long to run for all traces. """
+        # if not self.enabled:
+        #     print("baseline correction...")
+        # # baseline correction AND temporal filter AND any t-window cropping if it supersedes
+        # start = 0
+        # end = process.shape[1]
+        # fit_type = self.data.core.get_baseline_correction_options()[self.data.core.get_baseline_correction_type_index()]
+        # skip_window = self.data.core.get_baseline_skip_window()
+        # for tr in range(process.shape[0]):
+        #     for h in range(process.shape[2]):
+        #         for w in range(process.shape[3]):
+        #             trace = Trace(process[tr, :, h, w],
+        #                           self.data.get_int_pts())
+        #             trace.baseline_correct_noise(fit_type, skip_window)  # baseline correction
+        #             if self.data.core.get_is_temporal_filter_enabled():  # temporal filtering
+        #                 filter_type = self.data.core.get_temporal_filter_options()[self.data.core.get_temporal_filter_index()]
+        #                 sigma_t = self.data.core.get_temporal_filter_radius()
+        #                 trace.filter_temporal(filter_type, sigma_t)  # applies time cropping if needed
+        #             trace.clip_time_window(self.data.meta.crop_window)  # apply additional cropping while we're here
+        #             process[tr, :, h, w] = trace.get_data_unclipped()
+        #             start = max(start, trace.get_start_point())
+        #             end = min(end, trace.get_end_point())
+        # if self.enabled and self.check_flags_while_active():
+        #     return
+
+        # We track final time cropping this way:
+        # self.data.meta.crop_window = [start, end]
+        # self.t_linspace = self.get_linspace(start, end)
+
 
     def get_linspace(self, start, end):
         int_pts = self.data.get_int_pts()

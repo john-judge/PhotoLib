@@ -54,8 +54,11 @@ class Data(File):
         # Init actions
         self.sync_from_metadata()
 
-        # Start data processor listening for jobs in background
-        threading.Thread(target=self.full_data_processor.process_continually, args=(), daemon=True).start()
+        # If enabled, start data processor listening for jobs in background
+        if self.full_data_processor.enabled:
+            threading.Thread(target=self.full_data_processor.process_continually,
+                             args=(),
+                             daemon=True).start()
 
     def sync_from_metadata(self, suppress_allocate=False):
         if self.get_is_trial_averaging_enabled():
@@ -75,8 +78,6 @@ class Data(File):
     def acquire_processing_lock(self):
         if not self.full_data_processor.enabled:
             return
-        while not self.full_data_processor.get_is_data_up_to_date():
-            time.sleep(0.5)
         # don't need atomic operations -- this will be called from main thread,
         # which is the only thread that should be queuing processing tasks.
         self.full_data_processor.pause_processor()
@@ -90,7 +91,7 @@ class Data(File):
 
     def sync_analysis_from_metadata(self):
         if not self.full_data_processor.enabled:
-            return 
+            return
         self.full_data_processor.update_full_processed_data()
 
     # numpy autosaves the image arrays; only need to save meta actively
@@ -549,7 +550,7 @@ class Data(File):
             return images
         else:
             # fetching data
-            if self.full_data_processor.get_is_data_up_to_date():
+            if self.full_data_processor.enabled and self.full_data_processor.get_is_data_up_to_date():
                 using_preprocessed = True
                 self.acquire_processing_lock()
                 images = self.get_processed_images()
@@ -571,7 +572,7 @@ class Data(File):
         else:
             ret_frame = self.apply_temporal_aggregration_frame(images, index)
 
-        if using_preprocessed:  # can skip the minimal processing.
+        if self.full_data_processor.enabled and using_preprocessed:  # can skip the minimal processing.
             self.drop_processing_lock()
             print("Showing frame from fully processed data.")
             return ret_frame[1:-2, 1:-2]
@@ -635,14 +636,7 @@ class Data(File):
         if fp_index is not None:
             return self.get_display_fp_trace(fp_index)
 
-        # fetching data
-        using_preprocessed = False
-        if self.full_data_processor.get_is_data_up_to_date():
-            using_preprocessed = True
-            self.acquire_processing_lock()
-            images = self.get_processed_images()
-        else:
-            images = self.get_acqui_images()
+        images = self.get_acqui_images()
         if images is None:
             print("get_display_trace: No images to display.")
             return None
@@ -667,11 +661,7 @@ class Data(File):
         ret_trace = Trace(ret_trace,
                           self.get_int_pts(),
                           start_frame=self.meta.crop_window[0],
-                          end_frame=self.meta.crop_window[0])
-        if using_preprocessed:
-            self.drop_processing_lock()
-            ret_trace.clip_time_window(self.meta.crop_window)
-            return ret_trace
+                          end_frame=self.meta.crop_window[1])
 
         # data inversing (BEFORE baseline correction)
         if self.get_is_data_inverse_enabled():
