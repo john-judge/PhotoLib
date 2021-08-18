@@ -73,6 +73,8 @@ class Data(File):
 
     # blocks until processor daemon has stopped
     def acquire_processing_lock(self):
+        if not self.full_data_processor.enabled:
+            return
         while not self.full_data_processor.get_is_data_up_to_date():
             time.sleep(0.5)
         # don't need atomic operations -- this will be called from main thread,
@@ -82,9 +84,13 @@ class Data(File):
             time.sleep(0.5)
 
     def drop_processing_lock(self):
+        if not self.full_data_processor.enabled:
+            return
         self.full_data_processor.unpause_processor()
 
     def sync_analysis_from_metadata(self):
+        if not self.full_data_processor.enabled:
+            return 
         self.full_data_processor.update_full_processed_data()
 
     # numpy autosaves the image arrays; only need to save meta actively
@@ -511,23 +517,15 @@ class Data(File):
 
     @staticmethod
     def get_background_options():
-        return ['Max Amp', 'MaxAmp/SD', 'Mean Amp', 'MeanAmp/SD']
+        return ['None', 'Max Amp', 'MaxAmp/SD', 'Mean Amp', 'MeanAmp/SD']
 
-    def apply_temporal_aggregration_frame(self, images, index, get_rli):
+    def apply_temporal_aggregration_frame(self, images, index):
         ret_frame = None
         agg_type = self.get_background_options()[self.get_background_option_index()]
-        if get_rli:
-            return images
-        elif type(index) == int and (index < images.shape[0]) and index >= 0:
-            _, h, w = images.shape
-            ret_frame = images[index, :, :]
-            ret_frame = ret_frame.reshape(1, h, w)
-        elif type(index) == list and len(index) == 2:
-            ret_frame = images[index[0]:index[1], :, :]
-        else:
-            ret_frame = images
 
-        if agg_type == 'Max Amp':
+        if agg_type == 'None':
+            pass
+        elif agg_type == 'Max Amp':
             ret_frame = np.max(ret_frame, axis=0)
         elif agg_type == 'MaxAmp/SD':
             ret_frame = np.max(ret_frame, axis=0) / np.std(ret_frame, axis=0)
@@ -548,6 +546,7 @@ class Data(File):
         using_preprocessed = False
         if get_rli:
             images = self.calculate_rli()
+            return images
         else:
             # fetching data
             if self.full_data_processor.get_is_data_up_to_date():
@@ -558,18 +557,27 @@ class Data(File):
                 images = self.get_acqui_images()
         if images is None:
             return None
-        if not get_rli and len(images.shape) != 3:
+        if len(images.shape) != 3:
             print("Issue in data.py: get display frame image shape:", images.shape)
             return None
 
-        ret_frame = self.apply_temporal_aggregration_frame(images, index, get_rli)
+        # Temporal selection index: a single time index or a time window
+        ret_frame = None
+        if type(index) == int and (index < images.shape[0]) and index >= 0:
+            ret_frame = images[index, :, :]
+        elif type(index) == list and len(index) == 2:
+            ret_frame = self.apply_temporal_aggregration_frame(images[index[0]:index[1], :, :],
+                                                               index)
+        else:
+            ret_frame = self.apply_temporal_aggregration_frame(images, index)
 
         if using_preprocessed:  # can skip the minimal processing.
             self.drop_processing_lock()
+            print("Showing frame from fully processed data.")
             return ret_frame[1:-2, 1:-2]
 
         # RLI division
-        if self.get_is_rli_division_enabled() and not get_rli:
+        if self.get_is_rli_division_enabled():
             rli = self.calculate_rli()
             if rli is not None and rli.shape == ret_frame.shape:
                 ret_frame = ret_frame.astype(np.float32) / rli
@@ -746,7 +754,7 @@ class Data(File):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
-        if self.get_is_loaded_from_file() or self.db.meta.rli_high is not None:
+        if self.get_is_loaded_from_file() and self.db.meta.rli_high is not None:
             return self.db.meta.rli_high
         n = self.get_num_rli_pts()
         rli_light_frames = self.get_rli_images()[d + margins + 1:n - 1 - margins, :, :]
@@ -759,7 +767,7 @@ class Data(File):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
-        if self.get_is_loaded_from_file() or self.db.meta.rli_low is not None:
+        if self.get_is_loaded_from_file() and self.db.meta.rli_low is not None:
             return self.db.meta.rli_low
         rli_dark_frames = self.get_rli_images()[margins + 1:d - margins - 1, :, :]
         if rli_dark_frames is None:
@@ -781,7 +789,7 @@ class Data(File):
             return np.zeros((self.get_display_height(),
                              self.get_display_width()),
                             dtype=np.uint16)
-        diff = (light - dark).astype(np.float32)
+        diff = (light - dark)
         diff[diff == 0] = 0.000001  # avoid div by 0
         return diff
 

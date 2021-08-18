@@ -17,12 +17,16 @@ class Processor:
         self.pause = False
         self.t_linspace = None
 
+        self.enabled = False
+
     def stop_processor(self):
         self.stop_worker_flag = True
         while self.stop_worker_flag:
             time.sleep(1)
 
     def pause_processor(self):
+        if not self.enabled:
+            return
         self.pause = True
 
     def unpause_processor(self):
@@ -31,10 +35,14 @@ class Processor:
     # call this to signal processor to start its workflow
     # from the top
     def update_full_processed_data(self):
+        if not self.enabled:
+            return
         self.dirty = True
 
     # Launch this looped worker as separate thread
     def process_continually(self):
+        if not self.enabled:
+            return
         while not self.stop_worker_flag:
             if not self.dirty:
                 self.is_active = False
@@ -58,16 +66,18 @@ class Processor:
         print("Processor daemon has exited.")
 
     def get_is_data_up_to_date(self):
-        return not self.is_active and not self.dirty
+        return not self.is_active and not self.dirty and self.enabled
 
     def get_is_active(self):
-        return self.is_active
+        return self.is_active and self.enabled
 
     # check for pause, stop, or dirty flags. Returns true if should abort processing.
     def check_flags_while_active(self):
         return self.dirty or self.stop_worker_flag  # True -> abort job and start over
 
     def process(self):
+        if not self.enabled:
+            return
         raw = self.data.db.load_data_raw()
         process = self.data.db.load_data_processed()
         process[:, :, :, :] = raw[:, :, :, :]

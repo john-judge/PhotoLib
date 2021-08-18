@@ -37,7 +37,7 @@ class Hardware:
             return
         imgs_orig_shape = kwargs['images'].shape
         t, fp_n = kwargs['fp_data'].shape
-        imgs = kwargs['images'].reshape(-1)
+        imgs = np.zeros(imgs_orig_shape, dtype=np.uint16).reshape(-1)
         fp_data = kwargs['fp_data'].reshape(-1)
         try:
             self.lib.acqui(self.controller, imgs, fp_data)
@@ -45,6 +45,8 @@ class Hardware:
             print("Could not record. Are the camera and NI-USB connected?")
             print(e)
         imgs = imgs.reshape(imgs_orig_shape)
+        print(imgs.shape)
+        kwargs['images'][:, :, :, :] = imgs[:, :, :, :]
         fp_data = np.transpose(fp_data.reshape(fp_n, t))
 
     def take_rli(self, **kwargs):

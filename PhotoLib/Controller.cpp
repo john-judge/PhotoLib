@@ -293,7 +293,6 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-		cout << "Num threads: " << omp_get_num_threads() << "\n";
 
 		unsigned char* image;
 		int loops = getNumPts() / superframe_factor; // superframing 
@@ -342,6 +341,15 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	//=============================================================================	
 	// Image reassembly	
 	cam.reassembleImages(memory, numPts);
+	
+	unsigned short* img = (unsigned short*)(memory);
+	img += 355 * quadrantSize * NUM_PDV_CHANNELS / 2; // stride to the full image (now 1/2 size due to CDS subtract)
+
+
+	std::string filename = "full-out355.txt";
+	cam.printFinishedImage(img, filename.c_str(), true);
+	cout << "\t This full image was located in MEMORY at offset " <<
+		(img - (unsigned short*)memory) / quadrantSize << " quadrant-sizes\n";
 
 	//=============================================================================	
 	// FP reassembly

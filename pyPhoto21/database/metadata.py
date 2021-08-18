@@ -47,7 +47,7 @@ class Metadata:
         self.display_value_option_index = 0
         self.auto_save_enabled = True
         self.schedule_rli_enabled = False
-        self.is_rli_division_enabled = True
+        self.is_rli_division_enabled = False
         self.is_data_inverse_enabled = True
         self.is_trial_averaging_enabled = False
 

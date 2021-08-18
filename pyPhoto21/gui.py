@@ -218,6 +218,7 @@ class GUI:
 
     def record_in_background(self):
         self.freeze_hardware_settings()
+        self.data.acquire_processing_lock()  # lock processor to avoid interference with image reassembly.
         self.hardware.set_stop_flag(False)
 
         sleep_trial = self.get_trial_sleep_time()
@@ -232,7 +233,13 @@ class GUI:
 
         if self.data.get_num_records() * self.data.get_num_trials() * self.data.get_num_pts() == 0:
             print("Settings are such that no trials or points are recorded. Ending recording session.")
-            return
+            exit_recording = True
+        if self.data.get_num_pts() <= 10:
+            self.notify_window("Too few points",
+                               "Please increase number of points to record. NI-DAQmx may fail to"
+                               " sample or administer stimulation with"
+                               " too few points.")
+            exit_recording = True
 
         # Note that record index may not necessarily match the record num for file saving
         for record_index in range(self.data.get_num_records()):
@@ -246,8 +253,11 @@ class GUI:
                 is_last_trial = (trial == self.data.get_num_trials() - 1)
                 if self.get_is_schedule_rli_enabled():
                     self.take_rli_core()
-                self.hardware.record(images=self.data.get_acqui_memory(),
+                acqui_mem = self.data.get_acqui_memory()
+                self.hardware.record(images=acqui_mem,
                                      fp_data=self.data.get_fp_data())
+                acqui_mem.flush()  # this is a memmapped file, write back before Viewers pull from it.
+                time.sleep(0.2)
                 self.data.set_current_trial_index(trial)
                 self.update_tracking_num_fields()
                 print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
@@ -269,6 +279,7 @@ class GUI:
         print("Recording ended.")
         # done recording
         self.unfreeze_hardware_settings()
+        self.data.drop_processing_lock()
 
     def record(self, **kwargs):
         # we spawn a new thread to acquire in the background.
@@ -303,11 +314,6 @@ class GUI:
     def start_livefeed(self, **kwargs):
         if self.data.get_is_livefeed_enabled():
             return
-        # if self.hardware.get_camera_program() == 0:
-        #     self.set_camera_program(values=self.data.display_camera_programs[7])
-        #     self.notify_window("Livefeed Changing Camera Settings",
-        #                        "Camera Program 200 Hz 2048x1024 currently does not support livefeed." +
-        #                        "\n Setting to 40x1024.")
         self.window["Live Feed"].update(button_color=('black', 'yellow'))
         self.freeze_hardware_settings()
         self.data.set_is_livefeed_enabled(True)
@@ -377,8 +383,8 @@ class GUI:
     def set_camera_program(self, **kwargs):
         program_name = kwargs['values']
         program_index = self.data.display_camera_programs.index(program_name)
-        if program_index == 0 and self.data.get_num_pts() > 10:
-            self.set_num_pts(values='1')
+        if program_index == 0:
+            self.set_num_pts(values='100')
             self.data.set_num_dark_rli(1)
             self.data.set_num_light_rli(1)
         self.data.set_camera_program(program_index)
@@ -701,6 +707,7 @@ class GUI:
 
     def set_acqui_duration(self, **kwargs):
         v = kwargs['values']
+        min_pts = 10
 
         # looks at num_pts as well to validate.
         def is_valid_acqui_duration(u, max_num_pts=15000):
