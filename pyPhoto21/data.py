@@ -142,6 +142,23 @@ class Data(File):
         if not suppress_resize:
             self.allocate_image_memory()
 
+    def load_current_metadata_file(self):
+        meta_file = self.db.get_current_filename(no_path=True, extension=self.metadata_extension)
+        meta_no_path = self.strip_path(meta_file)
+        if not self.file_exists(meta_no_path):
+            # instead of blanking out defaults, persist current settings but clear data
+            self.meta.rli_low = None
+            self.meta.rli_high = None
+            self.meta.rli_max = None
+            self.meta.fp_data = None
+            self.meta.num_fp = 4
+            self.meta.version = 6
+            self.set_camera_program(7)
+            self.save_metadata_to_file(meta_file)
+        else:
+            meta_obj = self.load_metadata_from_file(meta_file)
+            self.set_meta(meta_obj, suppress_resize=True)
+
     # assumes file has already been validated to exist
     def load_preference_file(self, file):
         file_prefix, extension = file.split('.')
@@ -227,6 +244,7 @@ class Data(File):
         self.db.meta.current_location = 0
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
+        self.load_current_metadata_file()
         self.db.load_mmap_file(mode=None)
         self.full_data_processor.update_full_processed_data()
 
@@ -234,6 +252,7 @@ class Data(File):
         self.db.meta.current_location += num
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
+        self.load_current_metadata_file()
         self.db.load_mmap_file(mode=None)
         self.full_data_processor.update_full_processed_data()
 
@@ -241,8 +260,62 @@ class Data(File):
         self.db.meta.current_record += num
         self.set_current_trial_index(0)
         if not suppress_file_create:
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
+
+    # includes paths
+    def find_existing_file_pair(self, direction=1):
+        files = self.get_filenames_in_folder()
+        paired_files = []
+        # turn files list into a map
+        file_map = {}
+        for file in files:
+            parts = self.decompose_filename(file)
+            if len(parts) == 4:
+                slic, loc, rec, ext = parts
+                if slic not in file_map:
+                    file_map[slic] = {}
+                if loc not in file_map[slic]:
+                    file_map[slic][loc] = {}
+                if rec not in file_map[slic][loc]:
+                    file_map[slic][loc][rec] = []
+                if ext not in file_map[slic][loc][rec] and ext in ['pbz2', 'npy']:
+                    file_map[slic][loc][rec].append(file)
+                    if len(file_map[slic][loc][rec]) == 2:
+                        file, _ = file.split('.')
+                        paired_files.append(file)
+
+        curr_filename = self.db.get_current_filename(extension='', no_path=True)
+        if curr_filename not in paired_files:
+            paired_files.append(curr_filename)
+        paired_files.sort()
+
+        ind = None
+        try:
+            ind = paired_files.index(curr_filename) + direction
+        except ValueError:
+            return None
+        if ind < 0 or ind >= len(paired_files):
+            return None
+        file_prefix = self.get_save_dir() + "\\" + paired_files[ind]
+        return file_prefix + self.metadata_extension, file_prefix + self.db.extension
+
+    def auto_change_file(self, direction=1):
+        files = self.find_existing_file_pair(direction=direction)  # includes paths
+        if files is None:
+            return
+        meta_file, data_file = files
+        meta_obj = self.load_metadata_from_file(meta_file)
+        self.set_meta(meta_obj, suppress_resize=True)
+        self.db.load_mmap_file(mode='r+', filename=data_file)
+        self.full_data_processor.update_full_processed_data()
+
+    def increment_file(self):
+        self.auto_change_file(direction=1)
+
+    def decrement_file(self):
+        self.auto_change_file(direction=-1)
 
     def decrement_slice(self, num=1):
         self.db.meta.current_slice -= num
@@ -250,11 +323,13 @@ class Data(File):
             self.db.meta.current_location = 0
             self.db.meta.current_record = 0
             self.set_current_trial_index(0)
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_slice = 0
             if num > 1:
+                self.load_current_metadata_file()
                 self.db.load_mmap_file(mode=None)
                 self.full_data_processor.update_full_processed_data()
 
@@ -263,52 +338,62 @@ class Data(File):
         if self.db.meta.current_location >= 0:
             self.db.meta.current_record = 0
             self.set_current_trial_index(0)
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_location = 0
             if num > 1:
+                self.load_current_metadata_file()
                 self.db.load_mmap_file(mode=None)
                 self.full_data_processor.update_full_processed_data()
 
     def decrement_record(self, num=1):
         self.db.meta.current_record -= num
         if self.db.meta.current_record >= 0:
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_record = 0
             if num > 1:
+                self.load_current_metadata_file()
                 self.db.load_mmap_file(mode=None)
                 self.full_data_processor.update_full_processed_data()
 
     def set_slice(self, v):
         if v > self.db.meta.current_slice:
             self.increment_slice(v - self.db.meta.current_slice)
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         elif v < self.db.meta.current_slice:
             self.decrement_slice(self.db.meta.current_slice - v)
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
 
     def set_record(self, v):
         if v > self.db.meta.current_record:
             self.increment_record(v - self.db.meta.current_record)
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         elif v < self.db.meta.current_record:
             self.decrement_record(self.db.meta.current_record - v)
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
 
     def set_location(self, v):
         if v > self.db.meta.current_location:
             self.increment_location(v - self.db.meta.current_location)
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         if v < self.db.meta.current_location:
             self.decrement_location(self.db.meta.current_location - v)
+            self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
 
@@ -420,7 +505,37 @@ class Data(File):
         if i >= 100:
             print("data.py: searched 100 filenames for free name. Likely an issue.")
 
-    # Move to GUI? or FV?
+    def get_background_option_index(self):
+        return self.db.meta.background_option_index
+
+    @staticmethod
+    def get_background_options():
+        return ['Max Amp', 'MaxAmp/SD', 'Mean Amp', 'MeanAmp/SD']
+
+    def apply_temporal_aggregration_frame(self, images, index, get_rli):
+        ret_frame = None
+        agg_type = self.get_background_options()[self.get_background_option_index()]
+        if get_rli:
+            return images
+        elif type(index) == int and (index < images.shape[0]) and index >= 0:
+            _, h, w = images.shape
+            ret_frame = images[index, :, :]
+            ret_frame = ret_frame.reshape(1, h, w)
+        elif type(index) == list and len(index) == 2:
+            ret_frame = images[index[0]:index[1], :, :]
+        else:
+            ret_frame = images
+
+        if agg_type == 'Max Amp':
+            ret_frame = np.max(ret_frame, axis=0)
+        elif agg_type == 'MaxAmp/SD':
+            ret_frame = np.max(ret_frame, axis=0) / np.std(ret_frame, axis=0)
+        elif agg_type == 'Mean Amp':
+            ret_frame = np.average(ret_frame, axis=0)
+        elif agg_type == 'MeanAmp/SD':
+            ret_frame = np.average(ret_frame, axis=0) / np.std(ret_frame, axis=0)
+        return ret_frame
+
     # Based on system state, create/get the frame that should be displayed.
     # index can be an integer or a list of [start:end] over which to average
     def get_display_frame(self, index=None, get_rli=False, binning=1):
@@ -446,15 +561,7 @@ class Data(File):
             print("Issue in data.py: get display frame image shape:", images.shape)
             return None
 
-        ret_frame = None
-        if get_rli:
-            ret_frame = images
-        elif type(index) == int and (index < images.shape[0]) and index >= 0:
-            ret_frame = images[index, :, :]
-        elif type(index) == list and len(index) == 2:
-            ret_frame = np.average(images[index[0]:index[1], :, :], axis=0)
-        else:
-            ret_frame = np.average(images, axis=0)
+        ret_frame = self.apply_temporal_aggregration_frame(images, index, get_rli)
 
         if using_preprocessed:  # can skip the minimal processing.
             self.drop_processing_lock()

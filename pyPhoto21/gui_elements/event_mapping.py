@@ -50,6 +50,10 @@ class EventMapping:
                 'function': gui.launch_github_page,
                 'args': {'kind': "user"},
             },
+            '-psg-': {
+                'function': gui.launch_github_page,
+                'args': {'kind': "issue"},
+            },
             'Digital Binning': {
                 'function': gui.set_digital_binning,
                 'args': {},
@@ -292,6 +296,16 @@ class EventMapping:
             "Decrement Slice": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.decrement_slice,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Increment File": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.data.increment_file,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Decrement File": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.data.decrement_file,
                          'call2': gui.update_tracking_num_fields}
             },
             "Trial Number": {

@@ -62,3 +62,17 @@ class File:
     def strip_path(filename):
         return filename.split("/")[-1].split("\\")[-1]
 
+    @staticmethod
+    def decompose_filename(filename):
+        parts = filename.split('.')
+        if len(parts) != 2:
+            return []
+        filename, ext = parts
+        if ext not in ['npy', 'pbz2']:
+            return []
+        parts = filename.split('-')
+        if len(parts) != 3:
+            return []
+        if all([i.isnumeric() for i in parts]):
+            return [int(i) for i in parts] + [ext]
+        return []

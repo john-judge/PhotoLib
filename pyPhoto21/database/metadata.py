@@ -66,6 +66,7 @@ class Metadata:
         self.temporal_filter_type_index = 0
         self.is_spatial_filer_enabled = False
         self.spatial_filter_sigma = 1.0
+        self.background_option_index = 0
 
         # ROI Identification
         self.is_roi_enabled = False

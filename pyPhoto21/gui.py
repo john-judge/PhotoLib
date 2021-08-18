@@ -40,7 +40,6 @@ class GUI:
         self.title = "Photo21"
         self.freeze_input = False  # whether to allow fields to be updated. Frozen during acquire (how about during file loaded?)
         self.event_mapping = None
-        self.background_option_index = 0
         self.define_event_mapping()  # event callbacks used in event loops
         # kickoff workflow
         if self.production_mode:
@@ -580,7 +579,8 @@ class GUI:
         urls = {
             'technical': 'https://github.com/john-judge/PhotoLib#photolib',
             'user': 'https://github.com/john-judge/PhotoLib/blob/master/'
-                    'TUTORIAL.md#users-manual-for-pyphoto21-little-dave'  # Update this to user tutorial link
+                    'TUTORIAL.md#users-manual-for-pyphoto21-little-dave',  # Update this to user tutorial link
+            'issue': 'https://github.com/john-judge/PhotoLib/issues/new'
         }
         if 'kind' in kwargs and kwargs['kind'] in urls:
             open_browser(urls[kwargs['kind']], new=2)
@@ -904,13 +904,10 @@ class GUI:
         self.data.set_location(value)
         self.fv.update_new_image()
 
-    def get_background_option_index(self):
-        return self.background_option_index
-
     def set_background_option_index(self, **kwargs):
         bg_name = kwargs['values']
-        bg_index = self.layouts.get_background_options().index(bg_name)
-        self.background_option_index = bg_index
+        bg_index = self.data.get_background_options().index(bg_name)
+        self.data.db.meta.background_option_index = bg_index
 
     # value to display in trace viewer
     def get_display_value_option_index(self):
