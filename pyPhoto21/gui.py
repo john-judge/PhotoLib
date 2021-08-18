@@ -99,7 +99,7 @@ class GUI:
             event, values = window.read()
             if history_debug and event is not None and not self.production_mode:
                 events += str(event) + '\n'
-            if event == exit_event or event == sg.WIN_CLOSED:
+            if event == exit_event or event == sg.WIN_CLOSED or event == '-close-':
                 if self.is_recording():
                     print("Cleaning up hardware before exiting. Waiting until safe to exit (or at most 3 seconds)...")
 
