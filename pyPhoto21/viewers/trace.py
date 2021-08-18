@@ -28,6 +28,9 @@ class Trace:
     def get_data_unclipped(self):
         return self.points
 
+    def get_data_clipped(self):
+        return self.points[self.start_frame:self.end_frame]
+
     def get_start_point(self):
         return self.start_frame
 
@@ -142,6 +145,9 @@ class TraceViewer:
         self.trace_colors = []
         self.point_line_locations = None
         self.clear_point_line_locations()
+
+    def get_traces(self):
+        return self.traces
 
     @staticmethod
     def get_display_value_options():

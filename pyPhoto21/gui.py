@@ -13,6 +13,7 @@ from pyPhoto21.viewers.daq import DAQViewer
 from pyPhoto21.analysis.roi import ROI
 from pyPhoto21.gui_elements.layouts import *
 from pyPhoto21.gui_elements.event_mapping import EventMapping
+from pyPhoto21.export import Exporter
 
 
 # from mpl_interactions import image_segmenter
@@ -33,6 +34,7 @@ class GUI:
         self.fv = FrameViewer(self.data, self.tv)
         self.dv = DAQViewer(self.data)
         self.roi = ROI(self.data)
+        self.exporter = Exporter(self.tv, self.fv)
         self.layouts = Layouts(data)
         self.window = None
 
@@ -442,7 +444,34 @@ class GUI:
         file_window.close()
         return file
 
-    def browse_for_folder(self):
+    def browse_for_save_as_file(self, file_types=(("Tab-Separated Value file", "*.tsv"),)):
+        w = sg.Window('Save As',
+                      self.layouts.create_save_as_browser(file_types),
+                      finalize=True,
+                      element_justification='center',
+                      resizable=True,
+                      font='Helvetica 18')
+        new_file = None
+        # file browser event loop
+        while True:
+            event, values = w.read()
+            if event == sg.WIN_CLOSED or event == "Exit":
+                w.close()
+                return
+            elif event == "save_as_window.open":
+                new_file = values["save_as_window.browse"]
+                break
+        if self.is_recording():
+            new_file = self.data.get_save_dir()
+            self.notify_window("Warning",
+                               "Please stop recording before exporting data.")
+            new_file = None
+        w.close()
+        if new_file is None or len(new_file) < 1:
+            return None
+        return new_file
+
+    def browse_for_folder(self, recording_notif=True):
         folder_window = sg.Window('Folder Browser',
                                   self.layouts.create_folder_browser(),
                                   finalize=True,
@@ -459,7 +488,7 @@ class GUI:
             elif event == "folder_window.open":
                 folder = values["folder_window.browse"]
                 break
-        if self.is_recording():
+        if recording_notif and self.is_recording():
             folder = self.data.get_save_dir()
             self.notify_window("Warning",
                                "You are changing the save location during acquisition." +
@@ -645,7 +674,6 @@ class GUI:
         self.data.set_is_trial_averaging_enabled(v)
         self.set_current_trial_index(value=new_index)
         self.window["Trial Number"].update(str(self.data.get_current_trial_index()))
-
 
     def set_acqui_onset(self, **kwargs):
         v = kwargs['values']
@@ -971,6 +999,44 @@ class GUI:
         self.tv.update_new_traces()
         self.fv.update_new_image()
         self.data.full_data_processor.update_full_processed_data()
+
+    def export_data(self, **kwargs):
+        kind = kwargs['kind']
+        form = kwargs['form']
+        file = None
+        if form == 'tsv':
+            file = self.browse_for_save_as_file()
+            if file is None or len(file) < 1:
+                return
+            if kind == 'traces':
+                self.exporter.export_traces_to_tsv(file)
+            elif kind == 'frame':
+                self.exporter.export_frame_to_tsv(file)
+        elif form == 'png':
+            file = self.browse_for_save_as_file(file_types=(("Portable Network Graphics file", "*.png"),))
+            if file is None or len(file) < 1:
+                return
+            if kind == 'traces':
+                self.exporter.export_traces_to_png(file)
+            elif kind == 'frame':
+                self.exporter.export_frame_to_png(file)
+        self.notify_window("Export successful",
+                           "Exported " + kind + " to file:\n"
+                                                + file)
+
+    def export_all_data(self, **kwargs):
+        folder = self.browse_for_folder(recording_notif=False)
+        if folder is None:
+            return
+
+        file_prefix = folder + "\\" + self.data.db.get_current_filename(no_path=True, extension='')
+        self.exporter.export_traces_to_tsv(file_prefix + '_traces.tsv')
+        self.exporter.export_frame_to_tsv(file_prefix + '_frame.tsv')
+        self.exporter.export_traces_to_png(file_prefix + '_traces.png')
+        self.exporter.export_frame_to_png(file_prefix + '_frame.png')
+        self.notify_window("Export successful",
+                           "Exported to .png/.tsv files with prefix:\n"
+                                                + file_prefix + '_*')
 
 
 class Toolbar(NavigationToolbar2Tk):

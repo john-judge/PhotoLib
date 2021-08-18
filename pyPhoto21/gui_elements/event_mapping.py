@@ -419,7 +419,31 @@ class EventMapping:
             "About": {
                 'function': gui.introduction,
                 'args': {}
-            }
+            },
+            'Selected Frame to TSV': {
+                'function': gui.export_data,
+                'args': {'kind': 'frame', 'form': 'tsv'}
+            },
+            'Selected Traces to TSV': {
+                'function': gui.export_data,
+                'args': {'kind': 'traces', 'form': 'tsv'}
+            },
+            'Selected Frame to PNG': {
+                'function': gui.export_data,
+                'args': {'kind': 'frame', 'form': 'png'}
+            },
+            'Selected Traces to PNG': {
+                'function': gui.export_data,
+                'args': {'kind': 'traces', 'form': 'png'}
+            },
+            'Save Analysis': {
+                'function': gui.export_all_data,
+                'args': {}
+            },
+            'Export all of the above': {
+                'function': gui.export_all_data,
+                'args': {}
+            },
 
 
         }

@@ -40,6 +40,9 @@ class FrameViewer:
 
         self.update()
 
+    def get_current_frame(self):
+        return self.current_frame
+
     def populate_figure(self):
         # top row of Field Potential traces
         num_fp = min(9, self.data.get_num_fp())

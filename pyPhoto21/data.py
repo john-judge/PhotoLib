@@ -464,8 +464,9 @@ class Data(File):
     # allow us to remove trace points without
     # losing track of the absolute frame number w.r.t
     # the stim time, etc
-    def get_cropped_linspace(self):
-        start_frames, end_frames = self.get_crop_window()
+    def get_cropped_linspace(self, start_frames=None, end_frames=None):
+        if start_frames is None or end_frames is None:
+            start_frames, end_frames = self.get_crop_window()
         if end_frames < 0:
             end_frames = self.get_num_pts()
         int_pts = self.get_int_pts()

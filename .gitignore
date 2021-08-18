@@ -6,7 +6,8 @@
 **/*.zda
 **/*.roi
 **/*.npy
-**/*.npy.archive_*
+**/*.png
+**/*.tsv
 
 ## Pyinstaller build and dist
 build
