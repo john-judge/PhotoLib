@@ -5,9 +5,9 @@ Builds a camera/electrode management DLL to expose to (Python) applications. Inc
 Uses `pyinstaller`. Navigate to the `PhotoLib` directory.
 
 ### One-File Mode
-Not recommended because start-up is slow, but if you want a single exe for analysis only and portability between folders, shared drivers, machine, etc. For one-file mode:
+Not recommended because start-up is slow, but it is simpler. If you want a single exe for analysis only and portability between folders, shared drivers, machine, etc. For one-file mode:
 ```
-pyinstaller -F -n pyPhoto21 --add-data nicaiu.dll;. --add-data clseredt.dll;. driver.py --distpath Photo21
+pyinstaller -F -n pyPhoto21 --add-data nicaiu.dll;. --add-data clseredt.dll;. --add-data ./x64/Release/PhotoLib.dll;./x64/Release/ onefile.py
 ```
 
 This will take serveral minutes. 
@@ -15,8 +15,8 @@ This will take serveral minutes.
 ### Building for Rig Computer (One-Folder Mode)
 Or in one-folder mode (faster startup, but files are messy):
 ```
-pyinstaller -n pyPhoto21 --add-data nicaiu.dll;. --add-data clseredt.dll;. --add-data ./x64/Release/PhotoLib.dll;./x64/Release/ driver.py --distpath .
-```
+ pyinstaller -n pyPhoto21 --add-data nicaiu.dll;. --add-data clseredt.dll;. driver.py --distpath dist --add-data ./x64/Release/PhotoLib.dll;./x64/Release/
+ ```
 
 Avoid using the `--clean --noconfirm` options.
 
