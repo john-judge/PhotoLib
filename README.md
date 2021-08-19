@@ -3,10 +3,16 @@ Builds a camera/electrode management DLL to expose to (Python) applications. Inc
 
 ## Building Executable
 
-Uses `pyinstaller`. Currently use:
+Uses `pyinstaller`. For one-file mode:
 ```
-pyinstaller -F --add-data nicaiu.dll;. --add-data clseredt.dll;. driver.py
+pyinstaller -F -n pyPhoto21 --add-data nicaiu.dll;. --add-data clseredt.dll;. driver.py
 ```
+
+Or in one-folder mode (faster startup):
+```
+pyinstaller -n pyPhoto21 --add-data nicaiu.dll;. --add-data clseredt.dll;. driver.py
+```
+
 This will take serveral minutes. 
 
 Excludes ` --add-data ./x64/Release/PhotoLib.dll;./x64/Release/` because finicky, but that means that the .exe must be launched from the same directory from which `driver.py` is able to run and locate `PhotoLib.dll` (otherwise it runs in analysis-only mode). I'm looking for a solution to this, but it's not a big problem.
