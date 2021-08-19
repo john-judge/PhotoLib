@@ -103,7 +103,12 @@ Camera::Camera() {
 
 }
 
+
 Camera::~Camera() {
+	close_channels();
+}
+
+int Camera::close_channels() {
 	int retries = 2;
 	for (int i = 0; i < NUM_PDV_CHANNELS; i++) {
 		if (pdv_pt[i]) {
@@ -117,6 +122,7 @@ Camera::~Camera() {
 			}
 		}
 	}
+	return (retries == 2) ? 1 : 0;
 }
 
 int Camera::open_channel(int ipdv) {
@@ -136,15 +142,6 @@ int Camera::open_channel(int ipdv) {
 	pdv_multibuf(pdv_pt[ipdv], 4);
 
 	return 0;
-}
-
-unsigned char* Camera::single_image(int ipdv)			//used by LiveFeed.cpp
-{
-	if (!pdv_pt[ipdv])
-		return nullptr;
-	pdv_flush_fifo(pdv_pt[ipdv]);
-	pdv_start_image(pdv_pt[ipdv]);
-	return pdv_wait_image_raw(pdv_pt[ipdv]);
 }
 
 // Load cfg files by running PDV initcam script. Do this before opening channels.

@@ -43,6 +43,10 @@ private:
 	int numBursts1;
 	int intBursts1;
 
+	// Live Feed 
+	unsigned short* liveFeedFrame;
+	Camera *liveFeedCam;
+	bool *liveFeedFlags;
 
 	// Ch1
 	int numPulses2;
@@ -125,6 +129,12 @@ public:
 	int getNumBursts(int ch);
 	void setIntBursts(int ch, int num);
 	int getIntBursts(int ch);
+
+	// Live Feed
+
+	void stopLiveFeed();
+	void startLiveFeed(unsigned short* frame, bool* flags);
+	void continueLiveFeed();
 };
 
 //=============================================================================

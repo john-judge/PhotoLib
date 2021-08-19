@@ -167,4 +167,20 @@ extern "C"
 	{
 		return controller->getStimDuration(ch);
 	}
+
+	__declspec(dllexport) void resetCamera(Controller* controller)
+	{
+		return controller->resetCamera();
+	}
+
+	__declspec(dllexport) void startLiveFeed(Controller* controller, unsigned short* frame, bool* flags)
+	{
+		return controller->startLiveFeed(frame, flags);
+	}
+
+	__declspec(dllexport) void continueLiveFeed(Controller* controller)
+	{
+		return controller->continueLiveFeed();
+	}
+
 };

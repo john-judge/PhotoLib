@@ -11,7 +11,7 @@ class EventMapping:
                 'args': {}
             },
             'Save': {
-                'function': gui.file.save_to_compressed_file,
+                'function': gui.data.save_metadata_to_compressed_file,
                 'args': {}
             },
             'Auto Save': {
@@ -44,7 +44,15 @@ class EventMapping:
             },
             '-github-': {
                 'function': gui.launch_github_page,
-                'args': {},
+                'args': {'kind': "technical"},
+            },
+            'Help': {
+                'function': gui.launch_github_page,
+                'args': {'kind': "user"},
+            },
+            '-psg-': {
+                'function': gui.launch_github_page,
+                'args': {'kind': "issue"},
             },
             'Digital Binning': {
                 'function': gui.set_digital_binning,
@@ -250,10 +258,6 @@ class EventMapping:
                 'function': gui.unload_file,
                 'args': {}
             },
-            'File Name': {
-                'function': gui.change_save_filename,
-                'args': {}
-            },
             "Increment Trial": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.increment_current_trial_index,
@@ -266,32 +270,42 @@ class EventMapping:
             },
             "Increment Record": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.increment_record,
+                'args': {'call': gui.data.increment_record,
                          'call2': gui.update_tracking_num_fields}
             },
             "Decrement Record": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.decrement_record,
+                'args': {'call': gui.data.decrement_record,
                          'call2': gui.update_tracking_num_fields}
             },
             "Increment Location": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.increment_location,
+                'args': {'call': gui.data.increment_location,
                          'call2': gui.update_tracking_num_fields}
             },
             "Decrement Location": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.decrement_location,
+                'args': {'call': gui.data.decrement_location,
                          'call2': gui.update_tracking_num_fields}
             },
             "Increment Slice": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.increment_slice,
+                'args': {'call': gui.data.increment_slice,
                          'call2': gui.update_tracking_num_fields}
             },
             "Decrement Slice": {
                 'function': gui.pass_no_arg_calls,
-                'args': {'call': gui.file.decrement_slice,
+                'args': {'call': gui.data.decrement_slice,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Increment File": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.data.increment_file,
+                         'call2': gui.update_tracking_num_fields}
+            },
+            "Decrement File": {
+                'function': gui.pass_no_arg_calls,
+                'args': {'call': gui.data.decrement_file,
                          'call2': gui.update_tracking_num_fields}
             },
             "Trial Number": {
@@ -342,14 +356,96 @@ class EventMapping:
                 'function': gui.set_baseline_correction,
                 'args': {}
             },
-            "Baseline Skip Window Size": {
-                'function': gui.validate_and_pass_int,
-                'args': {'call': gui.data.core.set_skip_window_start}
+            "Reset Cam": {
+                'function': gui.hardware.reset_camera,
+                'args': {}
             },
-            "Baseline Skip Window Start": {
-                'function': gui.validate_and_pass_int,
-                'args': {'call': gui.data.core.set_skip_window_size}
+            'RLI Division': {
+                'function': gui.set_rli_division,
+                'args': {}
+            },
+            'Data Inverse': {
+                'function': gui.set_data_inverse,
+                'args': {}
+            },
+            'Live Feed': {
+                'function': gui.start_livefeed,
+                'args': {}
+            },
+            "Select Display Value": {
+                'function': gui.set_display_value_option_index,
+                'args': {},
+            },
+            "Baseline Skip Window": {
+                'function': gui.select_baseline_skip_window,
+                'args': {}
+            },
+            "Baseline Skip Window Start (ms)": {
+                'function': gui.set_baseline_skip_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'ms'}
+            },
+            "Baseline Skip Window End (ms)": {
+                'function': gui.set_baseline_skip_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'ms'}
+            },
+            "Baseline Skip Window Start frames": {
+                'function': gui.set_baseline_skip_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+            "Baseline Skip Window End frames": {
+                'function': gui.set_baseline_skip_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+            "Save Preference": {
+                'function': gui.save_preference,
+                'args': {}
+            },
+            "Load Preference": {
+                'function': gui.load_preference,
+                'args': {}
+            },
+            'Average Trials': {
+                'function': gui.toggle_average_trials,
+                'args': {}
+            },
+            "About": {
+                'function': gui.introduction,
+                'args': {}
+            },
+            'Selected Frame to TSV': {
+                'function': gui.export_data,
+                'args': {'kind': 'frame', 'form': 'tsv'}
+            },
+            'Selected Traces to TSV': {
+                'function': gui.export_data,
+                'args': {'kind': 'traces', 'form': 'tsv'}
+            },
+            'Selected Frame to PNG': {
+                'function': gui.export_data,
+                'args': {'kind': 'frame', 'form': 'png'}
+            },
+            'Selected Traces to PNG': {
+                'function': gui.export_data,
+                'args': {'kind': 'traces', 'form': 'png'}
+            },
+            'Save Analysis': {
+                'function': gui.export_all_data,
+                'args': {}
+            },
+            'Export all of the above': {
+                'function': gui.export_all_data,
+                'args': {}
             }
+
+
         }
 
     def get_event_mapping(self):

@@ -23,27 +23,37 @@ class Layouts:
     def create_menu(self):
         menu_def = [['Photo21 LilDave', ['Help', 'About']],
                     ['File', ['Open', 'Choose Save Directory', 'Exit']],
-                    ['Preference', ['Paste', ['Special', 'Normal', ], 'Undo'], ],
-                    ['Toolbar', ['---', 'Command 1', 'Command 2',
-                                 '---', 'Command 3', 'Command 4']]]
+                    ['Preference', ['Save Preference', 'Load Preference'], ],
+                    ['Export', ['---', 'Selected Frame to TSV', 'Selected Traces to TSV',
+                                '---', 'Selected Frame to PNG', 'Selected Traces to PNG',
+                                '---', 'Export all of the above']]]
         toolbar_buttons = [[sg.Button('', image_data=self.close64[22:],
                                       button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
-                                      pad=(0, 0), key='-close-'),
-                            sg.Button('', image_data=self.timer64[22:], button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
-                                      pad=(0, 0), key='-timer-'),
-                            sg.Button('', image_data=self.house64[22:], button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
+                                      pad=(0, 0), key='-close-',
+                                      tooltip="Exit"),
+                            sg.Button('', image_data=self.timer64[22:],
+                                      button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
+                                      pad=(0, 0), key='-timer-',
+                                      tooltip="Schedule a session at the Little Dave rig (Google Calendar)"),
+                            sg.Button('', image_data=self.house64[22:],
+                                      button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
                                       pad=(0, 0), key='-house-'),
-                            sg.Button('', image_data=self.cpu64[22:], button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
+                            sg.Button('', image_data=self.cpu64[22:],
+                                      button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
                                       pad=(0, 0), key='-cpu-'),
                             sg.Button('', image_data=self.download64[22:],
                                       button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
                                       pad=(0, 0), key='-download-'),
                             sg.Button('', image_data=self.github64[22:],
                                       button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
+                                      tooltip='Technical Docs',
                                       pad=(0, 0), key='-github-'),
-                            sg.Button('', image_data=self.psg64[22:], button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
-                                      pad=(0, 0), key='-psg-'),
-                            sg.Button('', image_data=self.run64[22:], button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
+                            sg.Button('', image_data=self.psg64[22:],
+                                      button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
+                                      pad=(0, 0), key='-psg-',
+                                      tooltip="Submit an issue to request a bug fix or new feature."),
+                            sg.Button('', image_data=self.run64[22:],
+                                      button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
                                       pad=(0, 0), key='-run-'),
                             ]]
         layout = [[sg.Menu(menu_def, )],
@@ -68,59 +78,91 @@ class Layouts:
             sg.FolderBrowse(key="folder_window.browse")],
             [sg.Button("Open", key='folder_window.open')]]
 
+    @staticmethod
+    def create_save_as_browser(file_types):
+        return [[
+            sg.In(size=(25, 1), enable_events=True, key="-FOLDER-"),
+            sg.FileSaveAs(key="save_as_window.browse", file_types=file_types)],
+            [sg.Button("Open", key='save_as_window.open')]]
+
     def create_acquisition_tab(self, gui):
         button_size = (10, 1)
         field_size = (6, 1)
         small_button_size = (3, 1)
-        long_button_size = (18, 1)
+        long_button_size = (15, 1)
         checkbox_size = (6, 1)
         return [
             [sg.Text("Auto:", size=(8, 1)),
-             sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size),
-             sg.Button("Take RLI", button_color=('brown', 'gray'), size=button_size)],
+             sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size, tooltip="Stop Acquisition Task"),
+             sg.Button("Take RLI", button_color=('blue', 'white'), size=button_size,
+                       tooltip="Record and Compute Resting Light Intensity (RLI) Frame"),
+             sg.Button("Reset Cam", button_color=('brown', 'gray'), size=button_size,
+                       tooltip="Click this if camera is misbehaving.")],
             [sg.Checkbox('RLI', default=self.data.get_is_schedule_rli_enabled(), enable_events=True, key="Auto RLI",
-                         size=checkbox_size),
-             sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size),
-             sg.Button("Record", button_color=('black', 'red'), size=button_size)],
+                         size=checkbox_size, tooltip='Automatically take RLI at the beginning of recording.'),
+             sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size,
+                       tooltip='View real-time camera output.'),
+             sg.Button("Record", button_color=('black', 'red'), size=button_size,
+                       tooltip='Record images while electrically stimulating')
+             ],
             [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
-                         size=checkbox_size),
-             sg.Button("Save Analysis", button_color=('black', 'green'), size=button_size),
-             sg.Button("Unload File", button_color=('black', 'green'), size=button_size),
-             sg.Button("Save", button_color=('black', 'green'), size=button_size)],
+                         size=checkbox_size, tooltip='Automatically save .npy/.pbz2 between records (sets of trials)'),
+             sg.Button("Save Analysis", button_color=('white', 'green'), size=button_size,
+                       tooltip='Export all analyzed data to Origin/Excel/R-'
+                               'interoperable formats (tab-separated values)'),
+             sg.Button("Unload File", button_color=('white', 'brown'), size=button_size,
+                       tooltip='Return to acquisition mode.'),
+             sg.Button("Save", button_color=('white', 'green'), size=button_size,
+                       tooltip='Save images as .npy file and metadata/preferences as .pbz2 file')],
             [sg.HorizontalSeparator()],
             [sg.Text("File Name:", size=(8, 1)),
              sg.InputText(key="File Name",
-                          default_text=str(gui.file.get_filename(no_path=True)),
-                          enable_events=True,
-                          size=long_button_size)],
+                          default_text=str(gui.data.db.get_current_filename(no_path=True)),
+                          enable_events=False,
+                          disabled=True,
+                          size=long_button_size,
+                          tooltip='Current target file in selected save folder.'),
+             sg.Button('<', key='Decrement File', tooltip='Jump to previous existing file.'),
+             sg.Button('>', key='Increment File', tooltip='Jump to next existing file.'),
+             sg.Checkbox('Average',
+                         default=self.data.get_is_trial_averaging_enabled(),
+                         enable_events=True,
+                         key="Average Trials",
+                         tooltip='Compute and display for averages of all trials in this recording set (file).',
+                         size=(8, 1)),
+             ],
             [sg.Text("Slice:", size=(8, 1), justification='right'),
              sg.InputText(key="Slice Number",
-                          default_text=str(gui.file.get_slice_num()),
+                          default_text=str(gui.data.get_slice_num()),
                           enable_events=True,
-                          size=field_size),
-             sg.Button('<', key='Decrement Slice'),
-             sg.Button('>', key='Increment Slice'),
-             sg.Text("Location:", size=(8, 1), justification='right'),
+                          size=field_size,
+                          tooltip='An index for tracking which brain slice to which this data belongs.'),
+             sg.Button('<', key='Decrement Slice', tooltip='Decrement slice number.'),
+             sg.Button('>', key='Increment Slice', tooltip='Increment slice number.'),
+             sg.Text("Location:", size=(8, 1), justification='right',
+                     tooltip='An index for tracking which electrode location placement to which this data belongs.'),
              sg.InputText(key="Location Number",
-                          default_text=str(gui.file.get_location_num()),
+                          default_text=str(gui.data.get_location_num()),
                           enable_events=True,
                           size=field_size),
-             sg.Button('<', key='Decrement Location'),
-             sg.Button('>', key='Increment Location')],
+             sg.Button('<', key='Decrement Location', tooltip='Decrement location number.'),
+             sg.Button('>', key='Increment Location', tooltip='Inccrement location number.')],
             [sg.Text("Record:", size=(8, 1), justification='right'),
              sg.InputText(key="Record Number",
-                          default_text=str(gui.file.get_record_num()),
+                          default_text=str(gui.data.get_record_num()),
                           enable_events=True,
-                          size=field_size),
-             sg.Button('<', key='Decrement Record'),
-             sg.Button('>', key='Increment Record'),
+                          size=field_size,
+                          tooltip='An index for tracking which recording (trial set) to which this data belongs.'),
+             sg.Button('<', key='Decrement Record', tooltip="Decrement record number."),
+             sg.Button('>', key='Increment Record', tooltip="Increment record number."),
              sg.Text("Trial:", size=(8, 1), justification='right'),
              sg.InputText(key="Trial Number",
                           default_text=str(gui.data.get_current_trial_index()),
                           enable_events=True,
-                          size=field_size),
-             sg.Button('<', key='Decrement Trial'),
-             sg.Button('>', key='Increment Trial')],
+                          size=field_size,
+                          tooltip="An index for tracking trial number. 'None' indicates all-trial averaging."),
+             sg.Button('<', key='Decrement Trial', tooltip="Increment trial number."),
+             sg.Button('>', key='Increment Trial', tooltip="Decrement trial number.")],
         ]
 
     def create_analysis_tab(self, gui):
@@ -136,51 +178,66 @@ class Layouts:
         return [
             [sg.Button("Pre-Stim Window",
                        button_color=('black', 'orange'),
-                       size=long_button_size),
+                       size=long_button_size,
+                       tooltip="A time window indicating pre-stimulation "
+                               "data to use as a control for ROI Identification."),
              sg.InputText(key="Time Window Start frames pre_stim",
                           default_text=str(t_pre_stim[0]),
                           enable_events=True,
-                          size=button_size),
+                          size=button_size,
+                          tooltip="A time window indicating pre-stimulation "
+                                  "data to use as a control for ROI Identification."),
              sg.Text(" to "),
              sg.InputText(key="Time Window End frames pre_stim",
                           default_text=str(t_pre_stim[1]),
                           enable_events=True,
-                          size=button_size),
+                          size=button_size,
+                          tooltip="A time window indicating pre-stimulation "
+                                  "data to use as a control for ROI Identification."),
              sg.Text(" frames")],
             [sg.Text("", size=long_button_size),
              sg.InputText(key="Time Window Start (ms) pre_stim",
                           default_text=str(t_pre_stim[0] * int_pts),
                           enable_events=True,
-                          size=button_size),
+                          size=button_size,
+                          tooltip="A time window indicating pre-stimulation "
+                                  "data to use as a control for ROI Identification."),
              sg.Text(" to "),
              sg.InputText(key="Time Window End (ms) pre_stim",
                           default_text=str(t_pre_stim[1] * int_pts),
                           enable_events=True,
-                          size=button_size),
+                          size=button_size,
+                          tooltip="A time window indicating pre-stimulation "
+                                  "data to use as a control for ROI Identification."),
              sg.Text(" ms")],
             [sg.Button("Stim Window",
                        button_color=('black', 'orange'),
-                       size=long_button_size),
+                       size=long_button_size,
+                       tooltip="A time window indicating the stimulation and stimulation response period."),
              sg.InputText(key="Time Window Start frames stim",
                           default_text=str(t_stim[0]),
                           enable_events=True,
-                          size=button_size),
+                          size=button_size,
+                          tooltip="A time window indicating the stimulation and stimulation response period."),
              sg.Text(" to "),
              sg.InputText(key="Time Window End frames stim",
                           default_text=str(t_stim[1]),
                           enable_events=True,
-                          size=button_size),
+                          size=button_size,
+                          tooltip="A time window indicating the stimulation and stimulation response period."),
              sg.Text(" frames")],
             [sg.Text("", size=long_button_size),
              sg.InputText(key="Time Window Start (ms) stim",
                           default_text=str(t_stim[0] * int_pts),
                           enable_events=True,
-                          size=button_size),
+                          size=button_size,
+                          tooltip="A time window indicating the stimulation and stimulation response period."),
              sg.Text(" to "),
              sg.InputText(key="Time Window End (ms) stim",
                           default_text=str(t_stim[1] * int_pts),
                           enable_events=True,
-                          size=button_size),
+                          size=button_size,
+                          tooltip="A time window indicating the stimulation and stimulation response period."),
              sg.Text(" ms")],
             [sg.Button("Launch Hyperslicer",
                        button_color=('white', 'blue'),
@@ -189,44 +246,57 @@ class Layouts:
                        button_color=('black', 'green'),
                        size=long_button_size),
              sg.Checkbox('Identify ROI',
-                         default=False,
+                         default=self.data.meta.is_roi_enabled,
                          enable_events=True,
                          key="Identify ROI",
-                         size=button_size)],
+                         size=long_button_size)],
         ]
 
     @staticmethod
-    def get_background_options():
-        return ['None', 'Image', 'RLI', 'Max Amp', 'MaxAmp/SD', ]
-
-    def create_array_tab(self, gui):
+    def create_array_tab(gui):
         button_size = (10, 1)
-        background_options = self.get_background_options()
+        background_options = gui.data.get_background_options()
         return [
-            [sg.Checkbox('Show RLI',
+            [sg.Combo(background_options,
+                      enable_events=True,
+                      default_value=background_options[gui.data.get_background_option_index()],
+                      key="Select Background",
+                      tooltip="The data to compute, export, or display in the Frame Viewer.")],
+            [sg.Button("Load Image", button_color=('gray', 'black')),
+             sg.Checkbox('Show RLI',
                          default=gui.fv.get_show_rli_flag(),
                          enable_events=True,
                          key="Show RLI",
-                         size=button_size),
-             sg.Text("Background:", size=button_size),
-             sg.Combo(background_options,
-                      enable_events=True,
-                      default_value=background_options[gui.get_background_option_index()],
-                      key="Select Background")],
-            [sg.Button("Load Image", button_color=('gray', 'black'))],
-            [sg.Text("Digital Binning:"), sg.InputText('1', key="Digital Binning", size=(5, 1), enable_events=True)]
+                         size=button_size,
+                         tooltip="When selected, RLI frame is shown in the Frame Viewer.")],
+            [sg.Text("Digital Binning:"), sg.InputText(default_text=gui.data.meta.binning,
+                                                       key="Digital Binning",
+                                                       size=(5, 1),
+                                                       enable_events=True)]
         ]
 
     def create_dsp_tab(self):
-        return [[
-            sg.Button("placeholder", button_color=('gray', 'black')),
-        ]]
+        checkbox_size = (10, 1)
+        return [
+            [sg.Checkbox('RLI Division',
+                         default=self.data.get_is_rli_division_enabled(),
+                         enable_events=True,
+                         key="RLI Division",
+                         size=checkbox_size)],
+            [sg.Checkbox('Data Inverse',
+                         default=self.data.get_is_data_inverse_enabled(),
+                         enable_events=True,
+                         key='Data Inverse',
+                         size=checkbox_size)]
+        ]
 
     def create_baseline_tab(self):
-        button_size = (12, 1)
+        button_size = (8, 1)
         double_button_size = (20, 1)
-        slider_size = (20, 40)
+        field_text_size = (12, 1)
         baseline_correction_options = self.data.core.get_baseline_correction_options()
+        baseline_skip_default = self.data.core.get_baseline_skip_window()
+        int_pts = self.data.get_int_pts()
         return [
             [sg.Text('Baseline Correction:', size=double_button_size),
              sg.Combo(baseline_correction_options,
@@ -234,17 +304,29 @@ class Layouts:
                       default_value=baseline_correction_options[self.data.core.get_baseline_correction_type_index()],
                       key="Select Baseline Correction")],
             [sg.Text('')],
-            [sg.Text('Baseline Skip Window:', size=double_button_size)],
-            [sg.Text("Start Point:", size=button_size),
-             sg.InputText(key="Baseline Skip Window Start",
-                          default_text=str(self.data.core.get_skip_window_start()),
+            [sg.Button("Baseline Skip Window",
+                       button_color=('black', 'orange'),
+                       size=double_button_size)],
+            [sg.InputText(key="Baseline Skip Window Start frames",
+                          default_text=str(baseline_skip_default[0]),
                           enable_events=True,
-                          size=button_size)],
-            [sg.Text("Window Size:", size=button_size),
-             sg.InputText(key="Baseline Skip Window Size",
-                          default_text=str(self.data.core.get_skip_window_size()),
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Baseline Skip Window End frames",
+                          default_text=str(baseline_skip_default[1]),
                           enable_events=True,
-                          size=button_size)],
+                          size=button_size),
+             sg.Text(" frames")],
+            [sg.InputText(key="Baseline Skip Window Start (ms)",
+                          default_text=str(baseline_skip_default[0] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Baseline Skip Window End (ms)",
+                          default_text=str(baseline_skip_default[1] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" ms")],
         ]
 
     def create_filter_tab(self):
@@ -306,11 +388,12 @@ class Layouts:
         ]])]
 
         frame_viewer_layout = [
-            [sg.Canvas(key='frame_canvas_controls')],
+            # [sg.Canvas(key='frame_canvas_controls', tooltip="")],
             [sg.Column(
                 layout=[
                     [sg.Canvas(key='frame_canvas',
-                               size=self.plot_size
+                               size=self.plot_size,
+                               tooltip="Frame Viewer"
                                )]
                 ],
                 background_color='#DAE0E6',
@@ -319,133 +402,201 @@ class Layouts:
         return frame_viewer_layout + \
                [tab_group_basic + tab_group_advanced]
 
-    def create_daq_config_tab(self):
-        camera_programs = self.data.display_camera_programs
+    def create_acqui_controls_tab(self):
         cell_size = (10, 1)
-        double_cell_size = (20, 1)
-
-        return [[sg.Text("TTL Output Controls")],
-                [sg.Text('(ms)', size=cell_size),
+        return [[sg.Text('', size=cell_size),
                  sg.Text('ONSET', size=cell_size),
                  sg.Text('DURATION', size=cell_size)],
                 [sg.Text("Acquisition", size=cell_size),
                  sg.InputText(key="Acquisition Onset",
                               default_text=str(self.data.get_acqui_onset()),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip='Time at which image recording begins, in milliseconds.'),
                  sg.InputText(key="Acquisition Duration",
                               default_text=str(self.data.get_acqui_duration()),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip='Length of time of image recording, in milliseconds.'),
                  sg.Text(" ms", size=cell_size)],
                 [sg.Text("Stimulator #1", size=cell_size),
                  sg.InputText(key="Stimulator #1 Onset",
                               default_text=str(self.data.get_stim_onset(1)),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip='Time at which electrode #1 stimulation begins, in milliseconds.'),
                  sg.InputText(key="Stimulator #1 Duration",
                               default_text=str(self.data.get_stim_duration(1)),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip='Length of time of electrode #1 stimulation, in milliseconds.'),
                  sg.Text(" ms", size=cell_size)],
                 [sg.Text("Stimulator #2", size=cell_size),
                  sg.InputText(key="Stimulator #2 Onset",
                               default_text=str(self.data.get_stim_onset(2)),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip='Time at which electrode #2 stimulation begins, in milliseconds.'),
                  sg.InputText(key="Stimulator #2 Duration",
                               default_text=str(self.data.get_stim_duration(2)),
                               enable_events=True,
-                              size=cell_size),
-                 sg.Text(" ms", size=cell_size)],
-                [sg.Text("", size=double_cell_size)],
-                [sg.Text("Acquisition Controls")],
-                [sg.Text("Number of Points:", size=double_cell_size),
+                              size=cell_size,
+                              tooltip='Length of time of electrode #1 stimulation, in milliseconds.'),
+                 sg.Text(" ms", size=cell_size)]]
+
+    def create_ttl_output_tab(self):
+        camera_programs = self.data.display_camera_programs
+        cell_size = (10, 1)
+        double_cell_size = (20, 1)
+        return [[sg.Text("Number of Points:", size=double_cell_size),
                  sg.InputText(key="Number of Points",
                               default_text=str(self.data.get_num_pts()),
                               enable_events=True,
-                              size=cell_size)],
-                [sg.Text("Camera Program:", size=double_cell_size),
+                              size=cell_size,
+                              tooltip="Number of frames to acquire at this camera frequency.")],
+                [sg.Text("Camera Program:", size=double_cell_size,
+                         tooltip="A pre-programmed camera setting that determines images resolution"
+                                 " and sampling frequency."),
                  sg.Combo(camera_programs,
                           enable_events=True,
                           default_value=camera_programs[self.data.get_camera_program()],
-                          key="-CAMERA PROGRAM-")],
-                [sg.Text("", size=double_cell_size)],
-                [sg.Text("", size=double_cell_size),
+                          key="-CAMERA PROGRAM-",
+                          tooltip="A pre-programmed camera setting that determines images resolution"
+                                  " and sampling frequency.")]]
+
+    def create_pulses_tab(self):
+        cell_size = (10, 1)
+        double_cell_size = (20, 1)
+        return [[sg.Text("", size=double_cell_size),
                  sg.Text("Stimulator #1", size=cell_size),
                  sg.Text("Stimulator #2", size=cell_size)],
                 [sg.Text("Number of pulses:", size=double_cell_size),
                  sg.InputText(key="num_pulses Stim #1",
                               default_text=str(self.data.hardware.get_num_pulses(channel=1)),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip="Number of pulses in each burst from electrode #1."),
                  sg.InputText(key="num_pulses Stim #2",
                               default_text=str(self.data.hardware.get_num_pulses(channel=2)),
                               enable_events=True,
-                              size=cell_size)],
+                              size=cell_size,
+                              tooltip="Number of pulses in each burst from electrode #2.")],
                 [sg.Text("Interval between pulses:", size=double_cell_size),
                  sg.InputText(key="int_pulses Stim #1",
                               default_text=str(self.data.hardware.get_int_pulses(channel=1)),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip="Interval between pulses in each burst from electrode #1."),
                  sg.InputText(key="int_pulses Stim #2",
                               default_text=str(self.data.hardware.get_int_pulses(channel=2)),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip="Interval between pulses in each burst from electrode #2."),
                  sg.Text(" ms", size=cell_size)],
                 [sg.Text("Number of bursts:", size=double_cell_size),
                  sg.InputText(key="num_bursts Stim #1",
                               default_text=str(self.data.hardware.get_num_bursts(channel=1)),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip="Number of bursts (sets of pulses) from electrode #1."),
                  sg.InputText(key="num_bursts Stim #2",
                               default_text=str(self.data.hardware.get_num_bursts(channel=2)),
                               enable_events=True,
-                              size=cell_size)],
+                              size=cell_size,
+                              tooltip="Number of bursts (sets of pulses) from electrode #2.")],
                 [sg.Text("Interval between bursts:", size=double_cell_size),
                  sg.InputText(key="int_bursts Stim #1",
                               default_text=str(self.data.hardware.get_int_bursts(channel=1)),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip="Interval between bursts (sets of pulses) from electrode #1."),
                  sg.InputText(key="int_bursts Stim #2",
                               default_text=str(self.data.hardware.get_int_bursts(channel=2)),
                               enable_events=True,
-                              size=cell_size),
-                 sg.Text(" ms", size=cell_size)],
-                [sg.Text("", size=double_cell_size)],
-                [sg.Text("Trial Controls")],
-                [sg.Text("Number of Trials:", size=double_cell_size),
+                              size=cell_size,
+                              tooltip="Interval between bursts (sets of pulses) from electrode #2."),
+                 sg.Text(" ms", size=cell_size)]]
+
+    def create_trials_tab(self):
+        cell_size = (10, 1)
+        double_cell_size = (20, 1)
+
+        return [[sg.Text("Number of Trials:", size=double_cell_size),
                  sg.InputText(key="num_trials",
                               default_text=str(self.data.get_num_trials()),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip='Number of trials in each recording.'),
                  sg.Text("", size=cell_size)],
                 [sg.Text("Interval between Trials:", size=double_cell_size),
                  sg.InputText(key="int_trials",
                               default_text=str(self.data.get_int_trials()),
                               enable_events=True,
-                              size=cell_size),
-                 sg.Text(" s", size=cell_size)],
-                [sg.Text("", size=double_cell_size)],
+                              size=cell_size,
+                              tooltip='Number of seconds between trials in each recording.'),
+                 sg.Text(" s", size=cell_size)]]
+
+    def create_records_tab(self):
+        cell_size = (10, 1)
+        double_cell_size = (20, 1)
+        return [[sg.Text("", size=double_cell_size)],
                 [sg.Text("Record (Sets of Trials) Controls")],
                 [sg.Text("Number of Recordings:", size=double_cell_size),
                  sg.InputText(key="num_records",
                               default_text=str(self.data.get_num_records()),
                               enable_events=True,
-                              size=cell_size),
+                              size=cell_size,
+                              tooltip='Number of recordings (sets of trials).'),
                  sg.Text("", size=cell_size)],
                 [sg.Text("Interval between Record:", size=double_cell_size),
                  sg.InputText(key="int_records",
                               default_text=str(self.data.get_int_records()),
                               enable_events=True,
-                              size=cell_size),
-                 sg.Text(" s", size=cell_size)],
-                [sg.Canvas(key='daq_canvas', size=self.plot_size)]]
+                              size=cell_size,
+                              tooltip='Number of seconds between recordings (sets of trials).'),
+                 sg.Text(" s", size=cell_size)]]
 
-    def create_right_column(self):
-        trace_viewer_layout = [
+    def create_daq_config_tab(self):
+        daq_timeline_canvas = [[sg.Canvas(key='daq_canvas', size=self.plot_size)]]
+        daq_config_tab_group = [
+            [sg.TabGroup([[
+                sg.Tab('Onset/Duration', self.create_acqui_controls_tab() + self.create_ttl_output_tab()),
+                sg.Tab('Pulses', self.create_pulses_tab()),
+                sg.Tab('Trials', self.create_trials_tab() + self.create_records_tab()),
+            ]])]]
+        return daq_timeline_canvas + daq_config_tab_group
+
+    @staticmethod
+    def create_display_tab(gui):
+        button_size = (12, 1)
+        display_value_options = gui.tv.get_display_value_options()
+        return [
+            [sg.Text("Value:", size=button_size),
+             sg.Combo(display_value_options,
+                      enable_events=True,
+                      default_value=display_value_options[gui.get_display_value_option_index()],
+                      key="Select Display Value",
+                      tooltip='Value to display in Trace Viewer next to each applicable trace selection.')]
+        ]
+
+    def create_simulation_tab(self):
+        return []
+
+    def create_trace_viewer_tab(self, gui):
+        trace_viewer_canvas = [
             [sg.Canvas(key='trace_canvas_controls')],
-            [sg.Canvas(key='trace_canvas', size=self.plot_size)]]
+            [sg.Canvas(key='trace_canvas', size=self.plot_size,
+                       tooltip='Trace Viewer')]
+        ]
+        trace_viewer_tab_group = [
+            [sg.TabGroup([[
+                sg.Tab('Display', self.create_display_tab(gui)),
+                sg.Tab('Simulation', self.create_simulation_tab())]])
+            ]]
+        return trace_viewer_canvas + trace_viewer_tab_group
+
+    def create_right_column(self, gui):
+        trace_viewer_layout = self.create_trace_viewer_tab(gui)
 
         # plotting a small timeline of record/stim events
         daq_layout = self.create_daq_config_tab()
@@ -477,8 +628,12 @@ class Layouts:
                 "num_trials",
                 "int_trials",
                 "Auto RLI",
-                "Auto Save",
-                "Increment Trial",
+                "Auto Save"
+                ]
+
+    @staticmethod
+    def list_file_navigation_fields():
+        return ["Increment Trial",
                 "Decrement Trial",
                 "Increment Record",
                 "Decrement Record",
@@ -491,16 +646,15 @@ class Layouts:
                 "Record Number",
                 "Slice Number",
                 'num_records',
-                'int_records'
-                ]
+                'int_records']
 
     @staticmethod
     def list_hardware_events():
-        return ["Live Feed", "Take RLI", "Live Feed", "Record"]
+        return ["Live Feed", "Take RLI", "Record", "Reset Cam"]
 
     @staticmethod
     def list_file_events():
-        return ["Save Analysis", "Unload File"]
+        return ["Save Analysis", "Unload File", "Save"]
 
     @staticmethod
     def create_roi_settings_form(gui):
@@ -514,38 +668,46 @@ class Layouts:
              sg.InputText(key="Pixel-wise SNR cutoff Raw",
                           default_text=str(gui.roi.get_cutoff("pixel", "raw")),
                           enable_events=True,
-                          size=cell_size),
+                          size=cell_size,
+                          tooltip='SNR value below which to exclude pixels from ROI Identification.'),
              sg.InputText(key="Pixel-wise SNR cutoff Percentile",
                           default_text=str(gui.roi.get_cutoff("pixel", "percentile")),
                           enable_events=True,
-                          size=cell_size)],
+                          size=cell_size,
+                          tooltip='SNR percentile below which to exclude pixels from ROI Identification.')],
             [sg.Text("Cluster-wise SNR cutoff", size=double_cell_size),
              sg.InputText(key="Cluster-wise SNR cutoff Raw",
                           default_text=str(gui.roi.get_cutoff("cluster", "raw")),
                           enable_events=True,
-                          size=cell_size),
+                          size=cell_size,
+                          tooltip='SNR value below which to exclude clusters from ROI Identification.'),
              sg.InputText(key="Cluster-wise SNR cutoff Percentile",
                           default_text=str(gui.roi.get_cutoff("cluster", "percentile")),
                           enable_events=True,
-                          size=cell_size)],
+                          size=cell_size,
+                          tooltip='SNR percentile below which to exclude clusters from ROI Identification.')],
             [sg.Text("ROI-wise SNR cutoff", size=double_cell_size),
              sg.InputText(key="ROI-wise SNR cutoff Raw",
                           default_text=str(gui.roi.get_cutoff("roi_snr", "raw")),
                           enable_events=True,
-                          size=cell_size),
+                          size=cell_size,
+                          tooltip='SNR value below which to exclude ROIs from ROI Identification.'),
              sg.InputText(key="ROI-wise SNR cutoff Percentile",
                           default_text=str(gui.roi.get_cutoff("roi_snr", "percentile")),
                           enable_events=True,
-                          size=cell_size)],
+                          size=cell_size,
+                          tooltip='SNR percentile below which to exclude ROIs from ROI Identification.')],
             [sg.Text("ROI-wise Amplitude cutoff", size=double_cell_size),
              sg.InputText(key="ROI-wise Amplitude cutoff Raw",
                           default_text=str(gui.roi.get_cutoff("roi_amplitude", "raw")),
                           enable_events=True,
-                          size=cell_size),
+                          size=cell_size,
+                          tooltip='MaxAmp value below which to exclude ROIs from ROI Identification.'),
              sg.InputText(key="ROI-wise Amplitude cutoff Percentile",
                           default_text=str(gui.roi.get_cutoff("roi_amplitude", "percentile")),
                           enable_events=True,
-                          size=cell_size)],
+                          size=cell_size,
+                          tooltip='MaxAmp percentile below which to exclude ROIs from ROI Identification.')],
             [sg.Text("Number of Clusters", size=double_cell_size),
              sg.InputText(key="roi.k_clusters",
                           default_text=str(gui.roi.get_k_clusters()),

@@ -1,5 +1,7 @@
 import ctypes
 import os
+import time
+
 import numpy as np
 
 # https://medium.com/@stephenscotttucker/interfacing-python-with-c-using-ctypes-classes-and-arrays-42534d562ce7
@@ -20,6 +22,7 @@ class Hardware:
             print(e)
             self.hardware_enabled = False
         self.stop_flag = False
+        self.livefeed_flags = None  # used to synchronize live feed
 
     def __del__(self):
         if self.hardware_enabled:
@@ -34,7 +37,7 @@ class Hardware:
             return
         imgs_orig_shape = kwargs['images'].shape
         t, fp_n = kwargs['fp_data'].shape
-        imgs = kwargs['images'].reshape(-1)
+        imgs = np.zeros(imgs_orig_shape, dtype=np.uint16).reshape(-1)
         fp_data = kwargs['fp_data'].reshape(-1)
         try:
             self.lib.acqui(self.controller, imgs, fp_data)
@@ -42,6 +45,8 @@ class Hardware:
             print("Could not record. Are the camera and NI-USB connected?")
             print(e)
         imgs = imgs.reshape(imgs_orig_shape)
+        print(imgs.shape)
+        kwargs['images'][:, :, :, :] = imgs[:, :, :, :]
         fp_data = np.transpose(fp_data.reshape(fp_n, t))
 
     def take_rli(self, **kwargs):
@@ -114,12 +119,12 @@ class Hardware:
             return 0
         return self.lib.getNumPulses(self.controller, kwargs['channel'])
 
-    # set the interval between pulses during acquisition
+    # set the interval between pulses during acquisition, ms->frames
     def set_int_pulses(self, **kwargs):
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
-        num_frames = int(int(kwargs['value'] // self.get_int_pts()))
+        num_frames = int(float(kwargs['value'] // self.get_int_pts()))
         self.lib.setIntPulses(self.controller, kwargs['channel'], num_frames)
 
     def get_int_pulses(self, **kwargs):
@@ -146,7 +151,7 @@ class Hardware:
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
-        num_frames = int(int(kwargs['value'] // self.get_int_pts()))
+        num_frames = int(float(kwargs['value'] // self.get_int_pts()))
         self.lib.setIntBursts(self.controller, kwargs['channel'], num_frames)
 
     def get_int_bursts(self, **kwargs):
@@ -167,8 +172,7 @@ class Hardware:
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return
-        num_frames = int(kwargs['acqui_onset'] // self.get_int_pts())
-        self.lib.setAcquiOnset(self.controller, num_frames)
+        self.lib.setAcquiOnset(self.controller, int(kwargs['acqui_onset']))
 
     def get_acqui_onset(self):
         if not self.hardware_enabled:
@@ -225,13 +229,13 @@ class Hardware:
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return 0
-        return self.lib.getStimOnset(self.controller, kwargs['channel']) * self.get_int_pts()
+        return self.lib.getStimOnset(self.controller, kwargs['channel'])
 
     def get_stim_duration(self, **kwargs):
         if not self.hardware_enabled:
             print("Hardware not enabled (analysis-only mode).")
             return 0
-        return self.lib.getStimDuration(self.controller, kwargs['channel']) * self.get_int_pts()
+        return self.lib.getStimDuration(self.controller, kwargs['channel'])
 
     def set_stim_onset(self, **kwargs):
         if not self.hardware_enabled:
@@ -240,8 +244,7 @@ class Hardware:
         v = kwargs['value']
         if v is None or type(v) != int:
             v = 0
-        v = int(v // self.get_int_pts())
-        return self.lib.setStimOnset(self.controller, kwargs['channel'], v)
+        self.lib.setStimOnset(self.controller, kwargs['channel'], float(v))
 
     def set_stim_duration(self, **kwargs):
         if not self.hardware_enabled:
@@ -250,8 +253,40 @@ class Hardware:
         v = kwargs['value']
         if v is None or type(v) != int:
             v = 0
-        v = int(v // self.get_int_pts())
-        return self.lib.setStimDuration(self.controller, kwargs['channel'], v)
+        self.lib.setStimDuration(self.controller, kwargs['channel'], float(v))
+
+    def start_livefeed(self, lf_frame):
+        # live feed flags are [produced_image, stop_livefeed]
+        # scheme is producer-consumer relationship between python threads
+        self.livefeed_flags = np.zeros(2, dtype=np.bool)
+        self.clear_livefeed_produced_image_flag()
+        self.set_livefeed_stop_loop_flag(False)
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return False
+        orig_shape = lf_frame.shape
+        lf_frame = lf_frame.reshape(-1)
+        self.lib.startLiveFeed(self.controller, lf_frame, self.livefeed_flags)
+        lf_frame = lf_frame.reshape(orig_shape)
+        return True
+
+    def continue_livefeed(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
+        self.lib.continueLiveFeed(self.controller)
+
+    def stop_livefeed(self):
+        if not self.hardware_enabled:
+            print("Hardware not enabled (analysis-only mode).")
+            return
+        self.set_livefeed_stop_loop_flag()
+        timeout = 80.0
+        while self.get_livefeed_stop_loop_flag() and timeout > 0:
+            time.sleep(1)
+            timeout -= 1
+            print("waiting for acqui daemon to read stop-loop flag...")
+        self.livefeed_flags = None
 
     def define_c_types(self):
         if not self.hardware_enabled:
@@ -259,8 +294,9 @@ class Hardware:
             return
         controller_handle = ctypes.POINTER(ctypes.c_char)
         c_uint_array = np.ctypeslib.ndpointer(dtype=np.uint16, ndim=1, flags='C_CONTIGUOUS')
-        c_float_array = np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS')
+        # c_float_array = np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS')
         c_int_array = np.ctypeslib.ndpointer(dtype=np.int16, ndim=1, flags='C_CONTIGUOUS')
+        c_bool_array = np.ctypeslib.ndpointer(dtype=np.bool, ndim=1, flags='C_CONTIGUOUS')
 
         self.lib.createController.argtypes = []  # argument types
         self.lib.createController.restype = controller_handle  # return type
@@ -270,6 +306,11 @@ class Hardware:
         self.lib.takeRli.argtypes = [controller_handle, c_uint_array]
         
         self.lib.acqui.argtypes = [controller_handle, c_uint_array, c_int_array]
+
+        self.lib.startLiveFeed.argtypes = [controller_handle, c_uint_array, c_bool_array]
+        self.lib.continueLiveFeed.argtypes = [controller_handle]
+
+        self.lib.resetCamera.argtypes = [controller_handle]
         
         self.lib.setCameraProgram.argtypes = [controller_handle, ctypes.c_int]
         
@@ -373,3 +414,18 @@ class Hardware:
 
     def get_stop_flag(self):
         return self.stop_flag
+
+    def reset_camera(self):
+        self.lib.resetCamera(self.controller)
+
+    def get_livefeed_produced_image_flag(self):
+        return self.livefeed_flags[0]
+
+    def clear_livefeed_produced_image_flag(self):
+        self.livefeed_flags[0] = False
+
+    def get_livefeed_stop_loop_flag(self):
+        return self.livefeed_flags[1]
+
+    def set_livefeed_stop_loop_flag(self, v=True):
+        self.livefeed_flags[1] = v

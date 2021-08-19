@@ -1,27 +1,22 @@
 import numpy as np
-import os.path
 import threading
 import time
 import string
 import PySimpleGUI as sg
 import matplotlib
-import sys
-from matplotlib.widgets import RectangleSelector
-import matplotlib.figure as figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-import matplotlib.pyplot as plt
-from tkinter import *
-import tkinter as Tk
 from webbrowser import open as open_browser
 
-from pyPhoto21.frame import FrameViewer
-from pyPhoto21.trace import TraceViewer
+from pyPhoto21.viewers.frame import FrameViewer
+from pyPhoto21.viewers.trace import TraceViewer
+from pyPhoto21.viewers.daq import DAQViewer
 from pyPhoto21.analysis.roi import ROI
-from pyPhoto21.layouts import *
-from pyPhoto21.event_mapping import EventMapping
+from pyPhoto21.gui_elements.layouts import *
+from pyPhoto21.gui_elements.event_mapping import EventMapping
+from pyPhoto21.export import Exporter
+
 
 # from mpl_interactions import image_segmenter
-from matplotlib.widgets import Slider
 
 
 # import io
@@ -29,16 +24,17 @@ from matplotlib.widgets import Slider
 
 class GUI:
 
-    def __init__(self, data, hardware, file, production_mode=True):
+    def __init__(self, data, production_mode=True):
         matplotlib.use("TkAgg")
         sg.theme('DarkBlue12')
         self.data = data
-        self.hardware = hardware
-        self.file = file
+        self.hardware = data.hardware
         self.production_mode = production_mode
         self.tv = TraceViewer(self.data)
         self.fv = FrameViewer(self.data, self.tv)
+        self.dv = DAQViewer(self.data)
         self.roi = ROI(self.data)
+        self.exporter = Exporter(self.tv, self.fv)
         self.layouts = Layouts(data)
         self.window = None
 
@@ -46,7 +42,6 @@ class GUI:
         self.title = "Photo21"
         self.freeze_input = False  # whether to allow fields to be updated. Frozen during acquire (how about during file loaded?)
         self.event_mapping = None
-        self.background_option_index = 0
         self.define_event_mapping()  # event callbacks used in event loops
         # kickoff workflow
         if self.production_mode:
@@ -74,7 +69,7 @@ class GUI:
                 break
 
     def main_workflow(self):
-        right_col = self.layouts.create_right_column()
+        right_col = self.layouts.create_right_column(self)
         left_col = self.layouts.create_left_column(self)
         toolbar_menu = self.layouts.create_menu()
 
@@ -92,6 +87,7 @@ class GUI:
         self.window.Maximize()
         self.plot_trace()
         self.plot_frame()
+        self.plot_daq_timeline()
         self.main_workflow_loop()
         self.window.close()
 
@@ -101,9 +97,18 @@ class GUI:
         events = ''
         while True:
             event, values = window.read()
-            if history_debug and event is not None:
+            if history_debug and event is not None and not self.production_mode:
                 events += str(event) + '\n'
-            if event == exit_event or event == sg.WIN_CLOSED:
+            if event == exit_event or event == sg.WIN_CLOSED or event == '-close-':
+                if self.is_recording():
+                    print("Cleaning up hardware before exiting. Waiting until safe to exit (or at most 3 seconds)...")
+
+                    self.hardware.set_stop_flag(True)
+                    timeout = 3
+                    while self.hardware.get_stop_flag() and timeout > 0:
+                        time.sleep(1)
+                        timeout -= 1
+                        print(timeout, "seconds")
                 break
             elif event not in self.event_mapping or self.event_mapping[event] is None:
                 print("Not Implemented:", event)
@@ -114,12 +119,19 @@ class GUI:
                     ev['args']['values'] = values[event]
                     ev['args']['event'] = event
                 ev['function'](**ev['args'])
-        if history_debug:
+        if history_debug and not self.production_mode:
             print("**** History of Events ****\n", events)
+
+    def is_recording(self):
+        return self.freeze_input and not self.data.get_is_loaded_from_file()
+
+    def plot_daq_timeline(self):
+        fig = self.dv.get_fig()
+        self.draw_figure(self.window['daq_canvas'].TKCanvas, fig)
+        self.dv.update()
 
     def plot_trace(self):
         fig = self.tv.get_fig()
-
         self.draw_figure_w_toolbar(self.window['trace_canvas'].TKCanvas,
                                    fig,
                                    self.window['trace_canvas_controls'].TKCanvas)
@@ -132,19 +144,16 @@ class GUI:
 
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
 
-        figure_canvas_agg.get_tk_widget().pack()  # fill="none", expand=False)
+        figure_canvas_agg.get_tk_widget().pack(fill="none", expand=True)
         # figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll) # currently scroll not used.
         figure_canvas_agg.mpl_connect('button_release_event', self.fv.onrelease)
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onpress)
         figure_canvas_agg.mpl_connect('motion_notify_event', self.fv.onmove)
-        # toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
-        # toolbar.update()
         figure_canvas_agg.draw_idle()
         s_max.on_changed(self.fv.change_frame)
 
     # include a matplotlib figure in a Tkinter canvas
-    @staticmethod
-    def draw_figure_w_toolbar(canvas, fig, canvas_toolbar):
+    def draw_figure_w_toolbar(self, canvas, fig, canvas_toolbar):
         if canvas.children:
             for child in canvas.winfo_children():
                 child.destroy()
@@ -152,23 +161,35 @@ class GUI:
             for child in canvas_toolbar.winfo_children():
                 child.destroy()
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
+        figure_canvas_agg.mpl_connect('button_press_event', self.tv.onpress)
         figure_canvas_agg.draw_idle()
         toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
         toolbar.update()
-        figure_canvas_agg.get_tk_widget().pack(fill='none', expand=False)
+        figure_canvas_agg.get_tk_widget().pack(fill='none', expand=True)
 
-    def freeze_hardware_settings(self, v=True, include_buttons=True):
+    @staticmethod
+    def draw_figure(canvas, fig):
+        if canvas.children:
+            for child in canvas.winfo_children():
+                child.destroy()
+        figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
+        figure_canvas_agg.draw_idle()
+        figure_canvas_agg.get_tk_widget().pack(fill='none', expand=True)
+
+    def freeze_hardware_settings(self, v=True, include_buttons=True, freeze_file_flip=True):
         if type(v) == bool:
             self.freeze_input = v
             events_to_control = self.layouts.list_hardware_settings()
             if include_buttons:
                 events_to_control += self.layouts.list_hardware_events()
                 events_to_control += self.layouts.list_file_events()
+            if freeze_file_flip:  # freeze ability to navigate different files with arrow buttons
+                events_to_control += self.layouts.list_file_navigation_fields()
             for ev in events_to_control:
                 self.window[ev].update(disabled=v)
 
     def unfreeze_hardware_settings(self):
-        self.freeze_hardware_settings(v=False, include_buttons=True)
+        self.freeze_hardware_settings(v=False)
 
     def get_trial_sleep_time(self):
         sleep_sec = self.data.get_int_trials()
@@ -181,7 +202,7 @@ class GUI:
         return max(0, sleep_sec - self.get_trial_sleep_time())
 
     def save_file_in_background(self):
-        self.file.save_to_compressed_file()
+        self.data.save_metadata_to_compressed_file()
         self.update_tracking_num_fields()
 
     # returns True if stop flag is set
@@ -211,7 +232,13 @@ class GUI:
 
         if self.data.get_num_records() * self.data.get_num_trials() * self.data.get_num_pts() == 0:
             print("Settings are such that no trials or points are recorded. Ending recording session.")
-            return
+            exit_recording = True
+        if self.data.get_num_pts() <= 10:
+            self.notify_window("Too few points",
+                               "Please increase number of points to record. NI-DAQmx may fail to"
+                               " sample or administer stimulation with"
+                               " too few points.")
+            exit_recording = True
 
         # Note that record index may not necessarily match the record num for file saving
         for record_index in range(self.data.get_num_records()):
@@ -219,20 +246,29 @@ class GUI:
             if exit_recording:
                 break
 
+            self.data.acquire_processing_lock()  # lock processor to avoid interference with image reassembly.
+
             for trial in range(self.data.get_num_trials()):
+                self.data.set_current_trial_index(trial)
+
                 is_last_trial = (trial == self.data.get_num_trials() - 1)
                 if self.get_is_schedule_rli_enabled():
                     self.take_rli_core()
-                self.hardware.record(images=self.data.get_acqui_memory(trial=trial),
-                                     fp_data=self.data.get_fp_data(trial=trial))
+                acqui_mem = self.data.get_acqui_memory()
+                self.hardware.record(images=acqui_mem,
+                                     fp_data=self.data.get_fp_data())
+
                 self.data.set_current_trial_index(trial)
-                self.fv.update_new_image()
+                self.update_tracking_num_fields()
                 print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
                 if not is_last_trial:
                     print("\t\t", sleep_trial, "seconds until next trial...")
                     exit_recording = self.sleep_and_check_stop_flag(sleep_time=sleep_trial)
                 if exit_recording:
                     break
+
+            self.data.drop_processing_lock()
+            time.sleep(0.2)
 
             if self.get_is_auto_save_enabled():
                 threading.Thread(target=self.save_file_in_background, args=(), daemon=True).start()
@@ -251,7 +287,10 @@ class GUI:
         # we spawn a new thread to acquire in the background.
         # meanwhile the original thread returns and keeps handling GUI clicks
         # but updates to Data/Hardware fields will be frozen
+        # self.record_in_background()
         threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
+
+    ''' RLI Controller functions '''
 
     def take_rli_core(self):
         self.hardware.take_rli(images=self.data.get_rli_memory())
@@ -269,11 +308,87 @@ class GUI:
         self.unfreeze_hardware_settings()
 
     def take_rli(self, **kwargs):
+        self.data.get_current_trial_index()
         threading.Thread(target=self.take_rli_in_background, args=(), daemon=True).start()
+
+    ''' Live Feed Controller functions '''
+
+    def start_livefeed(self, **kwargs):
+        if self.data.get_is_livefeed_enabled():
+            return
+        self.window["Live Feed"].update(button_color=('black', 'yellow'))
+        self.freeze_hardware_settings()
+        self.data.set_is_livefeed_enabled(True)
+        lf_frame = self.data.get_livefeed_frame()
+        if not self.hardware.start_livefeed(lf_frame):  # C++ DLL will keep pointer to lf_frame
+            # Hardware not enabled
+            self.stop_livefeed()
+            return
+
+        # launch live feed daemon: plotter
+        threading.Thread(target=self.continue_livefeed_in_background, args=(lf_frame,), daemon=True).start()
+
+        # launch acqui daemon
+        threading.Thread(target=self.hardware.continue_livefeed, args=(), daemon=True).start()
+
+    # a continuous loop in background
+    def continue_livefeed_in_background(self, lf_frame, fps=50):
+        if not self.data.get_is_livefeed_enabled():
+            return
+        is_image_started = False
+        interval = 1.0 / float(fps)
+
+        num_images_shown = 0
+        start = time.time()
+
+        # C++ DLL has stored pointer to lf_frame, no need to keep passing
+        while not self.hardware.get_stop_flag():  # the GUI flag
+            timeout = 80.0
+            if self.hardware.get_livefeed_produced_image_flag():
+                # print(lf_frame[0, :, :], np.std(lf_frame[0, :, :]))
+                if is_image_started:
+                    lf_img.set_data(lf_frame[0, :, :].astype(np.uint16))
+                    fig.canvas.draw_idle()
+                else:
+                    self.fv.start_livefeed_animation()
+                    lf_img = self.fv.livefeed_im
+                    fig = self.fv.get_fig()
+                    is_image_started = True
+                num_images_shown += 1
+
+                # Allows DLL to continue to next image
+                self.hardware.clear_livefeed_produced_image_flag()
+                time.sleep(interval)
+
+        end = time.time()
+
+        # stop flag read -- notify hardware
+        self.stop_livefeed()
+        print("Live Feed daemon exiting.")
+
+        # Performance metrics
+        actual_fps = num_images_shown / (end - start)
+        print("Livefeed averaged", actual_fps, "fps.")
+        if actual_fps < 10:
+            print("Livefeed performed poorly\n",
+                  "Restarting camera and Photo21 is recommended.")
+
+    def stop_livefeed(self):
+        self.window["Live Feed"].update(button_color=('black', 'gray'))
+        self.hardware.stop_livefeed()  # clean up
+        self.data.set_is_livefeed_enabled(False)
+        self.unfreeze_hardware_settings()
+        self.hardware.set_stop_flag(False)  # take down flag to signal to GUI daemon that we've cleaned up
+        self.fv.end_livefeed_animation()
+        self.data.clear_livefeed_frame()
 
     def set_camera_program(self, **kwargs):
         program_name = kwargs['values']
         program_index = self.data.display_camera_programs.index(program_name)
+        if program_index == 0:
+            self.set_num_pts(values='100')
+            self.data.set_num_dark_rli(1)
+            self.data.set_num_light_rli(1)
         self.data.set_camera_program(program_index)
         self.window["Acquisition Duration"].update(self.data.get_acqui_duration())
 
@@ -297,20 +412,11 @@ class GUI:
                 break
         wind.close()
 
-    def change_save_filename(self, **kwargs):
-        # Spawn a folder browser for auto-save
-        v = kwargs['values']
-        if len(v) < 1:
-            return
-        valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-        v = ''.join(c for c in v if c in valid_chars)
-        kwargs['window'][kwargs['event']].update(v)
-        self.file.set_override_filename(v)
-
     def choose_save_dir(self, **kwargs):
         folder = self.browse_for_folder()
-        self.file.set_save_dir(folder)
-        print("New save location:", folder)
+        if folder is not None:
+            self.data.set_save_dir(folder)
+            print("New save location:", folder)
 
     def browse_for_file(self, file_extensions):
         file_window = sg.Window('File Browser',
@@ -339,15 +445,42 @@ class GUI:
                                        "Unsupported file type.\nSupported: " + supported_file_str)
                 else:
                     break
-        if self.freeze_input:
+        if self.freeze_input and not self.data.get_is_loaded_from_file():
             file = None
             self.notify_window("File Input Error",
                                "Cannot load file during acquisition")
         file_window.close()
         return file
 
-    def browse_for_folder(self):
-        folder_window = sg.Window('File Browser',
+    def browse_for_save_as_file(self, file_types=(("Tab-Separated Value file", "*.tsv"),)):
+        w = sg.Window('Save As',
+                      self.layouts.create_save_as_browser(file_types),
+                      finalize=True,
+                      element_justification='center',
+                      resizable=True,
+                      font='Helvetica 18')
+        new_file = None
+        # file browser event loop
+        while True:
+            event, values = w.read()
+            if event == sg.WIN_CLOSED or event == "Exit":
+                w.close()
+                return
+            elif event == "save_as_window.open":
+                new_file = values["save_as_window.browse"]
+                break
+        if self.is_recording():
+            new_file = self.data.get_save_dir()
+            self.notify_window("Warning",
+                               "Please stop recording before exporting data.")
+            new_file = None
+        w.close()
+        if new_file is None or len(new_file) < 1:
+            return None
+        return new_file
+
+    def browse_for_folder(self, recording_notif=True):
+        folder_window = sg.Window('Folder Browser',
                                   self.layouts.create_folder_browser(),
                                   finalize=True,
                                   element_justification='center',
@@ -363,68 +496,139 @@ class GUI:
             elif event == "folder_window.open":
                 folder = values["folder_window.browse"]
                 break
-        if self.freeze_input and not self.data.get_is_loaded_from_file():
-            folder = self.file.get_save_dir()
+        if recording_notif and self.is_recording():
+            folder = self.data.get_save_dir()
             self.notify_window("Warning",
                                "You are changing the save location during acquisition." +
                                "I don't recommend scattering your files. " +
                                "Keeping this save directory:\n" +
                                folder)
         folder_window.close()
+        if len(folder) < 1:
+            return None
         return folder
 
     def load_roi_file(self, **kwargs):
         filename = self.browse_for_file(['roi'])
-        data_obj = self.file.retrieve_python_object_from_pickle(filename)
+        data_obj = self.data.retrieve_python_object_from_pickle(filename)
         self.roi.load_roi_data(data_obj)
 
     def save_roi_file(self, **kwargs):
         data_obj, filename = self.roi.dump_roi_data()
-        self.file.dump_python_object_to_pickle(filename,
+        self.data.dump_python_object_to_pickle(filename,
                                                data_obj,
                                                extension='roi')
 
-    def load_data_file_in_background(self, file):
-        self.file.load_from_file(file)
-        # Sync GUI
-        self.file_gui_fields_sync()
-        # Freeze input fields to hardware
+    def load_preference(self):
+        file = self.browse_for_file(['pbz2'])
+        if file is not None:
+            print("Loading from preference file:", file)
+            self.data.load_preference_file(file)
+            self.sync_gui_fields_to_meta()
+            self.fv.update_new_image()
+            self.tv.update_new_traces()
 
-        print("File Loaded.")
-        self.fv.update_new_image()
+    def save_preference(self):
+        folder = self.browse_for_folder()
+        if folder is not None:
+            self.data.save_preference_file(folder)
 
     def load_data_file(self):
-        file = self.browse_for_file(['zda', 'pbz2'])
+        file = self.browse_for_file(['npy', 'pbz2', 'zda'])
         if file is not None:
-            self.freeze_hardware_settings(include_buttons=False)
+            self.freeze_hardware_settings(include_buttons=False, freeze_file_flip=False)
             print("Loading from file:", file, "\nThis will take a few seconds...")
+            self.data.load_from_file(file)
+            # Sync GUI
+            self.sync_gui_fields_to_meta()
+            # Freeze input fields to hardware
 
-            threading.Thread(target=self.load_data_file_in_background, args=(file,), daemon=True).start()
+            print("File Loaded.")
+            self.fv.update_new_image()
+            self.tv.update_new_traces()
 
     # Pull all file-based data from Data and sync GUI fields
-    def file_gui_fields_sync(self):
+    def sync_gui_fields_to_meta(self):
         w = self.window
+        base_skip = self.data.core.get_baseline_skip_window()
+        int_pts = self.data.get_int_pts()
+
+        # Hardware settings
         w['Number of Points'].update(self.data.get_num_pts())
-        w['int_trials'].update(self.data.get_int_trials())
-        w['num_trials'].update(self.data.get_num_trials())
+        w['int_records'].update(self.data.get_int_records())
+        w['num_records'].update(self.data.get_num_records())
         w['Acquisition Onset'].update(self.data.get_acqui_onset())
         w['Acquisition Duration'].update(self.data.get_acqui_duration())
         w['Stimulator #1 Onset'].update(self.data.get_stim_onset(1))
         w['Stimulator #2 Onset'].update(self.data.get_stim_onset(2))
         w['Stimulator #1 Duration'].update(self.data.get_stim_duration(1))
         w['Stimulator #2 Duration'].update(self.data.get_stim_duration(2))
+        w['int_trials'].update(self.data.get_int_trials())
+        w['num_trials'].update(self.data.get_num_trials())
+        w['-CAMERA PROGRAM-'].update(self.data.display_camera_programs[self.data.get_camera_program()])
+
+        # Analysis Settings
+        w["Select Baseline Correction"].update(self.data.core.get_baseline_correction_options()[
+                                                   self.data.core.get_baseline_correction_type_index()])
+        w["Baseline Skip Window Start frames"].update(base_skip[0])
+        w["Baseline Skip Window End frames"].update(base_skip[1])
+        w["Baseline Skip Window Start (ms)"].update(base_skip[0] * int_pts)
+        w["Baseline Skip Window End (ms)"].update(base_skip[1] * int_pts)
+        w['T-Filter'].update(self.data.core.get_is_temporal_filter_enabled())
+        w['Select Temporal Filter'].update(self.data.core.get_temporal_filter_index())
+        w['Temporal Filter Radius'].update(self.data.core.get_temporal_filter_radius())
+        w['S-Filter'].update(self.data.core.get_is_spatial_filter_enabled())
+        w['Spatial Filter Sigma'].update(self.data.core.get_spatial_filter_sigma())
+        w['RLI Division'].update(self.data.get_is_rli_division_enabled())
+        w['Data Inverse'].update(self.data.get_is_data_inverse_enabled())
+        w['Digital Binning'].update(self.data.meta.binning)
+        w['Data Inverse'].update(self.data.get_is_data_inverse_enabled())
+        w['Average Trials'].update(self.data.get_is_trial_averaging_enabled())
+
+        # ROI Settings
+        t_pre_stim = self.roi.get_time_window('pre_stim')
+        t_stim = self.roi.get_time_window('stim')
+        if t_pre_stim[1] == -1:
+            t_pre_stim[1] = self.data.get_num_pts()
+        if t_stim[1] == -1:
+            t_stim[1] = self.data.get_num_pts()
+        w['Identify ROI'].update(self.data.meta.is_roi_enabled)
+        w['Time Window End (ms) stim'].update(t_stim[1] * int_pts)
+        w['Time Window Start (ms) stim'].update(t_stim[0] * int_pts)
+        w['Time Window End frames stim'].update(t_stim[1])
+        w['Time Window Start frames stim'].update(t_stim[0])
+        w['Time Window End (ms) pre_stim'].update(t_pre_stim[1] * int_pts)
+        w['Time Window Start (ms) pre_stim'].update(t_pre_stim[0] * int_pts)
+        w['Time Window End frames pre_stim'].update(t_pre_stim[1])
+        w['Time Window Start frames pre_stim'].update(t_pre_stim[0])
+
+        self.update_tracking_num_fields()
 
     # disable file-viewing mode, allowing acquisition to resume
     def unload_file(self):
         if self.data.get_is_loaded_from_file():
             self.unfreeze_hardware_settings()
-            self.data.set_is_loaded_from_file(value=False)
-            self.data.clear_data_memory()
+            self.data.set_is_loaded_from_file(False)
             self.fv.update_new_image()
 
     @staticmethod
-    def launch_github_page():
-        open_browser('https://github.com/john-judge/PhotoLib', new=2)
+    def launch_github_page(**kwargs):
+        urls = {
+            'technical': 'https://github.com/john-judge/PhotoLib#photolib',
+            'user': 'https://github.com/john-judge/PhotoLib/blob/master/'
+                    'TUTORIAL.md#users-manual-for-pyphoto21-little-dave',  # Update this to user tutorial link
+            'issue': 'https://github.com/john-judge/PhotoLib/issues/new'
+        }
+        if 'kind' in kwargs and kwargs['kind'] in urls:
+            open_browser(urls[kwargs['kind']], new=2)
+
+    @staticmethod
+    def launch_youtube_tutorial():
+        pass
+
+    @staticmethod
+    def launch_little_dave_calendar():
+        pass
 
     # Returns True if string s is a valid numeric input
     @staticmethod
@@ -447,7 +651,7 @@ class GUI:
         binning = kwargs['values']
         while len(binning) > 0 and \
                 (not self.validate_numeric_input(binning, max_val=min(self.data.get_display_width(),
-                                                                      self.data.get_display_height()) // 4) \
+                                                                      self.data.get_display_height()) // 4)
                  or len(binning) > 3):
             binning = binning[:-1]
         if not self.validate_numeric_input(binning, non_zero=True):
@@ -470,27 +674,42 @@ class GUI:
     def set_is_schedule_rli_enabled(self, value):
         self.data.set_is_schedule_rli_enabled(value)
 
+    def toggle_average_trials(self, **kwargs):
+        v = bool(kwargs['values'])
+        new_index = 0
+        if v:
+            new_index = None
+        self.data.set_is_trial_averaging_enabled(v)
+        self.set_current_trial_index(value=new_index)
+        self.window["Trial Number"].update(str(self.data.get_current_trial_index()))
+
     def set_acqui_onset(self, **kwargs):
         v = kwargs['values']
-        self.hardware.set_acqui_onset(acqui_onset=v)
+        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=5000):
+            v = v[:-1]
+        if self.validate_numeric_input(v, decimal=True, max_val=5000):
+            num_frames = float(v) // self.data.get_int_pts()
+            self.hardware.set_acqui_onset(acqui_onset=num_frames)
 
     def set_num_pts(self, **kwargs):
         v = kwargs['values']
 
-        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=15000):
+        while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=5000):
             v = v[:-1]
-        if len(v) > 0 and self.validate_numeric_input(v, decimal=True, max_val=15000):
+        if len(v) > 0 and self.validate_numeric_input(v, decimal=True, max_val=5000):
             acqui_duration = float(v) * self.data.get_int_pts()
             self.data.set_num_pts(value=int(v))  # Data method resizes data
-            kwargs['window'][kwargs['event']].update(v)
-            kwargs['window']["Acquisition Duration"].update(str(acqui_duration))
+            self.window["Number of Points"].update(v)
+            self.window["Acquisition Duration"].update(str(acqui_duration))
         else:
             self.data.set_num_pts(value=0)  # Data method resizes data
-            kwargs['window'][kwargs['event']].update('')
-            kwargs['window']["Acquisition Duration"].update('')
+            self.window["Number of Points"].update('')
+            self.window["Acquisition Duration"].update('')
+        self.dv.update()
 
     def set_acqui_duration(self, **kwargs):
         v = kwargs['values']
+        min_pts = 10
 
         # looks at num_pts as well to validate.
         def is_valid_acqui_duration(u, max_num_pts=15000):
@@ -502,12 +721,13 @@ class GUI:
         if len(v) > 0 and is_valid_acqui_duration(v):
             num_pts = int(float(v) // self.data.get_int_pts())
             self.data.set_num_pts(value=num_pts)
-            kwargs['window'][kwargs['event']].update(v)
-            kwargs['window']["Number of Points"].update(str(num_pts))
+            self.window["Acquisition Duration"].update(v)
+            self.window["Number of Points"].update(str(num_pts))
         else:
             self.data.set_num_pts(value=0)
-            kwargs['window'][kwargs['event']].update('')
-            kwargs['window']["Number of Points"].update('')
+            self.window["Acquisition Duration"].update('')
+            self.window["Number of Points"].update('')
+        self.dv.update()
 
     @staticmethod
     def pass_no_arg_calls(**kwargs):
@@ -527,10 +747,12 @@ class GUI:
         if len(v) > 0 and self.validate_numeric_input(v, max_digits=5, max_val=max_val):
             fn_to_call(value=int(v))
             window[kwargs['event']].update(v)
-            print("called:", fn_to_call)
+            if not self.production_mode:
+                print("called:", fn_to_call)
             if 'call2' in kwargs:
                 kwargs['call2'](value=int(v))
-                print("called:", kwargs['call2'])
+                if not self.production_mode:
+                    print("called:", kwargs['call2'])
         else:
             fn_to_call(value=None)
             window[kwargs['event']].update('')
@@ -546,10 +768,14 @@ class GUI:
         if len(v) > 0 and self.validate_numeric_input(v, max_digits=6):
             fn_to_call(value=int(v), channel=ch)
             window[kwargs['event']].update(v)
-            print("called:", fn_to_call)
+            if not self.production_mode:
+                print("called:", fn_to_call)
         else:
             fn_to_call(value=0, channel=ch)
             window[kwargs['event']].update('')
+
+        # update DAQ timeline visualization
+        self.dv.update()
 
     def launch_roi_settings(self, **kwargs):
         w = sg.Window('ROI Identification Settings',
@@ -607,17 +833,18 @@ class GUI:
     def toggle_auto_rli(self, **kwargs):
         self.set_is_schedule_rli_enabled(kwargs['values'])
 
-    def set_roi_time_window(self, **kwargs):
-        v = kwargs['values']
-        form = kwargs['form']
-        kind = kwargs['kind']
-        index = kwargs['index']
+    # generic setter that links together 2 ms / frame linked fields
+    def set_time_window_generic(self, setter_function, arg_dict):
+        v = arg_dict['values']
+        form = arg_dict['form']
+        kind = arg_dict['kind']
+        index = arg_dict['index']
         partner_field = None
         partner_v = None
         if form == 'ms':
-            partner_field = kwargs['event'].replace('(ms)', 'frames')
+            partner_field = arg_dict['event'].replace('(ms)', 'frames')
         else:
-            partner_field = kwargs['event'].replace('frames', '(ms)')
+            partner_field = arg_dict['event'].replace('frames', '(ms)')
 
         # if possible, trim input of invalid characters
         while len(v) > 0 and not self.validate_numeric_input(v):
@@ -631,14 +858,24 @@ class GUI:
                 v = int(v)
                 partner_v = float(v * self.data.get_int_pts())
 
-            self.window[partner_field].update(str(partner_v))
-            self.roi.set_time_window(kind, index, v)
+            self.window[partner_field].update(str(partner_v)[:6])
+            setter_function(kind, index, v)
         else:
-            self.roi.set_time_window(kind, index, None)
+            setter_function(kind, index, None)
             self.window[partner_field].update('')
-            self.window[kwargs['event']].update('')
+            self.window[arg_dict['event']].update('')
 
-    def select_time_window_workflow(self):
+    def set_baseline_skip_window(self, **kwargs):
+        self.set_time_window_generic(self.data.core.set_baseline_skip_window, kwargs)
+
+    def set_roi_time_window(self, **kwargs):
+        self.set_time_window_generic(self.roi.set_time_window, kwargs)
+
+    def select_baseline_skip_window(self):
+        print("select_baseline_skip_window (graphical method) not implemented")
+
+    def select_time_window_workflow_generic(self):
+        # to be a generic method for helping graphically choose a time window
         pass
 
     def set_roi_k_clusters(self, **kwargs):
@@ -671,75 +908,146 @@ class GUI:
             self.event_mapping = EventMapping(self).get_event_mapping()
 
     def update_tracking_num_fields(self, **kwargs):
-        self.window["Slice Number"].update(self.file.get_slice_num())
-        self.window["Location Number"].update(self.file.get_location_num())
-        self.window["Record Number"].update(self.file.get_record_num())
+        self.window["Slice Number"].update(self.data.get_slice_num())
+        self.window["Location Number"].update(self.data.get_location_num())
+        self.window["Record Number"].update(self.data.get_record_num())
         self.window["Trial Number"].update(self.data.get_current_trial_index())
+        self.window["File Name"].update(self.data.db.get_current_filename(no_path=True))
+        self.fv.update_new_image()
+        self.tv.update_new_traces()
 
     def set_current_trial_index(self, **kwargs):
         if 'value' in kwargs:
-            value = int(kwargs['value'])
+            if kwargs['value'] is None:
+                value = None
+            else:
+                value = int(kwargs['value'])
             self.data.set_current_trial_index(value)
             self.fv.update_new_image()
+            self.tv.update_new_traces()
 
     def set_slice(self, **kwargs):
         value = int(kwargs['value'])
-        self.file.set_slice(value)
+        self.data.set_slice(value)
         self.fv.update_new_image()
 
     def set_record(self, **kwargs):
         value = int(kwargs['value'])
-        self.file.set_record(value)
+        self.data.set_record(value)
         self.fv.update_new_image()
 
     def set_location(self, **kwargs):
         value = int(kwargs['value'])
-        self.file.set_location(value)
+        self.data.set_location(value)
         self.fv.update_new_image()
-
-    def get_background_option_index(self):
-        return self.background_option_index
 
     def set_background_option_index(self, **kwargs):
         bg_name = kwargs['values']
-        bg_index = self.layouts.get_background_options().index(bg_name)
-        self.background_option_index = bg_index
+        bg_index = self.data.get_background_options().index(bg_name)
+        self.data.db.meta.background_option_index = bg_index
+        self.fv.update_new_image()
+        self.tv.update_new_traces()
+
+    # value to display in trace viewer
+    def get_display_value_option_index(self):
+        return self.data.get_display_value_option_index()
+
+    # value to display in trace viewer
+    def set_display_value_option_index(self, **kwargs):
+        name = kwargs['values']
+        ind = self.tv.get_display_value_options().index(name)
+        self.data.set_display_value_option_index(ind)
 
     def set_temporal_filter_index(self, **kwargs):
         tf_name = kwargs['values']
         tf_index = self.data.core.get_temporal_filter_options().index(tf_name)
         self.data.core.set_temporal_filter_index(tf_index)
+        self.tv.update_new_traces()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_t_filter_radius(self, **kwargs):
         v = int(kwargs['values'])
         self.data.core.set_temporal_filter_radius(v)
-        self.fv.clear_shapes()
-        self.tv.clear_traces()
+        self.tv.update_new_traces()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_s_filter_sigma(self, **kwargs):
         v = float(kwargs['values'])
         self.data.core.set_spatial_filter_sigma(v)
         self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_is_t_filter_enabled(self, **kwargs):
         v = bool(kwargs['values'])
         self.data.core.set_is_temporal_filter_enabled(v)
-        self.fv.clear_shapes()
-        self.tv.clear_traces()
+        self.tv.update_new_traces()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_is_s_filter_enabled(self, **kwargs):
         v = bool(kwargs['values'])
         self.data.core.set_is_spatial_filter_enabled(v)
         self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
 
     def set_baseline_correction(self, **kwargs):
         v = kwargs['values']
         v = self.data.core.get_baseline_correction_options().index(v)
         self.data.core.set_baseline_correction_type_index(v)
-        self.fv.clear_shapes()
-        self.tv.clear_traces()
+        self.tv.update_new_traces()
         self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
 
+    def set_rli_division(self, **kwargs):
+        v = bool(kwargs['values'])
+        self.data.set_is_rli_division_enabled(v)
+        self.tv.update_new_traces()
+        self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
+
+    def set_data_inverse(self, **kwargs):
+        v = bool(kwargs['values'])
+        self.data.set_is_data_inverse_enabled(v)
+        self.tv.update_new_traces()
+        self.fv.update_new_image()
+        self.data.full_data_processor.update_full_processed_data()
+
+    def export_data(self, **kwargs):
+        kind = kwargs['kind']
+        form = kwargs['form']
+        file = None
+        if form == 'tsv':
+            file = self.browse_for_save_as_file()
+            if file is None or len(file) < 1:
+                return
+            if kind == 'traces':
+                self.exporter.export_traces_to_tsv(file)
+            elif kind == 'frame':
+                self.exporter.export_frame_to_tsv(file)
+        elif form == 'png':
+            file = self.browse_for_save_as_file(file_types=(("Portable Network Graphics file", "*.png"),))
+            if file is None or len(file) < 1:
+                return
+            if kind == 'traces':
+                self.exporter.export_traces_to_png(file)
+            elif kind == 'frame':
+                self.exporter.export_frame_to_png(file)
+        self.notify_window("Export successful",
+                           "Exported " + kind + " to file:\n"
+                                                + file)
+
+    def export_all_data(self, **kwargs):
+        folder = self.browse_for_folder(recording_notif=False)
+        if folder is None:
+            return
+
+        file_prefix = folder + "\\" + self.data.db.get_current_filename(no_path=True, extension='')
+        self.exporter.export_traces_to_tsv(file_prefix + '_traces.tsv')
+        self.exporter.export_frame_to_tsv(file_prefix + '_frame.tsv')
+        self.exporter.export_traces_to_png(file_prefix + '_traces.png')
+        self.exporter.export_frame_to_png(file_prefix + '_frame.png')
+        self.notify_window("Export successful",
+                           "Exported to .png/.tsv files with prefix:\n"
+                                                + file_prefix + '_*')
 
 
 class Toolbar(NavigationToolbar2Tk):

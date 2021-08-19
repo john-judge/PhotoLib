@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.figure as figure
 from matplotlib.widgets import Slider
+from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt
 
 from collections import defaultdict
 
@@ -8,12 +10,11 @@ from pyPhoto21.analysis.hyperslicer import HyperSlicer
 
 
 class FrameViewer:
-    def __init__(self, data, tv, show_rli=True):
+    def __init__(self, data, tv):
         self.data = data
         self.hyperslicer = None
         self.num_frames = None
         self.ind = 0
-        self.binning = 1
         self.tv = tv  # TraceViewer
         self.show_processed_data = False
 
@@ -26,8 +27,6 @@ class FrameViewer:
         self.shapes = []
 
         self.smax = None
-        self.show_rli = None
-        self.set_show_rli_flag(show_rli)
 
         self.fig = figure.Figure(constrained_layout=True)
         self.ax = None
@@ -35,16 +34,14 @@ class FrameViewer:
 
         self.current_frame = None
         self.im = None
+        self.livefeed_im = None
+        self.update_num_frames()
         self.populate_figure()
 
         self.update()
 
-    def set_trial_index(self, i):
-        self.data.set_current_trial_index(i)
-        self.update_new_image()
-
-    def get_trial_index(self):
-        return self.data.get_current_trial_index()
+    def get_current_frame(self):
+        return self.current_frame
 
     def populate_figure(self):
         # top row of Field Potential traces
@@ -53,7 +50,7 @@ class FrameViewer:
         gs = self.fig.add_gridspec(num_rows, num_fp)
         self.fp_axes = []
 
-        fp_data = self.data.get_fp_data(trial=self.get_trial_index())
+        fp_data = self.data.get_fp_data()
         n = fp_data.shape[0]
         t = np.linspace(0, n * self.data.get_int_pts(), num=n)
         for i in range(num_fp):
@@ -66,7 +63,11 @@ class FrameViewer:
         # Rest of the plot is the image
         self.ax = self.fig.add_subplot(gs[1:-1, :])  # leaves last row blank -- for Slider
         axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
-        self.smax = Slider(axmax, 'Frame Selector', 0, np.max(self.num_frames), valinit=self.ind)
+        self.smax = Slider(axmax,
+                           'Frame Selector',
+                           0,
+                           self.num_frames,
+                           valinit=self.ind)
 
         self.refresh_current_frame()
         if self.current_frame is not None:
@@ -81,10 +82,11 @@ class FrameViewer:
         return self.fig
 
     def change_frame(self, event):
-        new_ind = int(self.smax.val) % self.num_frames
-        if new_ind != self.ind:
-            self.ind = new_ind
-            self.update()
+        if not self.get_show_rli_flag():
+            new_ind = int(self.smax.val) % self.num_frames
+            if new_ind != self.ind:
+                self.ind = new_ind
+                self.update()
 
     def onrelease(self, event):
         if self.press and not self.moving:
@@ -108,9 +110,6 @@ class FrameViewer:
             self.moving = True
 
     def onclick(self, event):
-        print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
-          ('double' if event.dblclick else 'single', event.button,
-           event.x, event.y, event.xdata, event.ydata))
         if event.button == 3:  # right click
             self.tv.clear_traces()
             self.clear_shapes()
@@ -182,20 +181,42 @@ class FrameViewer:
 
     def update_new_image(self):
         self.fig.clf()
-        self.redraw_slider()
-        self.populate_figure()
-        self.update()
-        self.plot_all_shapes()
+        if self.data.get_is_livefeed_enabled():
+            self.start_livefeed_animation()
+        else:
+            self.redraw_slider()
+            self.populate_figure()
+            self.update()
+            self.plot_all_shapes()
 
     def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
-                                                         trial=self.get_trial_index(),
-                                                         get_rli=self.show_rli,
+                                                         get_rli=self.get_show_rli_flag(),
                                                          binning=self.get_digital_binning())
+
+    def start_livefeed_animation(self):
+        print("Starting livefeed animation...")
+        self.refresh_current_frame()
+        self.ax = self.fig.add_subplot(1, 1, 1)
+
+        self.livefeed_im = self.ax.imshow(self.current_frame.astype(np.uint16),
+                                          interpolation='nearest',
+                                          aspect='auto',
+                                          cmap='jet')
+        self.fig.canvas.draw_idle()
+
+    def end_livefeed_animation(self):
+        self.livefeed_im = None
+        self.update_new_image()
 
     def update(self, update_hyperslicer=True):
         self.refresh_current_frame()
-        if self.current_frame is not None:
+
+        if self.data.get_is_livefeed_enabled():
+            self.livefeed_im.set_data(self.current_frame)
+            update_hyperslicer = False
+
+        elif self.current_frame is not None:
             self.im.set_data(self.current_frame)
             self.im.set_clim(vmin=np.min(self.current_frame),
                              vmax=np.max(self.current_frame))
@@ -203,10 +224,10 @@ class FrameViewer:
         # self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw_idle()
         if self.hyperslicer is not None and update_hyperslicer:
-            self.hyperslicer.update_data(show_rli=self.show_rli)
+            self.hyperslicer.update_data(show_rli=self.get_show_rli_flag())
 
     def get_show_rli_flag(self):
-        return self.show_rli
+        return self.data.db.meta.show_rli
 
     def redraw_slider(self):
         # Adjust the slider values to match the data dimensions
@@ -221,10 +242,9 @@ class FrameViewer:
     def update_num_frames(self):
         # choose correct data dimensions for viewer
         refresh_ind = False
-        if self.show_rli:
-            n_frames = self.data.get_num_rli_pts()
-            refresh_ind = (n_frames != self.num_frames)
-            self.num_frames = n_frames
+        if self.get_show_rli_flag():
+            refresh_ind = False
+            self.num_frames = 1
         else:
             n_frames = self.data.get_num_pts()
             refresh_ind = (n_frames != self.num_frames)
@@ -233,19 +253,19 @@ class FrameViewer:
             self.ind = self.num_frames // 2
 
     def set_show_rli_flag(self, value, update=False):
-        self.show_rli = value
+        self.data.db.meta.show_rli = value
         if update:
             self.update_new_image()
         else:
             self.update_num_frames()
 
     def set_digital_binning(self, binning):
-        if binning != self.binning:
-            self.binning = binning
+        if binning != self.data.db.meta.binning:
+            self.data.db.meta.binning = binning
             self.update_new_image()
 
     def get_digital_binning(self):
-        return self.binning
+        return self.data.db.meta.binning
 
     def launch_hyperslicer(self):
-        self.hyperslicer = HyperSlicer(self.data, show_rli=self.show_rli)
+        self.hyperslicer = HyperSlicer(self.data, show_rli=self.get_show_rli_flag())
