@@ -27,7 +27,7 @@ Create a shortcut to the executable in the current directory. Place the shortcut
 ### Distributing This Application
 
 If single-file mode, the .exe is ~400 MB, so it will have to be distributed via shared network, Google Drive, USB/external drive, or building locally on destination machine.
-If single-folder mode, right-click > Send To > Compressed File to zip before distributing.
+If single-folder mode, right-click > Send To > Compressed File to zip before distributing. The entire repository folder (PhotoLib), not just the pyinstaller dist path, must be zipped and distributed.
 
 ## Hardware Requirements
 - DLL targets 64-bit machines
