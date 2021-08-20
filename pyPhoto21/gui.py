@@ -43,6 +43,8 @@ class GUI:
         self.freeze_input = False  # whether to allow fields to be updated. Frozen during acquire (how about during file loaded?)
         self.event_mapping = None
         self.define_event_mapping()  # event callbacks used in event loops
+        self.cached_num_pts = 600  # number of points to restore to whenever not 200 Hz cam program
+        self.cached_num_trials = 5
         # kickoff workflow
         if self.production_mode:
             self.introduction()
@@ -384,13 +386,26 @@ class GUI:
         self.data.clear_livefeed_frame()
 
     def set_camera_program(self, **kwargs):
+        curr_program = self.data.get_camera_program()
         program_name = kwargs['values']
         program_index = self.data.display_camera_programs.index(program_name)
-        if program_index == 0:
-            self.set_num_pts(values='100')
-            self.data.set_num_dark_rli(1)
-            self.data.set_num_light_rli(1)
+        if program_index == 0 and curr_program != 0:
+            self.cached_num_pts = self.data.get_num_pts()
+            self.cached_num_trials = self.data.get_num_trials()
+            self.data.set_num_trials(1)
+            self.window["num_trials"].update('1')
+            self.set_num_pts(values='50', suppress_resize=True)
+            self.data.set_num_dark_rli(1, prevent_resize=True)
+            self.data.set_num_light_rli(1, prevent_resize=True)
+        elif curr_program == 0 and program_index != 0:
+            print("getting cached settings...")
+            self.set_num_pts(values=str(self.cached_num_pts), suppress_resize=True)
+            self.data.set_num_trials(self.cached_num_trials)
+            self.window["num_trials"].update(str(self.cached_num_trials))
+            self.data.set_num_dark_rli(200, prevent_resize=True)
+            self.data.set_num_light_rli(280, prevent_resize=True)
         self.data.set_camera_program(program_index)
+        self.update_tracking_num_fields()
         self.window["Acquisition Duration"].update(self.data.get_acqui_duration())
 
     def launch_hyperslicer(self):
@@ -700,18 +715,18 @@ class GUI:
             num_frames = float(v) // self.data.get_int_pts()
             self.hardware.set_acqui_onset(acqui_onset=num_frames)
 
-    def set_num_pts(self, **kwargs):
+    def set_num_pts(self, suppress_resize=False, **kwargs):
         v = kwargs['values']
 
         while len(v) > 0 and not self.validate_numeric_input(v, decimal=True, max_val=5000):
             v = v[:-1]
         if len(v) > 0 and self.validate_numeric_input(v, decimal=True, max_val=5000):
             acqui_duration = float(v) * self.data.get_int_pts()
-            self.data.set_num_pts(value=int(v))  # Data method resizes data
+            self.data.set_num_pts(value=int(v), prevent_resize=suppress_resize)  # Data method resizes data
             self.window["Number of Points"].update(v)
             self.window["Acquisition Duration"].update(str(acqui_duration))
         else:
-            self.data.set_num_pts(value=0)  # Data method resizes data
+            self.data.set_num_pts(value=0, prevent_resize=suppress_resize)  # Data method resizes data
             self.window["Number of Points"].update('')
             self.window["Acquisition Duration"].update('')
         self.dv.update()
@@ -944,14 +959,15 @@ class GUI:
         if self.event_mapping is None:
             self.event_mapping = EventMapping(self).get_event_mapping()
 
-    def update_tracking_num_fields(self, **kwargs):
+    def update_tracking_num_fields(self, no_plot_update=False, **kwargs):
         self.window["Slice Number"].update(self.data.get_slice_num())
         self.window["Location Number"].update(self.data.get_location_num())
         self.window["Record Number"].update(self.data.get_record_num())
         self.window["Trial Number"].update(self.data.get_current_trial_index())
         self.window["File Name"].update(self.data.db.get_current_filename(no_path=True))
-        self.fv.update_new_image()
-        self.tv.update_new_traces()
+        if not no_plot_update:
+            self.fv.update_new_image()
+            self.tv.update_new_traces()
 
     def set_current_trial_index(self, **kwargs):
         if 'value' in kwargs:

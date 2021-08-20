@@ -40,10 +40,10 @@ class Metadata:
         self.num_fp = 4
 
         self.num_pts = 600
-        self.int_pts = 0.5
+        self.int_pts = 1000 / 7500
 
         # Management and Automation / Workflow Settings
-        self.schedule_rli_flag = False
+        self.schedule_rli_flag = True
         self.display_value_option_index = 0
         self.auto_save_enabled = True
         self.schedule_rli_enabled = False
@@ -62,10 +62,10 @@ class Metadata:
         # Analysis Settings
         self.baseline_correction_type_index = 0
         self.baseline_skip_window = [94, 134]
-        self.is_temporal_filer_enabled = False
+        self.is_temporal_filer_enabled = True
         self.temporal_filter_radius = 25.0
-        self.temporal_filter_type_index = 0
-        self.is_spatial_filer_enabled = False
+        self.temporal_filter_type_index = 3
+        self.is_spatial_filer_enabled = True
         self.spatial_filter_sigma = 1.0
         self.background_option_index = 0
 

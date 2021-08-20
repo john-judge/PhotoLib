@@ -46,30 +46,33 @@ class Database(File):
                 mode = "r+"
             else:
                 mode = "w+"
-        if mode == "w+":
-            print("Creating or overwriting file:", filename)
+
         arr_shape = (self.meta.num_trials,
                      2,
                      self.meta.num_pts,
                      self.meta.height,
                      self.meta.width)
+        if mode == "w+":
+            print("Creating file:", filename,
+                  " with shape", arr_shape,
+                  "(Size: ", np.prod(arr_shape) // 1024 * 16, "KB)")
         try:
             self.memmap_file = np.memmap(filename,
                                          dtype=np.uint16,
                                          mode=mode,
                                          shape=arr_shape)
         except OSError as e:
-            print("Error allocating disk space:", str(e), "\n Please free up disk space to continue.")
+            print("Error while allocating disk space:", str(e))
+            if "Disk" in str(e):
+                print("\n Please free up disk space to continue.")
 
     def clear_or_resize_mmap_file(self):
-        mode = "w+"
         self.open_filename = None
         # should avoid overwriting data by renaming current file
         if self.file_exists(self.get_current_filename(no_path=True, extension=self.extension)) and\
                 not self.is_current_data_file_empty():
             print("File exists and contains nonzero data. Warning: data may be overwritten.")
-            mode = "r+"
-        self.load_mmap_file(mode=mode)
+        self.load_mmap_file(mode=None)
 
     def load_trial_data_raw(self, trial):
         return self.memmap_file[trial, 0, :, :, :]

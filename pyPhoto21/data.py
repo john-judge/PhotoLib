@@ -180,10 +180,6 @@ class Data(File):
         self.save_metadata_to_file(meta_file)
         print("Saved your preferences to:\n", meta_file)
 
-    def set_next_unused_filename(self):
-        self.increment_record_until_filename_free()
-        self.db.clear_or_resize_mmap_file()
-
     def load_from_file(self, file):
         self.set_is_loaded_from_file(True)
         print("Loading from:", file)
@@ -436,7 +432,7 @@ class Data(File):
             self.db.meta.camera_program = program
             self.db.meta.width = self.get_display_width()
             self.db.meta.height = self.get_display_height()
-            self.set_next_unused_filename()
+            self.increment_record_until_filename_free()
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
 
@@ -500,7 +496,7 @@ class Data(File):
                                          self.get_num_pts(),
                                          self.get_num_fp()),
                                         dtype=np.int16)
-        self.set_next_unused_filename()
+        self.increment_record_until_filename_free()
 
     def increment_record_until_filename_free(self):
         if self.get_is_loaded_from_file():  # more interested in looking at existing files.
@@ -511,10 +507,14 @@ class Data(File):
                                                               extension=self.db.extension))
                 or self.file_exists(self.db.get_current_filename(no_path=True,
                                                                  extension=self.metadata_extension))):
-            self.increment_record(suppress_file_create=True)
+            self.increment_record()  # can create new files
             i += 1
             if self.db.is_current_data_file_empty():
-                break
+                print(self.db.get_current_filename(no_path=True,
+                                                   extension=self.db.extension),
+                      "exists but is all zeros. Planning to overwrite.")
+                return
+
         if i >= 100:
             print("data.py: searched 100 filenames for free name. Likely an issue.")
 
@@ -534,11 +534,15 @@ class Data(File):
         elif agg_type == 'Max Amp':
             ret_frame = np.max(images, axis=0)
         elif agg_type == 'MaxAmp/SD':
-            ret_frame = np.max(images, axis=0) / np.std(images, axis=0)
+            std = np.std(images, axis=0)
+            std[std == 0] = 0.0000001
+            ret_frame = np.max(images, axis=0) / std
         elif agg_type == 'Mean Amp':
             ret_frame = np.average(images, axis=0)
         elif agg_type == 'MeanAmp/SD':
-            ret_frame = np.average(images, axis=0) / np.std(images, axis=0)
+            std = np.std(images, axis=0)
+            std[std == 0] = 0.0000001
+            ret_frame = np.average(images, axis=0) / std
         return ret_frame
 
     # Based on system state, create/get the frame that should be displayed.
@@ -758,12 +762,13 @@ class Data(File):
             return
         tmp = self.get_num_pts()
         if (force_resize or tmp != value) and not prevent_resize:
-            self.set_next_unused_filename()
+            self.increment_record_until_filename_free()
             self.db.meta.fp_data = np.resize(self.db.meta.fp_data,
                                              (self.get_num_trials(),
                                               self.get_num_fp(),
                                               self.get_num_pts()))
         self.hardware.set_num_pts(value=value)
+        self.meta.num_pts = value
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
 
