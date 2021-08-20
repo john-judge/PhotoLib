@@ -443,7 +443,31 @@ class EventMapping:
             'Export all of the above': {
                 'function': gui.export_all_data,
                 'args': {}
-            }
+            },
+            "Measure Window Start frames": {
+                'function': gui.set_measure_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+            "Measure Window End frames": {
+                'function': gui.set_measure_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+            "Measure Window Start (ms)": {
+                'function': gui.set_measure_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'ms'}
+            },
+            "Measure Window End (ms)": {
+                'function': gui.set_measure_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'ms'}
+            },
 
 
         }

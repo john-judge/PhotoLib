@@ -275,8 +275,14 @@ class Layouts:
                                                        enable_events=True)]
         ]
 
-    def create_dsp_tab(self):
+    def create_dsp_tab(self, gui):
         checkbox_size = (10, 1)
+        button_size = (6, 1)
+        long_button_size = (17, 1)
+        t_window = gui.data.get_crop_window()
+        if t_window[1] == -1:
+            t_window[1] = self.data.get_num_pts()
+        int_pts = self.data.get_int_pts()
         return [
             [sg.Checkbox('RLI Division',
                          default=self.data.get_is_rli_division_enabled(),
@@ -287,7 +293,35 @@ class Layouts:
                          default=self.data.get_is_data_inverse_enabled(),
                          enable_events=True,
                          key='Data Inverse',
-                         size=checkbox_size)]
+                         size=checkbox_size)],
+            [sg.Button("Measure Window",
+                       button_color=('black', 'orange'),
+                       size=long_button_size,
+                       tooltip="A time window to which to restrict processing and analysis.")],
+            [sg.InputText(key="Measure Window Start frames",
+                          default_text=str(t_window[0])[:6],
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="A time window to which to restrict processing and analysis."),
+             sg.Text(" to "),
+             sg.InputText(key="Measure Window End frames",
+                          default_text=str(t_window[1])[:6],
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="A time window to which to restrict processing and analysis."),
+             sg.Text(" frames")],
+            [sg.InputText(key="Measure Window Start (ms)",
+                          default_text=str(t_window[0] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="A time window to which to restrict processing and analysis."),
+             sg.Text(" to "),
+             sg.InputText(key="Measure Window End (ms)",
+                          default_text=str(t_window[1] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="A time window to which to restrict processing and analysis."),
+             sg.Text(" ms")]
         ]
 
     def create_baseline_tab(self):
@@ -371,7 +405,7 @@ class Layouts:
         acquisition_tab_layout = self.create_acquisition_tab(gui)
         analysis_tab_layout = self.create_analysis_tab(gui)
         array_tab_layout = self.create_array_tab(gui)
-        dsp_tab_layout = self.create_dsp_tab()
+        dsp_tab_layout = self.create_dsp_tab(gui)
         filter_tab_layout = self.create_filter_tab()
         baseline_tab_layout = self.create_baseline_tab()
 

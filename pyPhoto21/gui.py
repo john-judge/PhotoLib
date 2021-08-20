@@ -263,6 +263,7 @@ class GUI:
                 print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
                 if not is_last_trial:
                     print("\t\t", sleep_trial, "seconds until next trial...")
+                    self.data.increment_record_until_filename_free()
                     exit_recording = self.sleep_and_check_stop_flag(sleep_time=sleep_trial)
                 if exit_recording:
                     break
@@ -524,7 +525,7 @@ class GUI:
         if file is not None:
             print("Loading from preference file:", file)
             self.data.load_preference_file(file)
-            self.sync_gui_fields_to_meta()
+            self.sync_gui_fields_from_meta()
             self.fv.update_new_image()
             self.tv.update_new_traces()
 
@@ -540,7 +541,7 @@ class GUI:
             print("Loading from file:", file, "\nThis will take a few seconds...")
             self.data.load_from_file(file)
             # Sync GUI
-            self.sync_gui_fields_to_meta()
+            self.sync_gui_fields_from_meta()
             # Freeze input fields to hardware
 
             print("File Loaded.")
@@ -548,7 +549,7 @@ class GUI:
             self.tv.update_new_traces()
 
     # Pull all file-based data from Data and sync GUI fields
-    def sync_gui_fields_to_meta(self):
+    def sync_gui_fields_from_meta(self):
         w = self.window
         base_skip = self.data.core.get_baseline_skip_window()
         int_pts = self.data.get_int_pts()
@@ -585,6 +586,14 @@ class GUI:
         w['Data Inverse'].update(self.data.get_is_data_inverse_enabled())
         w['Average Trials'].update(self.data.get_is_trial_averaging_enabled())
 
+        t_measure = self.data.get_crop_window()
+        if t_measure[1] == -1:
+            t_measure[1] = self.data.get_num_pts()
+        w['Measure Window Start frames'].update(str(t_measure[1] * int_pts)[:6])
+        w['Measure Window End frames'].update(str(t_measure[0] * int_pts)[:6])
+        w['Measure Window Start (ms)'].update(str(t_measure[1])[:6])
+        w['Measure Window End (ms)'].update(str(t_measure[0])[:6])
+
         # ROI Settings
         t_pre_stim = self.roi.get_time_window('pre_stim')
         t_stim = self.roi.get_time_window('stim')
@@ -593,14 +602,14 @@ class GUI:
         if t_stim[1] == -1:
             t_stim[1] = self.data.get_num_pts()
         w['Identify ROI'].update(self.data.meta.is_roi_enabled)
-        w['Time Window End (ms) stim'].update(t_stim[1] * int_pts)
-        w['Time Window Start (ms) stim'].update(t_stim[0] * int_pts)
-        w['Time Window End frames stim'].update(t_stim[1])
-        w['Time Window Start frames stim'].update(t_stim[0])
-        w['Time Window End (ms) pre_stim'].update(t_pre_stim[1] * int_pts)
-        w['Time Window Start (ms) pre_stim'].update(t_pre_stim[0] * int_pts)
-        w['Time Window End frames pre_stim'].update(t_pre_stim[1])
-        w['Time Window Start frames pre_stim'].update(t_pre_stim[0])
+        w['Time Window End (ms) stim'].update(str(t_stim[1] * int_pts)[:6])
+        w['Time Window Start (ms) stim'].update(str(t_stim[0] * int_pts)[:6])
+        w['Time Window End frames stim'].update(str(t_stim[1])[:6])
+        w['Time Window Start frames stim'].update(str(t_stim[0])[:6])
+        w['Time Window End (ms) pre_stim'].update(str(t_pre_stim[1] * int_pts)[:6])
+        w['Time Window Start (ms) pre_stim'].update(str(t_pre_stim[0] * int_pts)[:6])
+        w['Time Window End frames pre_stim'].update(str(t_pre_stim[1])[:6])
+        w['Time Window Start frames pre_stim'].update(str(t_pre_stim[0])[:6])
 
         self.update_tracking_num_fields()
 
@@ -706,6 +715,17 @@ class GUI:
             self.window["Number of Points"].update('')
             self.window["Acquisition Duration"].update('')
         self.dv.update()
+        if self.data.core.get_is_temporal_filter_enabled():
+            filter_type = self.data.core.get_temporal_filter_options()[
+                self.data.core.get_temporal_filter_index()]
+            sigma_t = self.data.core.get_temporal_filter_radius()
+            if not self.data.validate_filter_size(filter_type, sigma_t):
+                self.notify_window("Invalid Settings",
+                                   "Measure window is too small for the"
+                                   " default cropping needed for the temporal filter"
+                                   " settings. \nUntil measure window is widened or "
+                                   " filtering radius is decreased, temporal filtering will"
+                                   " not be applied to traces.")
 
     def set_acqui_duration(self, **kwargs):
         v = kwargs['values']
@@ -847,10 +867,16 @@ class GUI:
             partner_field = arg_dict['event'].replace('frames', '(ms)')
 
         # if possible, trim input of invalid characters
-        while len(v) > 0 and not self.validate_numeric_input(v):
+        while len(v) > 0 and not self.validate_numeric_input(v,
+                                                             non_zero=True,
+                                                             min_val=0,
+                                                             max_val=self.data.get_num_pts()):
             v = v[:-1]
 
-        if self.validate_numeric_input(v):
+        if len(v) > 0 and self.validate_numeric_input(v,
+                                                      non_zero=True,
+                                                      min_val=0,
+                                                      max_val=self.data.get_num_pts()):
             if form == 'ms':
                 v = float(v)
                 partner_v = int(v / self.data.get_int_pts())
@@ -859,9 +885,15 @@ class GUI:
                 partner_v = float(v * self.data.get_int_pts())
 
             self.window[partner_field].update(str(partner_v)[:6])
+            self.window[arg_dict['event']].update(str(v)[:6])
             setter_function(kind, index, v)
         else:
-            setter_function(kind, index, None)
+            v = None
+            if index == 0:
+                v = 0
+            elif index == 1:
+                v = self.data.get_num_pts()
+            setter_function(kind, index, v)
             self.window[partner_field].update('')
             self.window[arg_dict['event']].update('')
 
@@ -870,6 +902,11 @@ class GUI:
 
     def set_roi_time_window(self, **kwargs):
         self.set_time_window_generic(self.roi.set_time_window, kwargs)
+
+    def set_measure_window(self, **kwargs):
+        self.set_time_window_generic(self.data.set_crop_window, kwargs)
+        self.fv.update_new_image()
+        self.tv.update_new_traces()
 
     def select_baseline_skip_window(self):
         print("select_baseline_skip_window (graphical method) not implemented")
@@ -982,6 +1019,17 @@ class GUI:
         self.data.core.set_is_temporal_filter_enabled(v)
         self.tv.update_new_traces()
         self.data.full_data_processor.update_full_processed_data()
+        if self.data.core.get_is_temporal_filter_enabled():
+            filter_type = self.data.core.get_temporal_filter_options()[
+                self.data.core.get_temporal_filter_index()]
+            sigma_t = self.data.core.get_temporal_filter_radius()
+            if not self.data.validate_filter_size(filter_type, sigma_t):
+                self.notify_window("Invalid Settings",
+                                   "Measure window is too small for the"
+                                   " default cropping needed for the temporal filter"
+                                   " settings. \nUntil measure window is widened or "
+                                   " filtering radius is decreased, temporal filtering will"
+                                   " not be applied to traces.")
 
     def set_is_s_filter_enabled(self, **kwargs):
         v = bool(kwargs['values'])

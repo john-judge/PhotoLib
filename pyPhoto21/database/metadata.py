@@ -52,7 +52,8 @@ class Metadata:
         self.is_trial_averaging_enabled = False
 
         # TraceViewer settings
-        self.crop_window = [0, -1]  # Time Window cropping applied to the temporal axis.
+        self.crop_window = [30, self.num_pts-10]  # Time Window cropping applied to the temporal axis.
+        # Default is to crop out frames for artifact exclusion
 
         # FrameViewer settings
         self.show_rli = True

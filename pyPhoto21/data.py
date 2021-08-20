@@ -430,7 +430,8 @@ class Data(File):
 
     def set_camera_program(self, program, force_resize=False, prevent_resize=False, suppress_processing=False):
         curr_program = self.hardware.get_camera_program()
-        self.hardware.set_camera_program(program=program)
+        if curr_program is not None:
+            self.hardware.set_camera_program(program=program)
         if (force_resize or curr_program != program) and not prevent_resize:
             self.db.meta.camera_program = program
             self.db.meta.width = self.get_display_width()
@@ -440,15 +441,16 @@ class Data(File):
             self.full_data_processor.update_full_processed_data()
 
     def get_camera_program(self):
-        if self.get_is_loaded_from_file():
+        cam_prog = self.hardware.get_camera_program()
+        if self.get_is_loaded_from_file() or cam_prog is None:
             return self.db.meta.camera_program
-        return self.hardware.get_camera_program()
+        return cam_prog
 
-    def set_crop_window(self, v, index=None, suppress_processing=False):
+    def set_crop_window(self, kind, index, value, suppress_processing=False):
         if index is None:
-            self.db.meta.crop_window = v
+            self.db.meta.crop_window = value
         elif index == 0 or index == 1:
-            self.db.meta.crop_window[index] = v
+            self.db.meta.crop_window[index] = value
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
 
@@ -458,9 +460,10 @@ class Data(File):
         return self.db.meta.crop_window[index]
 
     def get_num_pts(self):
-        if self.get_is_loaded_from_file():
+        num_pts = self.hardware.get_num_pts()
+        if self.get_is_loaded_from_file() or num_pts is None:
             return self.db.meta.num_pts
-        return self.hardware.get_num_pts()
+        return num_pts
 
     def get_num_pulses(self, ch):
         if self.get_is_loaded_from_file():
@@ -510,6 +513,8 @@ class Data(File):
                                                                  extension=self.metadata_extension))):
             self.increment_record(suppress_file_create=True)
             i += 1
+            if self.db.is_current_data_file_empty():
+                break
         if i >= 100:
             print("data.py: searched 100 filenames for free name. Likely an issue.")
 
@@ -564,11 +569,11 @@ class Data(File):
 
         # Temporal selection index: a single time index or a time window
         ret_frame = None
+        # Apply measure window if applicable
+        if index is None or "Frame Selector" not in self.get_background_options()[self.get_background_option_index()]:
+            index = self.get_crop_window()
         if type(index) == int and (index < images.shape[0]) and index >= 0:
-            if "Frame Selector" not in self.get_background_options()[self.get_background_option_index()]:
-                ret_frame = self.apply_temporal_aggregration_frame(images)
-            else:
-                ret_frame = images[index, :, :]
+            ret_frame = images[index, :, :]
         elif type(index) == list and len(index) == 2:
             ret_frame = self.apply_temporal_aggregration_frame(images[index[0]:index[1], :, :])
         else:
@@ -614,7 +619,12 @@ class Data(File):
         traces = self.get_fp_data()
         if trial is None:
             traces = np.average(traces, axis=0)
-        return Trace(traces[:, fp_index], self.get_int_pts(), is_fp_trace=True)
+        start, end = self.get_crop_window()
+        return Trace(traces[:, fp_index],
+                     self.get_int_pts(),
+                     is_fp_trace=True,
+                     start_frame=start,
+                     end_frame=end)
 
     @staticmethod
     def get_frame_mask(h, w, index=None):
@@ -634,7 +644,6 @@ class Data(File):
             return mask
         return mask
 
-    # Move to GUI? or TV?
     # returns a Trace object representing trace
     def get_display_trace(self, index=None, fp_index=None):
         trial = self.get_current_trial_index()
@@ -663,10 +672,11 @@ class Data(File):
         if ret_trace is None:
             return None
 
+        start, end = self.get_crop_window()
         ret_trace = Trace(ret_trace,
                           self.get_int_pts(),
-                          start_frame=self.meta.crop_window[0],
-                          end_frame=self.meta.crop_window[1])
+                          start_frame=start,
+                          end_frame=end)
 
         # data inversing (BEFORE baseline correction)
         if self.get_is_data_inverse_enabled():
@@ -681,9 +691,22 @@ class Data(File):
         if self.core.get_is_temporal_filter_enabled():
             filter_type = self.core.get_temporal_filter_options()[self.core.get_temporal_filter_index()]
             sigma_t = self.core.get_temporal_filter_radius()
-            ret_trace.filter_temporal(filter_type, sigma_t)  # applies time cropping if needed
+            if self.validate_filter_size(filter_type, sigma_t):
+                ret_trace.filter_temporal(filter_type, sigma_t)  # applies time cropping if needed
 
         return ret_trace
+
+    # Return true if filter size is not too big
+    def validate_filter_size(self, filter_type, sigma_t):
+        n = self.get_num_pts()
+        m = None
+        if filter_type == 'Low Pass':  # i.e. Moving Average
+            m = int(sigma_t)
+        elif filter_type.startswith('Binomial-'):
+            m = int(filter_type[-1]) + 1
+        else:
+            return True
+        return n - m > m
 
     def get_fp_data(self):
         trial = self.get_current_trial_index()
@@ -855,9 +878,10 @@ class Data(File):
     ''' Attributes controlled at Hardware level '''
 
     def get_int_pts(self):
-        if self.get_is_loaded_from_file():
+        int_pts = self.hardware.get_int_pts()
+        if self.get_is_loaded_from_file() or int_pts is None:
             return self.db.meta.int_pts
-        return self.hardware.get_int_pts()
+        return int_pts
 
     def get_acqui_duration(self):
         if self.get_is_loaded_from_file():
@@ -891,10 +915,14 @@ class Data(File):
         self.current_trial_index = v
 
     def increment_current_trial_index(self):
+        if self.current_trial_index is None:
+            self.current_trial_index = 0
         self.current_trial_index = min(self.current_trial_index + 1,
                                        self.get_num_trials() - 1)
 
     def decrement_current_trial_index(self):
+        if self.current_trial_index is None:
+            self.current_trial_index = 0
         self.current_trial_index = max(self.current_trial_index - 1, 0)
 
     def get_is_rli_division_enabled(self):

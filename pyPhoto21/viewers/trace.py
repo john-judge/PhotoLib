@@ -8,8 +8,8 @@ from scipy.ndimage import gaussian_filter
 
 class Trace:
     def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False):
-        if end_frame == -1:
-            end_frame = len(points)
+        if end_frame < 0:
+            end_frame += len(points)
         if type(points) != np.ndarray:
             points = np.array(points)
         self.points = points
@@ -19,17 +19,21 @@ class Trace:
         self.is_fp_trace = is_fp_trace
 
     def get_data(self):
-        t = np.linspace(self.start_frame * self.int_pts,
-                        self.end_frame * self.int_pts,
-                        self.end_frame - self.start_frame)
-        points = self.points[self.start_frame:self.end_frame]
+        start = min(self.start_frame, self.end_frame)
+        end = max(self.start_frame, self.end_frame)
+        t = np.linspace(start * self.int_pts,
+                        end * self.int_pts,
+                        end - start)
+        points = self.points[start:end]
         return t, points
 
     def get_data_unclipped(self):
         return self.points
 
     def get_data_clipped(self):
-        return self.points[self.start_frame:self.end_frame]
+        start = min(self.start_frame, self.end_frame)
+        end = max(self.start_frame, self.end_frame)
+        return self.points[start:end]
 
     def get_start_point(self):
         return self.start_frame
@@ -46,8 +50,8 @@ class Trace:
     def clip_time_window(self, window):
         n = len(self.points)
         start, end = window
-        if end == -1:
-            end = n
+        if end < 0:
+            end += n
         self.start_frame = max(self.start_frame, start)
         self.end_frame = min(self.end_frame, end)
 
@@ -59,15 +63,23 @@ class Trace:
         """ subtract background drift off of single trace """
         if self.is_fp_trace:
             return
+
+        # The baseline should use clipped data (unlike t-filter)
         t, trace = self.get_data()
-        n = len(trace)
+        full_t = np.linspace(0, len(self.points) * self.int_pts, len(self.points))
+        full_trace = self.get_data_unclipped()
 
         # Skip points
         skip_start, skip_end = skip_window
+
+        # Adjust skip window to clip window
+        skip_start = max(0, skip_start - self.start_frame)
+        skip_end = min(self.end_frame, skip_end - self.start_frame)
+
         skip_int = [i for i in range(skip_start, skip_end)]
         trace_skipped = trace
         t_skipped = t
-        if skip_end >= trace.shape[0]:
+        if skip_end - skip_start >= trace.shape[0]:
             print("Invalid skip window!", skip_window)
         else:
             trace_skipped = np.delete(trace, skip_int)
@@ -79,7 +91,7 @@ class Trace:
             "Polynomial-8th": 8
         }
         if fit_type in ["Exponential", "Linear"]:
-            t = t.reshape(-1, 1)
+            full_t = full_t.reshape(-1, 1)
             t_skipped = t_skipped.reshape(-1, 1)
             min_val = None
             if fit_type == "Exponential":
@@ -88,7 +100,7 @@ class Trace:
                     trace_skipped += (-1 * min_val + 0.01)  # make all positive
                 trace_skipped = np.log(trace_skipped)
             trace_skipped = trace_skipped.reshape(-1, 1)
-            reg = LinearRegression().fit(t_skipped, trace_skipped).predict(t)
+            reg = LinearRegression().fit(t_skipped, trace_skipped).predict(full_t)
             if fit_type == "Exponential":
                 reg = np.exp(reg)
                 if min_val <= 0:
@@ -96,20 +108,19 @@ class Trace:
         elif fit_type in poly_powers:
             power = poly_powers[fit_type]
             coeffs, stats = polynomial.polyfit(t_skipped, trace_skipped, power, full=True)
-            reg = np.array(polynomial.polyval(t, coeffs))
+            reg = np.array(polynomial.polyval(full_t, coeffs))
         else:
-            self.points = trace
             return trace
 
-        trace = (trace.reshape(-1, 1) - reg.reshape(-1, 1)).reshape(-1)
-        self.points = trace
+        full_trace = (full_trace.reshape(-1, 1) - reg.reshape(-1, 1)).reshape(-1)
+        self.points[:] = full_trace[:]
         return trace
 
     def filter_temporal(self, filter_type, sigma_t):
         """ Temporal filtering: 1-d binomial 8 filter (approx. Gaussian) """
         if self.is_fp_trace:
             return
-        t, trace = self.get_data()
+        trace = self.get_data_unclipped()
         n = len(trace)
         m = None  # filter kernel length
 
@@ -135,9 +146,8 @@ class Trace:
         # the trace length itself is same, but now
         # apply cropping to valid filtering domain, respecting any existing filtering
         if m is not None:
-            self.start_frame += m
-            self.end_frame -= m
-        self.points = trace
+            self.clip_time_window([m, n-m])
+        self.points[:] = trace[:]
 
 
 class TraceViewer:
@@ -245,7 +255,7 @@ class TraceViewer:
         gs = self.fig.add_gridspec(max(1, num_traces), 1)
         self.axes = []
         n = self.data.get_num_pts()
-        t = np.linspace(0, n * int_pts, num=n)
+        times = None
         probe_line = self.get_point_line_locations(key='probe')
         region_count = 1
         value_type_to_display = self.get_display_value_options()[self.data.get_display_value_option_index()]
@@ -253,14 +263,16 @@ class TraceViewer:
         for i in range(num_traces):
             trace = self.traces[i]
             if isinstance(trace, Trace):
-                t, trace = trace.get_data()
-            # Sometimes FP trace length doesn't match image trace length
-            elif n != trace.shape[0]:
-                n = trace.shape[0]
-                t = np.linspace(0, n * int_pts, num=n)
+                trace.clip_time_window(self.data.get_crop_window())
+                times, trace = trace.get_data()
+            else:
+                print("Not a Trace object:", type(trace))
 
             self.axes.append(self.fig.add_subplot(gs[i, 0]))
-            self.axes[-1].plot(t, trace, color=self.trace_colors[i])
+            if times.shape[0] != trace.shape[0]:
+                print("time and trace shape mismatch:", times.shape, trace.shape)
+            else:
+                self.axes[-1].plot(times, trace, color=self.trace_colors[i])
             if num_traces > 4 and i != num_traces - 1:
                 self.axes[-1].get_xaxis().set_visible(False)
 

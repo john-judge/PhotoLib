@@ -53,17 +53,21 @@ class Database(File):
                      self.meta.num_pts,
                      self.meta.height,
                      self.meta.width)
-        self.memmap_file = np.memmap(filename,
-                                     dtype=np.uint16,
-                                     mode=mode,
-                                     shape=arr_shape)
+        try:
+            self.memmap_file = np.memmap(filename,
+                                         dtype=np.uint16,
+                                         mode=mode,
+                                         shape=arr_shape)
+        except OSError as e:
+            print("Error allocating disk space:", str(e), "\n Please free up disk space to continue.")
 
     def clear_or_resize_mmap_file(self):
         mode = "w+"
         self.open_filename = None
         # should avoid overwriting data by renaming current file
-        if self.file_exists(self.get_current_filename(no_path=True, extension=self.extension)):
-            print("File exists. Warning: data may be overwritten.")
+        if self.file_exists(self.get_current_filename(no_path=True, extension=self.extension)) and\
+                not self.is_current_data_file_empty():
+            print("File exists and contains nonzero data. Warning: data may be overwritten.")
             mode = "r+"
         self.load_mmap_file(mode=mode)
 
@@ -82,3 +86,7 @@ class Database(File):
     # Returns the full (x2) memory for hardware to use
     def load_trial_all_data(self, trial):
         return self.memmap_file[trial, :, :, :, :]
+
+    def is_current_data_file_empty(self):
+        return np.all(self.memmap_file == 0)  # all zeros
+
