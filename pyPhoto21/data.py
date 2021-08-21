@@ -32,6 +32,8 @@ class Data(File):
         self.is_live_feed_enabled = False
         self.current_trial_index = 0
         self.metadata_extension = '.pbz2'
+        self.is_metadata_dirty = False
+        self.meta_daemon_stop_flag = False
 
         # Memory not written to file
         # raw RLI frames are not written to file or even shown.
@@ -180,12 +182,14 @@ class Data(File):
         if meta_obj is not None:
             self.set_meta(meta_obj, suppress_resize=True)
 
-    def save_preference_file(self, folder):
-        meta_file = folder + "\\" + self.db.get_current_filename(no_path=True, extension='.pbz2')
+    def save_preference_file(self, meta_file):
         self.save_metadata_to_file(meta_file)
         print("Saved your preferences to:\n", meta_file)
 
     def load_from_file(self, file):
+        # Save meta before we close it
+        self.save_metadata_to_compressed_file()
+
         self.set_is_loaded_from_file(True)
         print("Loading from:", file)
         orig_path_prefix = file.split(".")[0]
@@ -198,11 +202,11 @@ class Data(File):
 
             new_meta = Metadata()
             self.set_meta(new_meta, suppress_resize=True)
-            LegacyData().load_zda(orig_path_prefix + '.zda',
-                                  self.db,
-                                  new_meta)  # side-effect is to create and populate .npy file
-            meta_file = self.db.get_current_filename(no_path=False, extension='.pbz2')
-            self.save_metadata_to_file(meta_file)
+            ld = LegacyData(self.get_save_dir())
+            ld.load_zda(orig_path_prefix + '.zda',
+                        self.db,
+                        new_meta)  # side-effect is to create and populate .npy file
+            self.save_metadata_to_compressed_file()
         elif extension in ['npy', 'pbz2']:
             meta_no_path = file_prefix + self.metadata_extension
             meta_file = orig_path_prefix + self.metadata_extension
@@ -459,6 +463,8 @@ class Data(File):
             self.increment_record_until_filename_free()
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
+        if curr_program is not None and curr_program != program:
+            self.save_metadata_to_compressed_file()
 
     def get_camera_program(self):
         cam_prog = self.hardware.get_camera_program()
@@ -531,13 +537,16 @@ class Data(File):
                                                               extension=self.db.extension))
                 or self.file_exists(self.db.get_current_filename(no_path=True,
                                                                  extension=self.metadata_extension))):
-            self.increment_record()  # can create new files
-            i += 1
             if self.db.is_current_data_file_empty():
                 print(self.db.get_current_filename(no_path=True,
                                                    extension=self.db.extension),
                       "exists but is all zeros. Planning to overwrite.")
                 return
+            if self.db.open_filename is not None:
+                self.db.open_filename = None
+            else:
+                self.increment_record()  # can create new files
+                i += 1
 
         if i >= 100:
             print("data.py: searched 100 filenames for free name. Likely an issue.")
@@ -791,6 +800,7 @@ class Data(File):
                                               self.get_num_fp(),
                                               self.get_num_pts()))
         self.hardware.set_num_pts(value=value)
+        self.save_metadata_to_compressed_file()
         self.meta.num_pts = value
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
@@ -865,6 +875,7 @@ class Data(File):
         return self.db.meta.num_trials
 
     def set_num_trials(self, value):
+        self.save_metadata_to_compressed_file()
         self.db.meta.num_trials = value
 
     def get_int_trials(self):
@@ -997,3 +1008,4 @@ class Data(File):
     def set_notepad_text(self, **kwargs):
         v = kwargs['values']
         self.meta.notepad_text = v
+

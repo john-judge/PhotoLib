@@ -1,7 +1,4 @@
 import os
-import struct
-import numpy as np
-
 import bz2
 import _pickle as cPickle
 
@@ -11,9 +8,14 @@ class File:
     def __init__(self, meta):
         self.save_dir = os.getcwd()
         self.meta = meta
+        self.save_dir_was_changed = False
+
+    def is_save_dir_default(self):
+        return not self.save_dir_was_changed
 
     def set_save_dir(self, directory):
         self.save_dir = directory
+        self.save_dir_was_changed = True
 
     def get_save_dir(self):
         if self.save_dir is None:

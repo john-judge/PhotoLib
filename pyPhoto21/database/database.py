@@ -1,14 +1,7 @@
-import time
-
 import numpy as np
-from matplotlib.path import Path
 
-from pyPhoto21.analysis.core import AnalysisCore
-from pyPhoto21.viewers.trace import Trace
 from pyPhoto21.database.file import File
 from pyPhoto21.database.metadata import Metadata
-
-import os
 
 
 class Database(File):

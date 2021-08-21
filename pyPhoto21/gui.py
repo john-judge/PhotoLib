@@ -103,6 +103,7 @@ class GUI:
                 events += str(event) + '\n'
             if event == exit_event or event == sg.WIN_CLOSED or event == '-close-':
                 if self.is_recording():
+                    self.data.save_metadata_to_compressed_file()
                     print("Cleaning up hardware before exiting. Waiting until safe to exit (or at most 3 seconds)...")
 
                     self.hardware.set_stop_flag(True)
@@ -254,7 +255,7 @@ class GUI:
                 self.data.set_current_trial_index(trial)
 
                 is_last_trial = (trial == self.data.get_num_trials() - 1)
-                if self.get_is_schedule_rli_enabled():
+                if self.data.get_is_schedule_rli_enabled():
                     self.take_rli_core()
                 acqui_mem = self.data.get_acqui_memory()
                 self.hardware.record(images=acqui_mem,
@@ -273,8 +274,7 @@ class GUI:
             self.data.drop_processing_lock()
             time.sleep(0.2)
 
-            if self.get_is_auto_save_enabled():
-                threading.Thread(target=self.save_file_in_background, args=(), daemon=True).start()
+            self.save_file_in_background()
             if exit_recording:
                 break
             print("Took recording set", record_index + 1, "of", self.data.get_num_records())
@@ -291,6 +291,15 @@ class GUI:
         # meanwhile the original thread returns and keeps handling GUI clicks
         # but updates to Data/Hardware fields will be frozen
         # self.record_in_background()
+        if not self.data.get_is_schedule_rli_enabled():
+            self.notify_window("Auto RLI not enabled",
+                               "RLI will not be automatically collected for each recording set.")
+        if self.data.is_save_dir_default():
+            self.notify_window("Save Folder",
+                               "You haven't chosen a folder to contain new files."
+                               " \nLet's choose a save folder for this recording session.")
+            self.choose_save_dir()
+        self.data.save_metadata_to_compressed_file()
         threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
 
     ''' RLI Controller functions '''
@@ -298,6 +307,7 @@ class GUI:
     def take_rli_core(self):
         self.hardware.take_rli(images=self.data.get_rli_memory())
         self.data.set_is_loaded_from_file(False)
+        self.data.save_metadata_to_compressed_file()
         if self.fv.get_show_rli_flag():
             self.fv.update_new_image()
 
@@ -432,6 +442,8 @@ class GUI:
         folder = self.browse_for_folder()
         if folder is not None:
             self.data.set_save_dir(folder)
+            self.data.db.set_save_dir(folder)
+            self.exporter.set_save_dir(folder)
             print("New save location:", folder)
 
     def browse_for_file(self, file_extensions):
@@ -545,9 +557,9 @@ class GUI:
             self.tv.update_new_traces()
 
     def save_preference(self):
-        folder = self.browse_for_folder()
-        if folder is not None:
-            self.data.save_preference_file(folder)
+        file = self.browse_for_save_as_file(('Compressed Pickle', "*"+self.data.metadata_extension))
+        if file is not None:
+            self.data.save_preference_file(file)
 
     def load_data_file(self):
         file = self.browse_for_file(['npy', 'pbz2', 'zda'])
@@ -853,7 +865,10 @@ class GUI:
             window[kwargs['event']].update(v)
 
     def toggle_analysis_mode(self, **kwargs):
-        self.data.set_is_analysis_only_mode_enabled(kwargs['values'])
+        v = bool(kwargs['values'])
+        if not v and self.data.get_is_loaded_from_file():
+            self.unload_file()
+        self.data.set_is_analysis_only_mode_enabled(v)
 
     def toggle_auto_rli(self, **kwargs):
         self.data.set_is_schedule_rli_enabled(kwargs['values'])

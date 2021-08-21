@@ -254,10 +254,6 @@ class EventMapping:
                 'function': gui.validate_and_pass_int,
                 'args': {'call': gui.data.set_int_records},
             },
-            'Unload File': {
-                'function': gui.unload_file,
-                'args': {}
-            },
             "Increment Trial": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.increment_current_trial_index,

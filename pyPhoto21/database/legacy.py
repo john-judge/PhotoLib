@@ -9,8 +9,9 @@ from pyPhoto21.database.metadata import Metadata
 # Support for legacy data file (ZDA)
 class LegacyData(File):
 
-    def __init__(self):
+    def __init__(self, save_dir):
         super().__init__(None)
+        self.save_dir = save_dir
 
     def load_zda(self, filename, db, meta):
 
