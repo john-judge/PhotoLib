@@ -45,11 +45,12 @@ class Metadata:
         # Management and Automation / Workflow Settings
         self.schedule_rli_flag = True
         self.display_value_option_index = 0
-        self.auto_save_enabled = True
-        self.schedule_rli_enabled = False
-        self.is_rli_division_enabled = False
+        self.is_analysis_only_mode_enabled = True
+        self.is_schedule_rli_enabled = False
+        self.is_rli_division_enabled = True
         self.is_data_inverse_enabled = True
         self.is_trial_averaging_enabled = False
+        self.notepad_text = 'Notes for this recording...'
 
         # TraceViewer settings
         self.crop_window = [30, self.num_pts-10]  # Time Window cropping applied to the temporal axis.

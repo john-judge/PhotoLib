@@ -72,7 +72,7 @@ class File:
             return []
         parts = filename.split('-')
         if len(parts) != 3:
-            return []
+            return [filename, ext]
         if all([i.isnumeric() for i in parts]):
             return [int(i) for i in parts] + [ext]
-        return []
+        return [filename, ext]

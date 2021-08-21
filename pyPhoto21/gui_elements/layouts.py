@@ -88,32 +88,21 @@ class Layouts:
     def create_acquisition_tab(self, gui):
         button_size = (10, 1)
         field_size = (6, 1)
-        small_button_size = (3, 1)
         long_button_size = (15, 1)
-        checkbox_size = (6, 1)
+        checkbox_size = (8, 1)
         return [
-            [sg.Text("Auto:", size=(8, 1)),
-             sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size, tooltip="Stop Acquisition Task"),
+            [sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size, tooltip="Stop Acquisition Task"),
              sg.Button("Take RLI", button_color=('blue', 'white'), size=button_size,
                        tooltip="Record and Compute Resting Light Intensity (RLI) Frame"),
              sg.Button("Reset Cam", button_color=('brown', 'gray'), size=button_size,
                        tooltip="Click this if camera is misbehaving.")],
-            [sg.Checkbox('RLI', default=self.data.get_is_schedule_rli_enabled(), enable_events=True, key="Auto RLI",
-                         size=checkbox_size, tooltip='Automatically take RLI at the beginning of recording.'),
-             sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size,
+            [sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size,
                        tooltip='View real-time camera output.'),
              sg.Button("Record", button_color=('black', 'red'), size=button_size,
-                       tooltip='Record images while electrically stimulating')
-             ],
-            [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
-                         size=checkbox_size, tooltip='Automatically save .npy/.pbz2 between records (sets of trials)'),
-             sg.Button("Save Analysis", button_color=('white', 'green'), size=button_size,
-                       tooltip='Export all analyzed data to Origin/Excel/R-'
-                               'interoperable formats (tab-separated values)'),
-             sg.Button("Unload File", button_color=('white', 'brown'), size=button_size,
-                       tooltip='Return to acquisition mode.'),
-             sg.Button("Save", button_color=('white', 'green'), size=button_size,
-                       tooltip='Save images as .npy file and metadata/preferences as .pbz2 file')],
+                       tooltip='Record images while electrically stimulating'),
+             sg.Checkbox('Auto RLI', default=self.data.get_is_schedule_rli_enabled(),
+                         enable_events=True, key="Auto RLI",
+                         size=checkbox_size, tooltip='Automatically take RLI at the beginning of recording.')],
             [sg.HorizontalSeparator()],
             [sg.Text("File Name:", size=(8, 1)),
              sg.InputText(key="File Name",
@@ -176,6 +165,16 @@ class Layouts:
             t_stim[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
         return [
+            [sg.Checkbox('Analysis Mode', default=self.data.get_is_analysis_only_mode_enabled(), enable_events=True,
+                         key="Analysis Mode",
+                         size=(12, 1), tooltip='Automatically save .npy/.pbz2 between records (sets of trials)'),
+             sg.Button("Save Analysis", button_color=('white', 'green'), size=button_size,
+                       tooltip='Export all analyzed data to Origin/Excel/R-'
+                               'interoperable formats (tab-separated values)'),
+             sg.Button("Unload File", button_color=('white', 'brown'), size=button_size,
+                       tooltip='Return to acquisition mode.'),
+             sg.Button("Save", button_color=('white', 'green'), size=button_size,
+                       tooltip='Save images as .npy file and metadata/preferences as .pbz2 file')],
             [sg.Button("Pre-Stim Window",
                        button_color=('black', 'orange'),
                        size=long_button_size,
@@ -629,15 +628,19 @@ class Layouts:
             ]]
         return trace_viewer_canvas + trace_viewer_tab_group
 
-    def create_right_column(self, gui):
-        trace_viewer_layout = self.create_trace_viewer_tab(gui)
+    def create_notepad_tag(self):
+        return [[sg.Multiline(key="Notepad",
+                              default_text=self.data.meta.notepad_text,
+                              enable_events=True,
+                              size=(50, 600),
+                              tooltip="Notes for this recording, to be saved to metadata file.")]]
 
-        # plotting a small timeline of record/stim events
-        daq_layout = self.create_daq_config_tab()
+    def create_right_column(self, gui):
 
         tab_group_right = [sg.TabGroup([[
-            sg.Tab('Trace Viewer', trace_viewer_layout),
-            sg.Tab('DAQ Config', daq_layout)
+            sg.Tab('Trace Viewer', self.create_trace_viewer_tab(gui)),
+            sg.Tab('DAQ Config', self.create_daq_config_tab()),  # plotting a small timeline of record/stim events
+            sg.Tab('Notepad', self.create_notepad_tag(), key='Notes')
         ]])]
         return [tab_group_right]
 
@@ -662,7 +665,7 @@ class Layouts:
                 "num_trials",
                 "int_trials",
                 "Auto RLI",
-                "Auto Save"
+                "Analysis Mode"
                 ]
 
     @staticmethod

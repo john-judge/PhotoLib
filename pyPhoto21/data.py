@@ -154,17 +154,21 @@ class Data(File):
         meta_no_path = self.strip_path(meta_file)
         if not self.file_exists(meta_no_path):
             # instead of blanking out defaults, persist current settings but clear data
+            # Metadata Defaults
             self.meta.rli_low = None
             self.meta.rli_high = None
             self.meta.rli_max = None
             self.meta.fp_data = None
             self.meta.num_fp = 4
             self.meta.version = 6
+            self.meta.notepad_text = 'Notes for this recording...'
             self.set_camera_program(7)
             self.save_metadata_to_file(meta_file)
+            # other defaults are more handy to persist.
         else:
             meta_obj = self.load_metadata_from_file(meta_file)
-            self.set_meta(meta_obj, suppress_resize=True)
+            if meta_obj is not None:
+                self.set_meta(meta_obj, suppress_resize=True)
 
     # assumes file has already been validated to exist
     def load_preference_file(self, file):
@@ -173,7 +177,8 @@ class Data(File):
             print("Failed to load", file, "\n\t Only .pbz2 files are supported.")
             return
         meta_obj = self.load_metadata_from_file(file)
-        self.set_meta(meta_obj, suppress_resize=True)
+        if meta_obj is not None:
+            self.set_meta(meta_obj, suppress_resize=True)
 
     def save_preference_file(self, folder):
         meta_file = folder + "\\" + self.db.get_current_filename(no_path=True, extension='.pbz2')
@@ -209,8 +214,9 @@ class Data(File):
             if not self.file_exists(data_no_path):
                 print("Corresponding data file", data_no_path, "not found. Loading as preference-only file.")
             meta_obj = self.load_metadata_from_file(meta_file)
-            self.set_meta(meta_obj, suppress_resize=True)
-            self.db.load_mmap_file(filename=data_file, mode="r+")
+            if meta_obj is not None:
+                self.set_meta(meta_obj, suppress_resize=True)
+                self.db.load_mmap_file(filename=data_file, mode="r+")
 
     def save_metadata_to_file(self, filename):
         """ Pickle the instance of Metadata class """
@@ -218,7 +224,20 @@ class Data(File):
 
     def load_metadata_from_file(self, filename):
         """ Read instance of Metadata class and load into usage"""
-        return self.retrieve_python_object_from_pickle(filename)
+        meta = self.retrieve_python_object_from_pickle(filename)
+        if meta is not None:
+            self.handle_missing_meta_attributes(meta)
+        else:
+            print("Failed to load metadata object from", filename)
+        return meta
+
+    # load metadata defaults into file metadata for backwards compatibility
+    @staticmethod
+    def handle_missing_meta_attributes(loaded_meta_obj):
+        tmp_meta = Metadata()
+        for attr in dir(tmp_meta):
+            if not attr.startswith("__") and not hasattr(loaded_meta_obj, attr):
+                setattr(loaded_meta_obj, attr, getattr(tmp_meta, attr))  # transfer default
 
     def get_record_array_shape(self):
         return (self.get_num_trials(),
@@ -273,6 +292,7 @@ class Data(File):
         paired_files = []
         # turn files list into a map
         file_map = {}
+        unindexed_map = {}
         for file in files:
             parts = self.decompose_filename(file)
             if len(parts) == 4:
@@ -288,19 +308,22 @@ class Data(File):
                     if len(file_map[slic][loc][rec]) == 2:
                         file, _ = file.split('.')
                         paired_files.append(file)
+            # unconventionally named files: name is not indexed
+            elif len(parts) == 2:
+                file_prefix, _ = parts
+                if file_prefix not in unindexed_map:
+                    unindexed_map[file_prefix] = []
+                unindexed_map[file_prefix].append(file)
+                if len(unindexed_map[file_prefix]) == 2:
+                    file, _ = file.split('.')
+                    paired_files.append(file)
 
         curr_filename = self.db.get_current_filename(extension='', no_path=True)
         if curr_filename not in paired_files:
             paired_files.append(curr_filename)
         paired_files.sort()
 
-        ind = None
-        try:
-            ind = paired_files.index(curr_filename) + direction
-        except ValueError:
-            return None
-        if ind < 0 or ind >= len(paired_files):
-            return None
+        ind = (paired_files.index(curr_filename) + direction) % len(paired_files)
         file_prefix = self.get_save_dir() + "\\" + paired_files[ind]
         return file_prefix + self.metadata_extension, file_prefix + self.db.extension
 
@@ -310,9 +333,10 @@ class Data(File):
             return
         meta_file, data_file = files
         meta_obj = self.load_metadata_from_file(meta_file)
-        self.set_meta(meta_obj, suppress_resize=True)
-        self.db.load_mmap_file(mode='r+', filename=data_file)
-        self.full_data_processor.update_full_processed_data()
+        if meta_obj is not None:
+            self.set_meta(meta_obj, suppress_resize=True)
+            self.db.load_mmap_file(mode='r+', filename=data_file)
+            self.full_data_processor.update_full_processed_data()
 
     def increment_file(self):
         self.auto_change_file(direction=1)
@@ -602,8 +626,7 @@ class Data(File):
                 print("RLI and data shapes don't match:",
                       rli.shape,
                       ret_frame.shape,
-                      "Skipping RLI division.\n",
-                      "You may be using a legacy ZDA data file (or a converted legacy data file)?")
+                      "Skipping RLI division.")
 
         # digital binning
         ret_frame = self.core.create_binned_data(ret_frame, binning_factor=binning)
@@ -868,17 +891,17 @@ class Data(File):
     def set_is_loaded_from_file(self, value):
         self.is_loaded_from_file = value
 
-    def get_is_auto_save_enabled(self):
-        return self.db.meta.auto_save_enabled
+    def get_is_analysis_only_mode_enabled(self):
+        return self.db.meta.is_analysis_only_mode_enabled
 
-    def set_is_auto_save_enabled(self, value):
-        self.db.meta.auto_save_enabled = value
+    def set_is_analysis_only_mode_enabled(self, value):
+        self.db.meta.is_analysis_only_mode_enabled = value
 
     def get_is_schedule_rli_enabled(self):
-        return self.db.meta.schedule_rli_enabled
+        return self.db.meta.is_schedule_rli_enabled
 
     def set_is_schedule_rli_enabled(self, value):
-        self.db.meta.schedule_rli_enabled = value
+        self.db.meta.is_schedule_rli_enabled = value
 
     ''' Attributes controlled at Hardware level '''
 
@@ -970,3 +993,7 @@ class Data(File):
 
     def clear_livefeed_frame(self):
         self.livefeed_frame = None
+
+    def set_notepad_text(self, **kwargs):
+        v = kwargs['values']
+        self.meta.notepad_text = v

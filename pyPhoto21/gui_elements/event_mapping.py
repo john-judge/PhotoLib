@@ -14,8 +14,8 @@ class EventMapping:
                 'function': gui.data.save_metadata_to_compressed_file,
                 'args': {}
             },
-            'Auto Save': {
-                'function': gui.toggle_auto_save,
+            'Analysis Mode': {
+                'function': gui.toggle_analysis_mode,
                 'args': {}
             },
             'Auto RLI': {
@@ -301,12 +301,14 @@ class EventMapping:
             "Increment File": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.increment_file,
-                         'call2': gui.update_tracking_num_fields}
+                         'call2': gui.update_tracking_num_fields,
+                         'call3': gui.sync_gui_fields_from_meta}
             },
             "Decrement File": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.decrement_file,
-                         'call2': gui.update_tracking_num_fields}
+                         'call2': gui.update_tracking_num_fields,
+                         'call3': gui.sync_gui_fields_from_meta}
             },
             "Trial Number": {
                 'function': gui.validate_and_pass_int,
@@ -468,6 +470,10 @@ class EventMapping:
                          'kind': None,
                          'form': 'ms'}
             },
+            "Notepad": {
+                'function': gui.data.set_notepad_text,
+                'args': {}
+            }
 
 
         }

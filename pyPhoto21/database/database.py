@@ -20,6 +20,14 @@ class Database(File):
         self.open_filename = None
 
     def get_current_filename(self, no_path=False, extension=None):
+        if self.open_filename is not None:
+            fn = self.open_filename
+            if no_path:
+                fn = self.strip_path(fn)
+            fn, _ = fn.split('.')
+            if extension is not None:
+                fn += extension
+            return fn
         if extension is None:
             extension = self.extension
         path = ''

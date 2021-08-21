@@ -195,7 +195,7 @@ class GUI:
 
     def get_trial_sleep_time(self):
         sleep_sec = self.data.get_int_trials()
-        if self.get_is_schedule_rli_enabled():
+        if self.data.get_is_schedule_rli_enabled():
             sleep_sec = max(0, sleep_sec - .12)  # attempt to shorten by 120 ms, rough lower bound on time to take RLI
         return sleep_sec
 
@@ -626,6 +626,8 @@ class GUI:
         w['Time Window End frames pre_stim'].update(str(t_pre_stim[1])[:6])
         w['Time Window Start frames pre_stim'].update(str(t_pre_stim[0])[:6])
 
+        w['Notepad'].update(self.data.meta.notepad_text)
+
         self.update_tracking_num_fields()
 
     # disable file-viewing mode, allowing acquisition to resume
@@ -685,18 +687,6 @@ class GUI:
             self.window['Digital Binning'].update(binning)
         binning = int(binning)
         self.fv.set_digital_binning(binning)
-
-    def get_is_auto_save_enabled(self):
-        return self.data.get_is_auto_save_enabled()
-
-    def set_is_auto_save_enabled(self, value):
-        self.data.set_is_auto_save_enabled(value)
-
-    def get_is_schedule_rli_enabled(self):
-        return self.data.get_is_schedule_rli_enabled()
-
-    def set_is_schedule_rli_enabled(self, value):
-        self.data.set_is_schedule_rli_enabled(value)
 
     def toggle_average_trials(self, **kwargs):
         v = bool(kwargs['values'])
@@ -862,11 +852,11 @@ class GUI:
         if len(v) == 0 or float(v) != kwargs['values']:
             window[kwargs['event']].update(v)
 
-    def toggle_auto_save(self, **kwargs):
-        self.set_is_auto_save_enabled(kwargs['values'])
+    def toggle_analysis_mode(self, **kwargs):
+        self.data.set_is_analysis_only_mode_enabled(kwargs['values'])
 
     def toggle_auto_rli(self, **kwargs):
-        self.set_is_schedule_rli_enabled(kwargs['values'])
+        self.data.set_is_schedule_rli_enabled(kwargs['values'])
 
     # generic setter that links together 2 ms / frame linked fields
     def set_time_window_generic(self, setter_function, arg_dict):
@@ -964,7 +954,8 @@ class GUI:
         self.window["Location Number"].update(self.data.get_location_num())
         self.window["Record Number"].update(self.data.get_record_num())
         self.window["Trial Number"].update(self.data.get_current_trial_index())
-        self.window["File Name"].update(self.data.db.get_current_filename(no_path=True))
+        self.window["File Name"].update(self.data.db.get_current_filename(no_path=True,
+                                                                          extension=self.data.db.extension))
         if not no_plot_update:
             self.fv.update_new_image()
             self.tv.update_new_traces()
