@@ -734,6 +734,7 @@ class GUI:
             self.window["Number of Points"].update('')
             self.window["Acquisition Duration"].update('')
         self.dv.update()
+        self.update_tracking_num_fields(no_plot_update=True)
         if self.data.core.get_is_temporal_filter_enabled():
             filter_type = self.data.core.get_temporal_filter_options()[
                 self.data.core.get_temporal_filter_index()]

@@ -171,7 +171,7 @@ class Data(File):
             meta_obj = self.load_metadata_from_file(meta_file)
             if meta_obj is not None:
                 self.set_meta(meta_obj, suppress_resize=True)
-
+            
     # assumes file has already been validated to exist
     def load_preference_file(self, file):
         file_prefix, extension = file.split('.')
@@ -270,6 +270,7 @@ class Data(File):
         self.db.meta.current_location = 0
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
+        self.db.open_filename = None
         self.load_current_metadata_file()
         self.db.load_mmap_file(mode=None)
         self.full_data_processor.update_full_processed_data()
@@ -278,6 +279,7 @@ class Data(File):
         self.db.meta.current_location += num
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
+        self.db.open_filename = None
         self.load_current_metadata_file()
         self.db.load_mmap_file(mode=None)
         self.full_data_processor.update_full_processed_data()
@@ -285,6 +287,7 @@ class Data(File):
     def increment_record(self, num=1, suppress_file_create=False):
         self.db.meta.current_record += num
         self.set_current_trial_index(0)
+        self.db.open_filename = None
         if not suppress_file_create:
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
@@ -351,15 +354,17 @@ class Data(File):
     def decrement_slice(self, num=1):
         self.db.meta.current_slice -= num
         if self.db.meta.current_slice >= 0:
-            self.db.meta.current_location = 0
-            self.db.meta.current_record = 0
             self.set_current_trial_index(0)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_slice = 0
             if num > 1:
+                self.db.meta.current_location = 0
+                self.db.meta.current_record = 0
+                self.db.open_filename = None
                 self.load_current_metadata_file()
                 self.db.load_mmap_file(mode=None)
                 self.full_data_processor.update_full_processed_data()
@@ -369,12 +374,14 @@ class Data(File):
         if self.db.meta.current_location >= 0:
             self.db.meta.current_record = 0
             self.set_current_trial_index(0)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_location = 0
             if num > 1:
+                self.db.open_filename = None
                 self.load_current_metadata_file()
                 self.db.load_mmap_file(mode=None)
                 self.full_data_processor.update_full_processed_data()
@@ -382,12 +389,14 @@ class Data(File):
     def decrement_record(self, num=1):
         self.db.meta.current_record -= num
         if self.db.meta.current_record >= 0:
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_record = 0
             if num > 1:
+                self.db.open_filename = None
                 self.load_current_metadata_file()
                 self.db.load_mmap_file(mode=None)
                 self.full_data_processor.update_full_processed_data()
@@ -395,11 +404,13 @@ class Data(File):
     def set_slice(self, v):
         if v > self.db.meta.current_slice:
             self.increment_slice(v - self.db.meta.current_slice)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         elif v < self.db.meta.current_slice:
             self.decrement_slice(self.db.meta.current_slice - v)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
@@ -407,11 +418,13 @@ class Data(File):
     def set_record(self, v):
         if v > self.db.meta.current_record:
             self.increment_record(v - self.db.meta.current_record)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         elif v < self.db.meta.current_record:
             self.decrement_record(self.db.meta.current_record - v)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
@@ -419,11 +432,13 @@ class Data(File):
     def set_location(self, v):
         if v > self.db.meta.current_location:
             self.increment_location(v - self.db.meta.current_location)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         if v < self.db.meta.current_location:
             self.decrement_location(self.db.meta.current_location - v)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
