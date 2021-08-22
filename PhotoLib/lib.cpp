@@ -103,7 +103,7 @@ extern "C"
 		return controller->getDuration();
 	}
 
-	__declspec(dllexport) void setAcquiOnset(Controller* controller, float onset)
+	__declspec(dllexport) void setAcquiOnset(Controller* controller, int onset)
 	{
 		controller->setAcquiOnset(onset);
 	}

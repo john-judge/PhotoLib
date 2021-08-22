@@ -72,11 +72,11 @@ class Trace:
         # Skip points
         skip_start, skip_end = skip_window
 
-        # Adjust skip window to clip window
+        # Translate skip window by clip window
         skip_start = max(0, skip_start - self.start_frame)
         skip_end = min(self.end_frame, skip_end - self.start_frame)
 
-        skip_int = [i for i in range(skip_start, skip_end)]
+        skip_int = [i for i in range(skip_start, skip_end) if self.start_frame <= i < self.end_frame ]
         trace_skipped = trace
         t_skipped = t
         if skip_end - skip_start >= trace.shape[0]:

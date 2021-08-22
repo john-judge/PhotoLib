@@ -715,7 +715,9 @@ class GUI:
             v = v[:-1]
         if self.validate_numeric_input(v, decimal=True, max_val=5000):
             num_frames = float(v) // self.data.get_int_pts()
-            self.hardware.set_acqui_onset(acqui_onset=num_frames)
+            self.data.set_acqui_onset(float(num_frames))
+            self.window['Acquisition Onset'].update(v)
+            self.dv.update()
 
     def set_num_pts(self, suppress_resize=False, **kwargs):
         v = kwargs['values']

@@ -92,5 +92,6 @@ class Database(File):
         return self.memmap_file[trial, :, :, :, :]
 
     def is_current_data_file_empty(self):
+        self.load_mmap_file(self.get_current_filename(extension=self.extension), mode=None)
         return np.all(self.memmap_file == 0)  # all zeros
 

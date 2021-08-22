@@ -27,7 +27,7 @@ private:
 	int32_t error = 0;
 	char errBuff[2048];
 
-	float acquiOnset;
+	int acquiOnset;
 	float intPts;
 	float duration;
 	int program;
@@ -102,8 +102,8 @@ public:
 	void resetCamera();
 
 	// Acquisition Duration
-	void setAcquiOnset(float);
-	float getAcquiOnset();
+	void setAcquiOnset(int);
+	int getAcquiOnset();
 	float getAcquiDuration();
 	size_t get_digital_output_size();
 

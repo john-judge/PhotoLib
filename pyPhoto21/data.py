@@ -130,7 +130,7 @@ class Data(File):
         self.hardware.set_int_bursts(value=self.db.meta.int_bursts[1],
                                      channel=2)
 
-        self.hardware.set_acqui_onset(acqui_onset=self.db.meta.acqui_onset)
+        self.set_acqui_onset(self.db.meta.acqui_onset)
 
         self.hardware.set_stim_onset(value=self.db.meta.stim_onset[0],
                                      channel=1)
@@ -460,6 +460,7 @@ class Data(File):
             self.db.meta.camera_program = program
             self.db.meta.width = self.get_display_width()
             self.db.meta.height = self.get_display_height()
+            self.meta.int_pts = self.get_int_pts()  # syncs from hardware
             self.increment_record_until_filename_free()
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
@@ -537,19 +538,23 @@ class Data(File):
                                                               extension=self.db.extension))
                 or self.file_exists(self.db.get_current_filename(no_path=True,
                                                                  extension=self.metadata_extension))):
-            if self.db.is_current_data_file_empty():
+            if self.db.is_current_data_file_empty():  # will load file
                 print(self.db.get_current_filename(no_path=True,
                                                    extension=self.db.extension),
                       "exists but is all zeros. Planning to overwrite.")
                 return
+            else:
+                self.db.open_filename = None  # don't consider it fully loaded
+
             if self.db.open_filename is not None:
                 self.db.open_filename = None
             else:
-                self.increment_record()  # can create new files
+                self.increment_record(suppress_file_create=True)  # can create new files
                 i += 1
 
         if i >= 100:
             print("data.py: searched 100 filenames for free name. Likely an issue.")
+        self.db.load_mmap_file(self.db.get_current_filename(extension=self.db.extension), mode=None)
 
     def get_background_option_index(self):
         return self.db.meta.background_option_index
@@ -931,9 +936,14 @@ class Data(File):
         return self.hardware.get_num_dark_rli() + self.hardware.get_num_light_rli()
 
     def get_acqui_onset(self):
-        if self.get_is_loaded_from_file():
+        onset = self.hardware.get_acqui_onset()
+        if self.get_is_loaded_from_file() or onset is None:
             return self.db.meta.acqui_onset
-        return self.hardware.get_acqui_onset()
+        return onset
+
+    def set_acqui_onset(self, v):
+        self.meta.acqui_onset = v
+        self.hardware.set_acqui_onset(acqui_onset=v)
 
     def get_stim_onset(self, ch):
         if ch == 1 or ch == 2:
@@ -1008,4 +1018,3 @@ class Data(File):
     def set_notepad_text(self, **kwargs):
         v = kwargs['values']
         self.meta.notepad_text = v
-

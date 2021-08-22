@@ -150,7 +150,7 @@ class Hardware:
 
     def get_acqui_onset(self):
         if not self.hardware_enabled:
-            return 0
+            return None
         return self.lib.getAcquiOnset(self.controller) * self.get_int_pts()
 
     #  get total acquisition duration
