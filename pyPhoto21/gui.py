@@ -141,7 +141,7 @@ class GUI:
 
     def plot_frame(self):
         fig = self.fv.get_fig()
-        s_max = self.fv.get_slider_max()
+
         # canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
         canvas = self.window['frame_canvas'].TKCanvas
 
@@ -153,7 +153,9 @@ class GUI:
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onpress)
         figure_canvas_agg.mpl_connect('motion_notify_event', self.fv.onmove)
         figure_canvas_agg.draw_idle()
-        s_max.on_changed(self.fv.change_frame)
+        s_max = self.fv.get_slider_max()
+        if s_max is not None:
+            s_max.on_changed(self.fv.change_frame)
 
     # include a matplotlib figure in a Tkinter canvas
     def draw_figure_w_toolbar(self, canvas, fig, canvas_toolbar):
@@ -422,7 +424,13 @@ class GUI:
         self.fv.launch_hyperslicer()
 
     def toggle_show_rli(self, **kwargs):
-        self.fv.set_show_rli_flag(kwargs['values'], update=True)
+        v = bool(kwargs['values'])
+        self.data.meta.show_rli = v
+        if v:
+            self.fv.slider_enabled = False
+        else:
+            self.fv.enable_disable_slider()
+        self.fv.set_show_rli_flag(v, update=True)
 
     @staticmethod
     def notify_window(title, message):
@@ -1013,7 +1021,7 @@ class GUI:
         bg_name = kwargs['values']
         bg_index = self.data.get_background_options().index(bg_name)
         self.data.db.meta.background_option_index = bg_index
-        self.fv.update_new_image()
+        self.fv.enable_disable_slider()
         self.tv.update_new_traces()
 
     # value to display in trace viewer

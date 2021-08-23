@@ -26,6 +26,7 @@ class FrameViewer:
         self.colors = ['red', 'green', 'cyan', 'magenta', 'yellow', 'black', 'blue']
         self.shapes = []
 
+        self.slider_enabled = self.should_use_frame_selector()
         self.smax = None
 
         self.fig = figure.Figure(constrained_layout=True)
@@ -39,6 +40,10 @@ class FrameViewer:
         self.populate_figure()
 
         self.update()
+
+    def should_use_frame_selector(self):
+        bg_name = self.data.get_background_options()[self.data.get_background_option_index()]
+        return (not self.data.db.meta.show_rli) and self.data.bg_uses_frame_selector(bg_name)
 
     def get_current_frame(self):
         return self.current_frame
@@ -62,12 +67,14 @@ class FrameViewer:
 
         # Rest of the plot is the image
         self.ax = self.fig.add_subplot(gs[1:-1, :])  # leaves last row blank -- for Slider
-        axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
-        self.smax = Slider(axmax,
-                           'Frame Selector',
-                           0,
-                           self.num_frames,
-                           valinit=self.ind)
+        if self.slider_enabled:
+            axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
+
+            self.smax = Slider(axmax,
+                               'Frame Selector',
+                               0,
+                               self.num_frames,
+                               valinit=self.ind)
 
         self.refresh_current_frame()
         if self.current_frame is not None:
@@ -75,14 +82,20 @@ class FrameViewer:
                                      aspect='auto',
                                      cmap='jet')
 
+    def enable_disable_slider(self):
+        self.slider_enabled = self.should_use_frame_selector()
+        self.update_new_image()
+
     def get_slider_max(self):
-        return self.smax
+        if self.slider_enabled:
+            return self.smax
+        return None
 
     def get_fig(self):
         return self.fig
 
     def change_frame(self, event):
-        if not self.get_show_rli_flag():
+        if not self.get_show_rli_flag() and self.slider_enabled:
             new_ind = int(self.smax.val) % self.num_frames
             if new_ind != self.ind:
                 self.ind = new_ind
@@ -158,7 +171,9 @@ class FrameViewer:
                      points[:, 1],
                      color,
                      alpha=0.5,
-                     edgecolor=color)
+                     edgecolor='white',
+                     linestyle="-",
+                     linewidth=2)
         self.fig.canvas.draw_idle()
 
     def clear_shapes(self):
@@ -173,7 +188,9 @@ class FrameViewer:
                          points[:, 1],
                          col,
                          alpha=0.5,
-                         edgecolor=col)
+                         edgecolor='white',
+                         linestyle="-",
+                         linewidth=2)
 
     def clear_waypoints(self):
         self.draw_path = []
@@ -223,14 +240,16 @@ class FrameViewer:
 
         # self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw_idle()
-        if self.hyperslicer is not None and update_hyperslicer:
-            self.hyperslicer.update_data(show_rli=self.get_show_rli_flag())
+        if self.hyperslicer is not None and update_hyperslicer and not self.get_show_rli_flag():
+            self.hyperslicer.update_data()
 
     def get_show_rli_flag(self):
         return self.data.db.meta.show_rli
 
     def redraw_slider(self):
         # Adjust the slider values to match the data dimensions
+        if not self.slider_enabled:
+            return
         self.update_num_frames()
         if self.smax is not None:
             self.smax.valmax = self.num_frames

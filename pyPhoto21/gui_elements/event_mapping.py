@@ -190,7 +190,7 @@ class EventMapping:
                          'kind': 'pre_stim',
                          'form': 'ms'}
             },
-            "Time Window Start frames Stim": {
+            "Time Window Start frames stim": {
                 'function': gui.set_roi_time_window,
                 'args': {'index': 0,
                          'kind': 'stim',

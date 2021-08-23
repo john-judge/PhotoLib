@@ -597,6 +597,10 @@ class Data(File):
     def get_background_options():
         return ['Frame Selector Amp', 'Max Amp', 'MaxAmp/SD', 'Mean Amp', 'MeanAmp/SD']
 
+    @staticmethod
+    def bg_uses_frame_selector(bg_name):
+        return "Frame Selector" in bg_name
+
     def apply_temporal_aggregration_frame(self, images):
         ret_frame = None
         agg_type = self.get_background_options()[self.get_background_option_index()]
@@ -646,7 +650,8 @@ class Data(File):
         # Temporal selection index: a single time index or a time window
         ret_frame = None
         # Apply measure window if applicable
-        if index is None or "Frame Selector" not in self.get_background_options()[self.get_background_option_index()]:
+        bg_name = self.get_background_options()[self.get_background_option_index()]
+        if index is None or not self.bg_uses_frame_selector(bg_name):
             index = self.get_crop_window()
         if type(index) == int and (index < images.shape[0]) and index >= 0:
             ret_frame = images[index, :, :]
@@ -665,11 +670,8 @@ class Data(File):
             rli = self.calculate_rli()
             if rli is not None and rli.shape == ret_frame.shape:
                 ret_frame = ret_frame.astype(np.float32) / rli
-                ret_frame = ret_frame.astype(np.int32)
+                ret_frame = ret_frame.astype(np.float32)
                 ret_frame = np.nan_to_num(ret_frame)
-                min_val = np.min(ret_frame)
-                if min_val < 0:
-                    ret_frame -= min_val  # make everything positive
             elif rli.shape != ret_frame.shape:
                 print("RLI and data shapes don't match:",
                       rli.shape,
@@ -785,7 +787,6 @@ class Data(File):
 
     def get_fp_data(self):
         trial = self.get_current_trial_index()
-        print("data.py trial", trial, type(trial))
         if self.db.meta.fp_data is None:
             self.db.meta.fp_data = np.zeros((self.get_num_trials(),
                                              self.get_num_pts(),
