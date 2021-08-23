@@ -250,9 +250,8 @@ class Layouts:
                          size=long_button_size)],
         ]
 
-    @staticmethod
-    def create_array_tab(gui):
-        button_size = (10, 1)
+    def create_array_tab(self, gui):
+        checkbox_size = (10, 1)
         background_options = gui.data.get_background_options()
         return [
             [sg.Combo(background_options,
@@ -260,17 +259,27 @@ class Layouts:
                       default_value=background_options[gui.data.get_background_option_index()],
                       key="Select Background",
                       tooltip="The data to compute, export, or display in the Frame Viewer.")],
-            [sg.Button("Load Image", button_color=('gray', 'black')),
-             sg.Checkbox('Show RLI',
+            [sg.Checkbox('Show RLI',
                          default=gui.fv.get_show_rli_flag(),
                          enable_events=True,
                          key="Show RLI",
-                         size=button_size,
+                         size=checkbox_size,
                          tooltip="When selected, RLI frame is shown in the Frame Viewer.")],
+            [sg.Checkbox('RLI Division',
+                         default=self.data.get_is_rli_division_enabled(),
+                         enable_events=True,
+                         key="RLI Division",
+                         size=checkbox_size)],
+            [sg.Checkbox('Data Inverse',
+                         default=self.data.get_is_data_inverse_enabled(),
+                         enable_events=True,
+                         key='Data Inverse',
+                         size=checkbox_size)],
             [sg.Text("Digital Binning:"), sg.InputText(default_text=gui.data.meta.binning,
                                                        key="Digital Binning",
                                                        size=(5, 1),
-                                                       enable_events=True)]
+                                                       enable_events=True)],
+            [sg.Button("Load Image", button_color=('gray', 'black'))],
         ]
 
     def create_dsp_tab(self, gui):
@@ -282,16 +291,50 @@ class Layouts:
             t_window[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
         return [
-            [sg.Checkbox('RLI Division',
-                         default=self.data.get_is_rli_division_enabled(),
-                         enable_events=True,
-                         key="RLI Division",
-                         size=checkbox_size)],
-            [sg.Checkbox('Data Inverse',
-                         default=self.data.get_is_data_inverse_enabled(),
-                         enable_events=True,
-                         key='Data Inverse',
-                         size=checkbox_size)],
+
+        ]
+
+    def create_baseline_tab(self, gui):
+        button_size = (8, 1)
+        double_button_size = (20, 1)
+        field_text_size = (12, 1)
+        baseline_correction_options = self.data.core.get_baseline_correction_options()
+        baseline_skip_default = self.data.core.get_baseline_skip_window()
+        button_size = (6, 1)
+        long_button_size = (17, 1)
+        t_window = gui.data.get_crop_window()
+        if t_window[1] == -1:
+            t_window[1] = self.data.get_num_pts()
+        int_pts = self.data.get_int_pts()
+        return [
+            [sg.Text('Baseline Correction:', size=double_button_size),
+             sg.Combo(baseline_correction_options,
+                      enable_events=True,
+                      default_value=baseline_correction_options[self.data.core.get_baseline_correction_type_index()],
+                      key="Select Baseline Correction")],
+            [sg.Button("Baseline Skip Window",
+                       button_color=('black', 'orange'),
+                       size=double_button_size)],
+            [sg.InputText(key="Baseline Skip Window Start frames",
+                          default_text=str(baseline_skip_default[0]),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Baseline Skip Window End frames",
+                          default_text=str(baseline_skip_default[1]),
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" frames")],
+            [sg.InputText(key="Baseline Skip Window Start (ms)",
+                          default_text=str(baseline_skip_default[0] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" to "),
+             sg.InputText(key="Baseline Skip Window End (ms)",
+                          default_text=str(baseline_skip_default[1] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size),
+             sg.Text(" ms")],
             [sg.Button("Measure Window",
                        button_color=('black', 'orange'),
                        size=long_button_size,
@@ -320,45 +363,6 @@ class Layouts:
                           size=button_size,
                           tooltip="A time window to which to restrict processing and analysis."),
              sg.Text(" ms")]
-        ]
-
-    def create_baseline_tab(self):
-        button_size = (8, 1)
-        double_button_size = (20, 1)
-        field_text_size = (12, 1)
-        baseline_correction_options = self.data.core.get_baseline_correction_options()
-        baseline_skip_default = self.data.core.get_baseline_skip_window()
-        int_pts = self.data.get_int_pts()
-        return [
-            [sg.Text('Baseline Correction:', size=double_button_size),
-             sg.Combo(baseline_correction_options,
-                      enable_events=True,
-                      default_value=baseline_correction_options[self.data.core.get_baseline_correction_type_index()],
-                      key="Select Baseline Correction")],
-            [sg.Text('')],
-            [sg.Button("Baseline Skip Window",
-                       button_color=('black', 'orange'),
-                       size=double_button_size)],
-            [sg.InputText(key="Baseline Skip Window Start frames",
-                          default_text=str(baseline_skip_default[0]),
-                          enable_events=True,
-                          size=button_size),
-             sg.Text(" to "),
-             sg.InputText(key="Baseline Skip Window End frames",
-                          default_text=str(baseline_skip_default[1]),
-                          enable_events=True,
-                          size=button_size),
-             sg.Text(" frames")],
-            [sg.InputText(key="Baseline Skip Window Start (ms)",
-                          default_text=str(baseline_skip_default[0] * int_pts)[:6],
-                          enable_events=True,
-                          size=button_size),
-             sg.Text(" to "),
-             sg.InputText(key="Baseline Skip Window End (ms)",
-                          default_text=str(baseline_skip_default[1] * int_pts)[:6],
-                          enable_events=True,
-                          size=button_size),
-             sg.Text(" ms")],
         ]
 
     def create_filter_tab(self):
@@ -403,9 +407,8 @@ class Layouts:
         acquisition_tab_layout = self.create_acquisition_tab(gui)
         analysis_tab_layout = self.create_analysis_tab(gui)
         array_tab_layout = self.create_array_tab(gui)
-        dsp_tab_layout = self.create_dsp_tab(gui)
         filter_tab_layout = self.create_filter_tab()
-        baseline_tab_layout = self.create_baseline_tab()
+        baseline_tab_layout = self.create_baseline_tab(gui)
 
         tab_group_basic = [sg.TabGroup([[
             sg.Tab('Acquisition', acquisition_tab_layout),
@@ -414,7 +417,6 @@ class Layouts:
 
         tab_group_advanced = [sg.TabGroup([[
             sg.Tab('Array', array_tab_layout),
-            sg.Tab('DSP', dsp_tab_layout),
             sg.Tab("Baseline", baseline_tab_layout),
             sg.Tab("Filter", filter_tab_layout),
         ]])]
