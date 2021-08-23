@@ -76,12 +76,10 @@ class Trace:
         skip_start = max(0, skip_start - self.start_frame)
         skip_end = min(self.end_frame, skip_end - self.start_frame)
 
-        skip_int = [i for i in range(skip_start, skip_end) if self.start_frame <= i < self.end_frame ]
+        skip_int = [i for i in range(skip_start, skip_end) if i < trace.shape[0]]
         trace_skipped = trace
         t_skipped = t
-        if skip_end - skip_start >= trace.shape[0]:
-            print("Invalid skip window!", skip_window)
-        else:
+        if len(skip_int) > 0:
             trace_skipped = np.delete(trace, skip_int)
             t_skipped = np.delete(t, skip_int)
 

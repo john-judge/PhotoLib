@@ -1,6 +1,17 @@
 import os
 import bz2
 import _pickle as cPickle
+import json
+from json import JSONEncoder
+
+import numpy as np
+
+
+class FileEncoder(JSONEncoder):
+    def default(self, o):
+        if type(o) == np.ndarray:
+            return o.tolist()
+        return o.__dict__
 
 
 class File:
@@ -47,6 +58,24 @@ class File:
         return s
 
     @staticmethod
+    def retrieve_python_object_from_json(filename):
+        try:
+            f = open(filename)
+            obj = json.load(f)
+            if type(obj) == str:
+                obj = json.loads(obj)
+            f.close()
+            return obj
+        except Exception as e:
+            print("could not load file:", filename)
+            print(e)
+
+    @staticmethod
+    def dump_python_object_to_json(filename, obj):
+        with open(filename, 'w') as f:
+            json.dump(obj, f, cls=FileEncoder)
+
+    @staticmethod
     def retrieve_python_object_from_pickle(filename):
         try:
             data = bz2.BZ2File(filename, 'rb')
@@ -70,7 +99,7 @@ class File:
         if len(parts) != 2:
             return []
         filename, ext = parts
-        if ext not in ['npy', 'pbz2']:
+        if ext not in ['npy', 'json']:
             return []
         parts = filename.split('-')
         if len(parts) != 3:

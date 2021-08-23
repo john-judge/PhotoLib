@@ -1,6 +1,4 @@
-import os
-import struct
-import numpy as np
+import json
 
 
 class Metadata:
@@ -72,5 +70,3 @@ class Metadata:
 
         # ROI Identification
         self.is_roi_enabled = False
-
-

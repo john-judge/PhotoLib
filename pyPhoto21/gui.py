@@ -538,17 +538,17 @@ class GUI:
 
     def load_roi_file(self, **kwargs):
         filename = self.browse_for_file(['roi'])
-        data_obj = self.data.retrieve_python_object_from_pickle(filename)
+        data_obj = self.data.retrieve_python_object_from_json(filename)
         self.roi.load_roi_data(data_obj)
 
     def save_roi_file(self, **kwargs):
         data_obj, filename = self.roi.dump_roi_data()
-        self.data.dump_python_object_to_pickle(filename,
-                                               data_obj,
-                                               extension='roi')
+        self.data.dump_python_object_to_json(filename,
+                                             data_obj,
+                                             extension='roi')
 
     def load_preference(self):
-        file = self.browse_for_file(['pbz2'])
+        file = self.browse_for_file(['json'])
         if file is not None:
             print("Loading from preference file:", file)
             self.data.load_preference_file(file)
@@ -557,12 +557,12 @@ class GUI:
             self.tv.update_new_traces()
 
     def save_preference(self):
-        file = self.browse_for_save_as_file(('Compressed Pickle', "*"+self.data.metadata_extension))
+        file = self.browse_for_save_as_file(('JSON', "*" + self.data.metadata_extension))
         if file is not None:
             self.data.save_preference_file(file)
 
     def load_data_file(self):
-        file = self.browse_for_file(['npy', 'pbz2', 'zda'])
+        file = self.browse_for_file(['npy', 'json', 'zda'])
         if file is not None:
             self.freeze_hardware_settings(include_buttons=False, freeze_file_flip=False)
             print("Loading from file:", file, "\nThis will take a few seconds...")
@@ -799,19 +799,24 @@ class GUI:
 
     # for passing to channel-based setters
     def validate_and_pass_channel(self, **kwargs):
-        fn_to_call = kwargs['call']
+        fns_to_call = []
+        for k in kwargs:
+            if k.startswith('call'):
+                fns_to_call.append(kwargs[k])
         v = kwargs['values']
         ch = kwargs['channel']
         window = kwargs['window']
         while len(v) > 0 and not self.validate_numeric_input(v, max_digits=6):
             v = v[:-1]
         if len(v) > 0 and self.validate_numeric_input(v, max_digits=6):
-            fn_to_call(value=int(v), channel=ch)
+            for fn in fns_to_call:
+                fn(value=int(v), channel=ch)
             window[kwargs['event']].update(v)
             if not self.production_mode:
-                print("called:", fn_to_call)
+                print("called:", fns_to_call)
         else:
-            fn_to_call(value=0, channel=ch)
+            for fn in fns_to_call:
+                fn(value=0, channel=ch)
             window[kwargs['event']].update('')
 
         # update DAQ timeline visualization
@@ -922,6 +927,7 @@ class GUI:
 
     def set_baseline_skip_window(self, **kwargs):
         self.set_time_window_generic(self.data.core.set_baseline_skip_window, kwargs)
+        self.tv.update_new_traces()
 
     def set_roi_time_window(self, **kwargs):
         self.set_time_window_generic(self.roi.set_time_window, kwargs)
@@ -1019,6 +1025,7 @@ class GUI:
         name = kwargs['values']
         ind = self.tv.get_display_value_options().index(name)
         self.data.set_display_value_option_index(ind)
+        self.tv.update_new_traces()
 
     def set_temporal_filter_index(self, **kwargs):
         tf_name = kwargs['values']
@@ -1106,7 +1113,7 @@ class GUI:
                 self.exporter.export_frame_to_png(file)
         self.notify_window("Export successful",
                            "Exported " + kind + " to file:\n"
-                                                + file)
+                           + file)
 
     def export_all_data(self, **kwargs):
         folder = self.browse_for_folder(recording_notif=False)
@@ -1120,7 +1127,7 @@ class GUI:
         self.exporter.export_frame_to_png(file_prefix + '_frame.png')
         self.notify_window("Export successful",
                            "Exported to .png/.tsv files with prefix:\n"
-                                                + file_prefix + '_*')
+                           + file_prefix + '_*')
 
 
 class Toolbar(NavigationToolbar2Tk):

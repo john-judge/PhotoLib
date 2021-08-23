@@ -202,15 +202,11 @@ class Hardware:
     def set_stim_onset(self, **kwargs):
         if self.hardware_enabled:
             v = kwargs['value']
-            if v is None or type(v) != int:
-                v = 0
             self.lib.setStimOnset(self.controller, kwargs['channel'], float(v))
 
     def set_stim_duration(self, **kwargs):
         if self.hardware_enabled:
             v = kwargs['value']
-            if v is None or type(v) != int:
-                v = 0
             self.lib.setStimDuration(self.controller, kwargs['channel'], float(v))
 
     def start_livefeed(self, lf_frame):

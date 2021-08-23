@@ -67,7 +67,7 @@ class LegacyData(File):
         print("Reading legacy ZDA file. This can take several seconds." +
               "\n\t Important Note: Legacy ZDA file format (2006) will be"
               "\n\t automatically converted to the new .npy and metadata" +
-              "\n\t formats (compressed pickle .pbz2).")
+              "\n\t formats (JSON (.json)).")
         file = open(zda_file, 'rb')
         # data type sizes in bytes
         ch_size = 1

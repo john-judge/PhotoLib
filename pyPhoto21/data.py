@@ -31,7 +31,7 @@ class Data(File):
         self.is_loaded_from_file = False
         self.is_live_feed_enabled = False
         self.current_trial_index = 0
-        self.metadata_extension = '.pbz2'
+        self.metadata_extension = '.json'
         self.is_metadata_dirty = False
         self.meta_daemon_stop_flag = False
 
@@ -98,7 +98,9 @@ class Data(File):
 
     # numpy autosaves the image arrays; only need to save meta actively
     def save_metadata_to_compressed_file(self):
-        self.save_metadata_to_file(self.db.get_current_filename(extension=self.metadata_extension))
+        fn = self.db.get_current_filename(extension=self.metadata_extension)
+        print(fn)
+        self.save_metadata_to_file(fn)
 
     def sync_hardware_from_metadata(self):
         # if self.get_is_loaded_from_file():
@@ -175,8 +177,8 @@ class Data(File):
     # assumes file has already been validated to exist
     def load_preference_file(self, file):
         file_prefix, extension = file.split('.')
-        if extension != 'pbz2':
-            print("Failed to load", file, "\n\t Only .pbz2 files are supported.")
+        if extension != 'json':
+            print("Failed to load", file, "\n\t Only .json files are supported.")
             return
         meta_obj = self.load_metadata_from_file(file)
         if meta_obj is not None:
@@ -207,7 +209,7 @@ class Data(File):
                         self.db,
                         new_meta)  # side-effect is to create and populate .npy file
             self.save_metadata_to_compressed_file()
-        elif extension in ['npy', 'pbz2']:
+        elif extension in ['npy', 'json']:
             meta_no_path = file_prefix + self.metadata_extension
             meta_file = orig_path_prefix + self.metadata_extension
             data_no_path = file_prefix + self.db.extension
@@ -224,24 +226,41 @@ class Data(File):
 
     def save_metadata_to_file(self, filename):
         """ Pickle the instance of Metadata class """
-        self.dump_python_object_to_pickle(filename, self.db.meta)
+        self.dump_python_object_to_json(filename, self.db.meta)
 
     def load_metadata_from_file(self, filename):
         """ Read instance of Metadata class and load into usage"""
-        meta = self.retrieve_python_object_from_pickle(filename)
-        if meta is not None:
-            self.handle_missing_meta_attributes(meta)
+        meta_dict = self.retrieve_python_object_from_json(filename)
+        if meta_dict is not None and type(meta_dict) == dict:
+            meta = self.handle_missing_meta_attributes(meta_dict)
+            self.reshape_meta_arrays(meta)
+            return meta
         else:
             print("Failed to load metadata object from", filename)
-        return meta
+            print(type(meta_dict), meta_dict)
+
+    @staticmethod
+    def reshape_meta_arrays(meta):
+        frame_sh = (meta.height, meta.width)
+        if meta.rli_low is not None:
+            meta.rli_low = np.array(meta.rli_low).reshape(frame_sh)
+        if meta.rli_high is not None:
+            meta.rli_high = np.array(meta.rli_high).reshape(frame_sh)
+        if meta.rli_max is not None:
+            meta.rli_max = np.array(meta.rli_max).reshape(frame_sh)
+        if meta.fp_data is not None:
+            meta.fp_data = np.array(meta.fp_data).reshape((meta.num_trials,
+                                                           meta.num_pts,
+                                                           meta.num_fp))
 
     # load metadata defaults into file metadata for backwards compatibility
     @staticmethod
-    def handle_missing_meta_attributes(loaded_meta_obj):
-        tmp_meta = Metadata()
-        for attr in dir(tmp_meta):
-            if not attr.startswith("__") and not hasattr(loaded_meta_obj, attr):
-                setattr(loaded_meta_obj, attr, getattr(tmp_meta, attr))  # transfer default
+    def handle_missing_meta_attributes(loaded_meta_dict):
+        new_meta = Metadata()
+        for attr in loaded_meta_dict:
+            if not attr.startswith("_"):
+                setattr(new_meta, attr, loaded_meta_dict[attr])
+        return new_meta  # defaults kept if not in loaded dict
 
     def get_record_array_shape(self):
         return (self.get_num_trials(),
@@ -310,7 +329,7 @@ class Data(File):
                     file_map[slic][loc] = {}
                 if rec not in file_map[slic][loc]:
                     file_map[slic][loc][rec] = []
-                if ext not in file_map[slic][loc][rec] and ext in ['pbz2', 'npy']:
+                if ext not in file_map[slic][loc][rec] and ext in ['json', 'npy']:
                     file_map[slic][loc][rec].append(file)
                     if len(file_map[slic][loc][rec]) == 2:
                         file, _ = file.split('.')
@@ -766,6 +785,7 @@ class Data(File):
 
     def get_fp_data(self):
         trial = self.get_current_trial_index()
+        print("data.py trial", trial, type(trial))
         if self.db.meta.fp_data is None:
             self.db.meta.fp_data = np.zeros((self.get_num_trials(),
                                              self.get_num_pts(),
@@ -966,11 +986,23 @@ class Data(File):
                 return self.db.meta.stim_onset[ch - 1]
             return self.hardware.get_stim_onset(channel=ch)
 
+    def set_stim_onset(self, **kwargs):
+        if kwargs['value'] is None or type(kwargs['value']) != int:
+            kwargs['value'] = 0
+        self.hardware.set_stim_onset(kwargs)
+        self.meta.stim_onset[kwargs['channel']-1] = float(kwargs['value'])
+
     def get_stim_duration(self, ch):
         if ch == 1 or ch == 2:
             if self.get_is_loaded_from_file():
                 return self.db.meta.stim_duration[ch - 1]
             return self.hardware.get_stim_duration(channel=ch)
+
+    def set_stim_duration(self, **kwargs):
+        if kwargs['value'] is None or type(kwargs['value']) != int:
+            kwargs['value'] = 0
+        self.hardware.set_stim_duration(kwargs)
+        self.meta.stim_duration[kwargs['channel']-1] = float(kwargs['value'])
 
     def get_current_trial_index(self):
         return self.current_trial_index
