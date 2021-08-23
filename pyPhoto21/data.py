@@ -834,7 +834,7 @@ class Data(File):
             return self.db.meta.rli_high
         n = self.get_num_rli_pts()
         rli_light_frames = self.get_rli_images()[d + margins + 1:n - 1 - margins, :, :]
-        if rli_light_frames is None:
+        if rli_light_frames is None or rli_light_frames.shape[0] == 0:
             return None
         self.db.meta.rli_high = np.average(rli_light_frames, axis=0)
         return self.db.meta.rli_high
@@ -846,7 +846,7 @@ class Data(File):
         if self.get_is_loaded_from_file() and self.db.meta.rli_low is not None:
             return self.db.meta.rli_low
         rli_dark_frames = self.get_rli_images()[margins + 1:d - margins - 1, :, :]
-        if rli_dark_frames is None:
+        if rli_dark_frames is None or rli_dark_frames.shape[0] == 0:
             return None
         self.db.meta.rli_low = np.average(rli_dark_frames, axis=0)
         return self.db.meta.rli_low
