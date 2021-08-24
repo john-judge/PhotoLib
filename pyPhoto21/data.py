@@ -38,7 +38,6 @@ class Data(File):
         # Memory not written to file
         # raw RLI frames are not written to file or even shown.
         # We will calculate averages before writing in metadata.
-        self.rli_images = None
         self.livefeed_frame = None
 
         # Little Dave reference data
@@ -160,11 +159,6 @@ class Data(File):
             # Need to create a metadata file
             # instead of blanking out and going to clean defaults,
             # persist current settings but clear data
-            # Metadata Defaults
-            self.meta.rli_low = None
-            self.meta.rli_high = None
-            self.meta.rli_max = None
-            self.meta.fp_data = None
             self.meta.num_fp = 4
             self.meta.version = 6
             self.meta.notepad_text = 'Notes for this recording...'
@@ -178,7 +172,7 @@ class Data(File):
             meta_obj = self.load_metadata_from_file(meta_file)
             if meta_obj is not None:
                 self.set_meta(meta_obj, suppress_resize=True)
-            
+
     # assumes file has already been validated to exist
     def load_preference_file(self, file):
         file_prefix, extension = file.split('.')
@@ -235,25 +229,10 @@ class Data(File):
         meta_dict = self.retrieve_python_object_from_json(filename)
         if meta_dict is not None and type(meta_dict) == dict:
             meta = self.handle_missing_meta_attributes(meta_dict)
-            self.reshape_meta_arrays(meta)
             return meta
         else:
             print("Failed to load metadata object from", filename)
             print(type(meta_dict), meta_dict)
-
-    @staticmethod
-    def reshape_meta_arrays(meta):
-        frame_sh = (meta.height, meta.width)
-        if meta.rli_low is not None:
-            meta.rli_low = np.array(meta.rli_low).reshape(frame_sh)
-        if meta.rli_high is not None:
-            meta.rli_high = np.array(meta.rli_high).reshape(frame_sh)
-        if meta.rli_max is not None:
-            meta.rli_max = np.array(meta.rli_max).reshape(frame_sh)
-        if meta.fp_data is not None:
-            meta.fp_data = np.array(meta.fp_data).reshape((meta.num_trials,
-                                                           meta.num_pts,
-                                                           meta.num_fp))
 
     # load metadata defaults into file metadata for backwards compatibility
     @staticmethod
@@ -557,15 +536,11 @@ class Data(File):
 
         # raw RLI frames are not written to file or even shown.
         # We will calculate averages before writing in metadata.
-        self.rli_images = np.zeros((2,
-                                    self.get_num_rli_pts(),
-                                    h,
-                                    w,),
-                                   dtype=np.uint16)
-        self.db.meta.fp_data = np.zeros((self.get_num_trials(),
-                                         self.get_num_pts(),
-                                         self.get_num_fp()),
-                                        dtype=np.int16)
+        self.db.rli_images = np.zeros((2,
+                                       self.get_num_rli_pts(),
+                                       h,
+                                       w),
+                                      dtype=np.uint16)
         self.increment_record_until_filename_free()
 
     def increment_record_until_filename_free(self):
@@ -797,14 +772,9 @@ class Data(File):
 
     def get_fp_data(self):
         trial = self.get_current_trial_index()
-        if self.db.meta.fp_data is None:
-            self.db.meta.fp_data = np.zeros((self.get_num_trials(),
-                                             self.get_num_pts(),
-                                             self.get_num_fp()),
-                                            dtype=np.int16)
         if trial is None:
-            return self.db.meta.fp_data
-        return self.db.meta.fp_data[trial, :, :]
+            return self.db.load_fp_data()
+        return self.db.load_trial_fp_data(trial)
 
     def get_acqui_images(self):
         trial = self.get_current_trial_index()
@@ -834,11 +804,12 @@ class Data(File):
         else:
             return self.db.load_trial_data_processed(trial)
 
+    # not the memmapped files, but the memory used for RLI acquisition and calc
     def get_rli_images(self):
-        return self.rli_images[0, :, :, :]
+        return self.db.rli_images[0, :, :, :]
 
     def get_rli_memory(self):
-        return self.rli_images[:, :, :, :]
+        return self.db.rli_images[:, :, :, :]
 
     def set_num_pts(self, value=1, force_resize=False, prevent_resize=False, suppress_processing=True):
         if type(value) != int or value < 1:
@@ -846,10 +817,6 @@ class Data(File):
         tmp = self.get_num_pts()
         if (force_resize or tmp != value) and not prevent_resize:
             self.increment_record_until_filename_free()
-            self.db.meta.fp_data = np.resize(self.db.meta.fp_data,
-                                             (self.get_num_trials(),
-                                              self.get_num_fp(),
-                                              self.get_num_pts()))
         self.hardware.set_num_pts(value=value)
         self.save_metadata_to_json()
         self.meta.num_pts = value
@@ -861,33 +828,36 @@ class Data(File):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
-        if self.get_is_loaded_from_file() and self.db.meta.rli_high is not None:
-            return self.db.meta.rli_high
+        rli_high = self.db.get_rli_high()
+        if np.any(rli_high != 0):
+            return rli_high
         n = self.get_num_rli_pts()
         rli_light_frames = self.get_rli_images()[d + margins + 1:n - 1 - margins, :, :]
         if rli_light_frames is None or rli_light_frames.shape[0] == 0:
             return None
-        self.db.meta.rli_high = np.average(rli_light_frames, axis=0)
-        return self.db.meta.rli_high
+        rli_high[:, :] = np.average(rli_light_frames, axis=0)[:, :]
+        return rli_high
 
     def calculate_dark_rli_frame(self, margins=40):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
-        if self.get_is_loaded_from_file() and self.db.meta.rli_low is not None:
-            return self.db.meta.rli_low
+        rli_low = self.db.get_rli_low()
+        if np.any(rli_low != 0):
+            return rli_low
         rli_dark_frames = self.get_rli_images()[margins + 1:d - margins - 1, :, :]
         if rli_dark_frames is None or rli_dark_frames.shape[0] == 0:
             return None
-        self.db.meta.rli_low = np.average(rli_dark_frames, axis=0)
-        return self.db.meta.rli_low
+        rli_low[:, :] = np.average(rli_dark_frames, axis=0)[:, :]
+        return rli_low
 
     def calculate_max_rli_frame(self):
-        if self.get_is_loaded_from_file() or self.db.meta.rli_max is not None:
-            return self.db.meta.rli_max
+        rli_max = self.db.get_rli_max()
+        if np.any(rli_max != 0):
+            return rli_max
         rli_frames = self.get_rli_images()
-        self.db.meta.rli_max = np.max(rli_frames, axis=0)
-        return self.db.meta.rli_max
+        rli_max[:, :] = np.max(rli_frames, axis=0)[:, :]
+        return rli_max
 
     def calculate_rli(self):
         light = self.calculate_light_rli_frame()
@@ -905,10 +875,10 @@ class Data(File):
         if (force_resize or tmp != dark_rli) and not prevent_resize:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (2,
-                                        self.get_num_rli_pts(),
-                                        w,
-                                        h))
+            np.resize(self.db.rli_images, (2,
+                                           self.get_num_rli_pts(),
+                                           w,
+                                           h))
         self.hardware.set_num_dark_rli(dark_rli=dark_rli)
 
     def set_num_light_rli(self, light_rli, force_resize=False, prevent_resize=False):
@@ -916,10 +886,10 @@ class Data(File):
         if (force_resize or tmp != light_rli) and not prevent_resize:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (2,  # extra mem for C++ reassembly
-                                        self.get_num_rli_pts(),
-                                        w,
-                                        h))
+            np.resize(self.db.rli_images, (2,  # extra mem for C++ reassembly
+                                           self.get_num_rli_pts(),
+                                           w,
+                                           h))
         self.hardware.set_num_light_rli(light_rli=light_rli)
 
     def get_num_trials(self):
@@ -1001,7 +971,7 @@ class Data(File):
         if kwargs['value'] is None or type(kwargs['value']) != int:
             kwargs['value'] = 0
         self.hardware.set_stim_onset(kwargs)
-        self.meta.stim_onset[kwargs['channel']-1] = float(kwargs['value'])
+        self.meta.stim_onset[kwargs['channel'] - 1] = float(kwargs['value'])
 
     def get_stim_duration(self, ch):
         if ch == 1 or ch == 2:
@@ -1013,7 +983,7 @@ class Data(File):
         if kwargs['value'] is None or type(kwargs['value']) != int:
             kwargs['value'] = 0
         self.hardware.set_stim_duration(kwargs)
-        self.meta.stim_duration[kwargs['channel']-1] = float(kwargs['value'])
+        self.meta.stim_duration[kwargs['channel'] - 1] = float(kwargs['value'])
 
     def get_current_trial_index(self):
         return self.current_trial_index

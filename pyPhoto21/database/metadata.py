@@ -29,12 +29,6 @@ class Metadata:
         self.stim_duration = [1, 1]
         self.version = 6  # Little Dave version
 
-        # Larger data
-        # There's only 1 RLI recording per set of trials
-        self.rli_low = None
-        self.rli_high = None
-        self.rli_max = None
-        self.fp_data = None
         self.num_fp = 4
 
         self.num_pts = 600

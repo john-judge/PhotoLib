@@ -11,6 +11,7 @@ class Database(File):
         self.extension = '.npy'
         self.memmap_file = None
         self.open_filename = None
+        self.rli_images = None
 
     def get_current_filename(self, no_path=False, extension=None):
         if self.open_filename is not None:
@@ -50,8 +51,8 @@ class Database(File):
 
         arr_shape = (self.meta.num_trials,
                      2,
-                     self.meta.num_pts,
-                     self.meta.height,
+                     self.meta.num_pts + 3,  # the extra 3 frames on the first trial are used for RLI
+                     self.meta.height + 1,  # the extra row on each image stores the FP data for all FPs
                      self.meta.width)
         if mode == "w+":
             print("Creating file:", filename,
@@ -67,31 +68,53 @@ class Database(File):
             if "Disk" in str(e):
                 print("\n Please free up disk space to continue.")
 
+        num_rli = self.rli_images.shape[1]
+        rli_mem_shape = (2, num_rli, self.meta.height, self.meta.width)
+        self.rli_images = np.zeros(rli_mem_shape,
+                                   dtype=np.uint16)
+
     def clear_or_resize_mmap_file(self):
         self.open_filename = None
         # should avoid overwriting data by renaming current file
-        if self.file_exists(self.get_current_filename(no_path=True, extension=self.extension)) and\
+        if self.file_exists(self.get_current_filename(no_path=True, extension=self.extension)) and \
                 not self.is_current_data_file_empty():
             print("File exists and contains nonzero data. Warning: data may be overwritten.")
         self.load_mmap_file(mode=None)
 
     def load_trial_data_raw(self, trial):
-        return self.memmap_file[trial, 0, :, :, :]
+        return self.memmap_file[trial, 0, :-3, :-1, :]
 
     def load_trial_data_processed(self, trial):
-        return self.memmap_file[trial, 1, :, :, :]
+        return self.memmap_file[trial, 1, :-3, :-1, :]
 
     def load_data_raw(self):
-        return self.memmap_file[:, 0, :, :, :]
+        return self.memmap_file[:, 0, :-3, :-1, :]
 
     def load_data_processed(self):
-        return self.memmap_file[:, 1, :, :, :]
+        return self.memmap_file[:, 1, :-3, :-1, :]
+
+    def load_rli_data(self):
+        return self.memmap_file[0, 0, -3:, :-1, :]  # shape (3, height, width)
+
+    def get_rli_low(self):
+        return self.memmap_file[0, 0, -3, :-1, :]  # shape (height, width)
+
+    def get_rli_high(self):
+        return self.memmap_file[0, 0, -2, :-1, :]  # shape (height, width)
+
+    def get_rli_max(self):
+        return self.memmap_file[0, 0, -1, :-1, :]  # shape (height, width)
+
+    def load_fp_data(self):
+        return self.memmap_file[:, 0, :-3, -1, :self.meta.num_fp]  # shape (num_trials, num_pts, num_fp)
+
+    def load_trial_fp_data(self, trial):
+        return self.memmap_file[trial, 0, :-3, -1, :self.meta.num_fp]  # shape (num_pts, num_fp)
 
     # Returns the full (x2) memory for hardware to use
     def load_trial_all_data(self, trial):
-        return self.memmap_file[trial, :, :, :, :]
+        return self.memmap_file[trial, :, :, :-1, :]
 
     def is_current_data_file_empty(self):
         self.load_mmap_file(self.get_current_filename(extension=self.extension), mode=None)
         return np.all(self.memmap_file == 0)  # all zeros
-

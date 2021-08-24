@@ -9,8 +9,8 @@ import numpy as np
 
 class FileEncoder(JSONEncoder):
     def default(self, o):
-        if type(o) == np.ndarray:
-            return o.tolist()
+        # if type(o) == np.ndarray:
+        #     return o.tolist()
         return o.__dict__
 
 
