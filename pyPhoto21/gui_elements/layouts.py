@@ -253,12 +253,21 @@ class Layouts:
     def create_array_tab(self, gui):
         checkbox_size = (10, 1)
         background_options = gui.data.get_background_options()
+        colormap_options = gui.fv.get_color_map_options()
         return [
-            [sg.Combo(background_options,
+            [sg.Text("Pixel Value:", size=checkbox_size),
+             sg.Combo(background_options,
                       enable_events=True,
                       default_value=background_options[gui.data.get_background_option_index()],
                       key="Select Background",
+                      disabled=gui.fv.get_show_rli_flag(),
                       tooltip="The data to compute, export, or display in the Frame Viewer.")],
+            [sg.Text("Colormap:", size=checkbox_size),
+             sg.Combo(colormap_options,
+                      enable_events=True,
+                      default_value=gui.fv.get_color_map_option_name(),
+                      key="Select Colormap",
+                      tooltip="Colormap scheme for intensity images shown in the Frame Viewer.")],
             [sg.Checkbox('Show RLI',
                          default=gui.fv.get_show_rli_flag(),
                          enable_events=True,
@@ -307,7 +316,7 @@ class Layouts:
             t_window[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
         return [
-            [sg.Text('Baseline Correction:', size=double_button_size),
+            [sg.Text('Baseline Correction:', size=(16, 1)),
              sg.Combo(baseline_correction_options,
                       enable_events=True,
                       default_value=baseline_correction_options[self.data.core.get_baseline_correction_type_index()],

@@ -11,7 +11,7 @@ class EventMapping:
                 'args': {}
             },
             'Save': {
-                'function': gui.data.save_metadata_to_compressed_file,
+                'function': gui.data.save_metadata_to_json,
                 'args': {}
             },
             'Analysis Mode': {
@@ -52,6 +52,10 @@ class EventMapping:
             },
             '-psg-': {
                 'function': gui.launch_github_page,
+                'args': {'kind': "issue"},
+            },
+            '-timer-': {
+                'function': gui.launch_little_dave_calendar,
                 'args': {'kind': "issue"},
             },
             'Digital Binning': {
@@ -468,6 +472,10 @@ class EventMapping:
             },
             "Notepad": {
                 'function': gui.data.set_notepad_text,
+                'args': {}
+            },
+            "Select Colormap": {
+                'function': gui.fv.set_color_map_option_name,
                 'args': {}
             }
 

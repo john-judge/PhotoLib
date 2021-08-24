@@ -48,6 +48,27 @@ class FrameViewer:
     def get_current_frame(self):
         return self.current_frame
 
+    @staticmethod
+    def get_color_map_options():
+        return ['jet', 'gray', 'viridis', 'hot', 'Spectral', 'turbo', 'rainbow']
+
+    def get_color_map_option_index(self):
+        return self.data.meta.color_map_option
+
+    def get_color_map_option_name(self):
+        return self.get_color_map_options()[self.get_color_map_option_index()]
+
+    def set_color_map_option_name(self, **kwargs):
+        v = kwargs['values']
+        opt_ind = self.get_color_map_options().index(v)
+        self.set_color_map_option_index(opt_ind)
+
+    def set_color_map_option_index(self, v):
+        tmp = self.data.meta.color_map_option
+        self.data.meta.color_map_option = v
+        if tmp != v:
+            self.update_new_image()
+
     def populate_figure(self):
         # top row of Field Potential traces
         num_fp = min(9, self.data.get_num_fp())
@@ -80,7 +101,7 @@ class FrameViewer:
         if self.current_frame is not None:
             self.im = self.ax.imshow(self.current_frame,
                                      aspect='auto',
-                                     cmap='jet')
+                                     cmap=self.get_color_map_option_name())
 
     def enable_disable_slider(self):
         self.slider_enabled = self.should_use_frame_selector()
@@ -219,7 +240,7 @@ class FrameViewer:
         self.livefeed_im = self.ax.imshow(self.current_frame.astype(np.uint16),
                                           interpolation='nearest',
                                           aspect='auto',
-                                          cmap='jet')
+                                          cmap=self.get_color_map_option_name())
         self.fig.canvas.draw_idle()
 
     def end_livefeed_animation(self):

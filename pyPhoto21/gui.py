@@ -103,7 +103,7 @@ class GUI:
                 events += str(event) + '\n'
             if event == exit_event or event == sg.WIN_CLOSED or event == '-close-':
                 if self.is_recording():
-                    self.data.save_metadata_to_compressed_file()
+                    self.data.save_metadata_to_json()
                     print("Cleaning up hardware before exiting. Waiting until safe to exit (or at most 3 seconds)...")
 
                     self.hardware.set_stop_flag(True)
@@ -206,10 +206,6 @@ class GUI:
         sleep_sec = self.data.get_int_records()
         return max(0, sleep_sec - self.get_trial_sleep_time())
 
-    def save_file_in_background(self):
-        self.data.save_metadata_to_compressed_file()
-        self.update_tracking_num_fields()
-
     # returns True if stop flag is set
     def sleep_and_check_stop_flag(self, sleep_time, interval=1):
         elapsed = 0
@@ -276,7 +272,8 @@ class GUI:
             self.data.drop_processing_lock()
             time.sleep(0.2)
 
-            self.save_file_in_background()
+            self.data.save_metadata_to_json()
+            self.update_tracking_num_fields()
             if exit_recording:
                 break
             print("Took recording set", record_index + 1, "of", self.data.get_num_records())
@@ -301,7 +298,7 @@ class GUI:
                                "You haven't chosen a folder to contain new files."
                                " \nLet's choose a save folder for this recording session.")
             self.choose_save_dir()
-        self.data.save_metadata_to_compressed_file()
+        self.data.save_metadata_to_json()
         threading.Thread(target=self.record_in_background, args=(), daemon=True).start()
 
     ''' RLI Controller functions '''
@@ -309,7 +306,7 @@ class GUI:
     def take_rli_core(self):
         self.hardware.take_rli(images=self.data.get_rli_memory())
         self.data.set_is_loaded_from_file(False)
-        self.data.save_metadata_to_compressed_file()
+        self.data.save_metadata_to_json()
         if self.fv.get_show_rli_flag():
             self.fv.update_new_image()
 
@@ -428,8 +425,10 @@ class GUI:
         self.data.meta.show_rli = v
         if v:
             self.fv.slider_enabled = False
+            self.window["Select Background"].update(disabled=True)
         else:
             self.fv.enable_disable_slider()
+            self.window["Select Background"].update(disabled=False)
         self.fv.set_show_rli_flag(v, update=True)
 
     @staticmethod
@@ -563,6 +562,7 @@ class GUI:
             self.sync_gui_fields_from_meta()
             self.fv.update_new_image()
             self.tv.update_new_traces()
+            self.dv.update()
 
     def save_preference(self):
         file = self.browse_for_save_as_file(('JSON', "*" + self.data.metadata_extension))
@@ -582,6 +582,7 @@ class GUI:
             print("File Loaded.")
             self.fv.update_new_image()
             self.tv.update_new_traces()
+            self.dv.update()
 
     # Pull all file-based data from Data and sync GUI fields
     def sync_gui_fields_from_meta(self):
@@ -602,6 +603,7 @@ class GUI:
         w['int_trials'].update(self.data.get_int_trials())
         w['num_trials'].update(self.data.get_num_trials())
         w['-CAMERA PROGRAM-'].update(self.data.display_camera_programs[self.data.get_camera_program()])
+        self.dv.update()
 
         # Analysis Settings
         w["Select Baseline Correction"].update(self.data.core.get_baseline_correction_options()[
@@ -673,8 +675,10 @@ class GUI:
         pass
 
     @staticmethod
-    def launch_little_dave_calendar():
-        pass
+    def launch_little_dave_calendar(**kwargs):
+        open_browser('https://calendar.google.com/calendar'
+                     '/render?cid=24tfud764rqbe4tcdgvqmi6pdc@'
+                     'group.calendar.google.com')
 
     # Returns True if string s is a valid numeric input
     @staticmethod

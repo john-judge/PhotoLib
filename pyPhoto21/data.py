@@ -97,9 +97,9 @@ class Data(File):
         self.full_data_processor.update_full_processed_data()
 
     # numpy autosaves the image arrays; only need to save meta actively
-    def save_metadata_to_compressed_file(self):
+    def save_metadata_to_json(self):
         fn = self.db.get_current_filename(extension=self.metadata_extension)
-        print(fn)
+        print("Saving metadata to:", fn)
         self.save_metadata_to_file(fn)
 
     def sync_hardware_from_metadata(self):
@@ -154,10 +154,12 @@ class Data(File):
             self.allocate_image_memory()
 
     def load_current_metadata_file(self):
-        meta_file = self.db.get_current_filename(no_path=True, extension=self.metadata_extension)
+        meta_file = self.db.get_current_filename(extension=self.metadata_extension)
         meta_no_path = self.strip_path(meta_file)
         if not self.file_exists(meta_no_path):
-            # instead of blanking out defaults, persist current settings but clear data
+            # Need to create a metadata file
+            # instead of blanking out and going to clean defaults,
+            # persist current settings but clear data
             # Metadata Defaults
             self.meta.rli_low = None
             self.meta.rli_high = None
@@ -168,6 +170,9 @@ class Data(File):
             self.meta.notepad_text = 'Notes for this recording...'
             self.set_camera_program(7)
             self.save_metadata_to_file(meta_file)
+            print("No metadata file found: \n", meta_file,
+                  "\nA metadata file has been created. Please make any corrections to the "
+                  "file manually by opening it with a text editor.")
             # other defaults are more handy to persist.
         else:
             meta_obj = self.load_metadata_from_file(meta_file)
@@ -189,9 +194,6 @@ class Data(File):
         print("Saved your preferences to:\n", meta_file)
 
     def load_from_file(self, file):
-        # Save meta before we close it
-        self.save_metadata_to_compressed_file()
-
         self.set_is_loaded_from_file(True)
         print("Loading from:", file)
         orig_path_prefix = file.split(".")[0]
@@ -208,7 +210,7 @@ class Data(File):
             ld.load_zda(orig_path_prefix + '.zda',
                         self.db,
                         new_meta)  # side-effect is to create and populate .npy file
-            self.save_metadata_to_compressed_file()
+            self.save_metadata_to_json()
         elif extension in ['npy', 'json']:
             meta_no_path = file_prefix + self.metadata_extension
             meta_file = orig_path_prefix + self.metadata_extension
@@ -257,9 +259,12 @@ class Data(File):
     @staticmethod
     def handle_missing_meta_attributes(loaded_meta_dict):
         new_meta = Metadata()
+        loaded_ct = 0
         for attr in loaded_meta_dict:
             if not attr.startswith("_"):
                 setattr(new_meta, attr, loaded_meta_dict[attr])
+                loaded_ct += 1
+        print("Loaded", loaded_ct, "attributes from the metadata file.")
         return new_meta  # defaults kept if not in loaded dict
 
     def get_record_array_shape(self):
@@ -499,7 +504,7 @@ class Data(File):
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
         if curr_program is not None and curr_program != program:
-            self.save_metadata_to_compressed_file()
+            self.save_metadata_to_json()
 
     def get_camera_program(self):
         cam_prog = self.hardware.get_camera_program()
@@ -603,10 +608,12 @@ class Data(File):
 
     def apply_temporal_aggregration_frame(self, images):
         ret_frame = None
+        if images.size < 1:
+            return None
         agg_type = self.get_background_options()[self.get_background_option_index()]
 
         if agg_type == 'Amp at Frame Selector':
-            pass
+            return images
         elif agg_type == 'Max Amp':
             ret_frame = np.max(images, axis=0)
         elif agg_type == 'MaxAmp/SD':
@@ -663,7 +670,10 @@ class Data(File):
         if self.full_data_processor.enabled and using_preprocessed:  # can skip the minimal processing.
             self.drop_processing_lock()
             print("Showing frame from fully processed data.")
-            return ret_frame[1:-2, 1:-2]
+            return ret_frame
+
+        if ret_frame is None:
+            return None
 
         # RLI division
         if self.get_is_rli_division_enabled():
@@ -688,7 +698,7 @@ class Data(File):
             return None
 
         # crop out 1px borders
-        ret_frame = ret_frame[1:-2, 1:-2]
+        ret_frame = ret_frame
         return ret_frame
 
     def get_display_fp_trace(self, fp_index):
@@ -841,7 +851,7 @@ class Data(File):
                                               self.get_num_fp(),
                                               self.get_num_pts()))
         self.hardware.set_num_pts(value=value)
-        self.save_metadata_to_compressed_file()
+        self.save_metadata_to_json()
         self.meta.num_pts = value
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
@@ -916,7 +926,7 @@ class Data(File):
         return self.db.meta.num_trials
 
     def set_num_trials(self, value):
-        self.save_metadata_to_compressed_file()
+        self.save_metadata_to_json()
         self.db.meta.num_trials = value
 
     def get_int_trials(self):

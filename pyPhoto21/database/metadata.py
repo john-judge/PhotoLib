@@ -56,6 +56,7 @@ class Metadata:
 
         # FrameViewer settings
         self.show_rli = True
+        self.color_map_option = 0  # default jet
         self.binning = 1
 
         # Analysis Settings
