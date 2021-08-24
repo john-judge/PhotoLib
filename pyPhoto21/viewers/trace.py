@@ -7,7 +7,8 @@ from scipy.ndimage import gaussian_filter
 
 
 class Trace:
-    def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False):
+    def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False,
+                 pixel_indices=None, fp_index=None, mask=None):
         if end_frame < 0:
             end_frame += len(points)
         if type(points) != np.ndarray:
@@ -17,6 +18,16 @@ class Trace:
         self.end_frame = end_frame
         self.int_pts = int_pts
         self.is_fp_trace = is_fp_trace
+
+        self.pixel_indices = pixel_indices
+        self.color = 'b'
+        self.mask = mask
+        self.fp_index = fp_index
+
+    def merge_trace(self, trace):
+        if trace.is_fp_trace or self.is_fp_trace:
+            return  # can't merge FP traces
+        self.mask = np.logical_or(self.mask, trace.mask)
 
     def get_data(self):
         start = min(self.start_frame, self.end_frame)
@@ -167,9 +178,10 @@ class TraceViewer:
         self.gui = gui
         self.fig = figure.Figure()
         self.ax = None
+
+        # Arrays whose indices align (better to refactor to a list of TracePlot images)
         self.traces = []
-        self.pixel_indices = []
-        self.trace_colors = []
+
         self.point_line_locations = None
         self.clear_point_line_locations()
         self.zoom_factor = 1.0
@@ -192,11 +204,15 @@ class TraceViewer:
                 self.set_probe_line_location(x)
                 self.update_new_traces()
         elif event.button == 1:  # left mouse
-            print( event)
+            print(event)
         elif event.button == 3:  # right mouse
             self.delete_trace(int(event.ydata))
+            self.gui.fv.update_new_image()
+        else:
+            print("button:", event.button)
 
     def onscroll(self, event):
+        print(event)
         if event.button == 'up':
             self.increase_zoom()
         elif event.button == 'down':
@@ -222,9 +238,6 @@ class TraceViewer:
         # trace at index i is located between [i, i+1)
         if 0 <= ind < len(self.traces):
             self.traces.pop(ind)
-            self.pixel_indices.pop(ind)
-            self.trace_colors.pop(ind)
-            self.gui.fv.delete_shape(ind)
             self.update_new_traces()
 
     def update_new_traces(self):
@@ -235,25 +248,21 @@ class TraceViewer:
     # Recompute all traces from saved pixel indices.
     # Useful when processing settings have changed
     def regenerate_traces(self):
-        self.traces = []
-        tmp_color = self.trace_colors
-        self.trace_colors = []
-        for i in range(len(self.pixel_indices)):
-            if len(tmp_color) < i + 1:
-                tmp_color.append('red')
-            trace = self.data.get_display_trace(index=self.pixel_indices[i]['pixel_index'],
-                                                fp_index=self.pixel_indices[i]['fp_index'],
+        for i in range(len(self.traces)):
+            col = self.traces[i].color
+            trace = self.data.get_display_trace(index=self.traces[i].pixel_indices,
+                                                fp_index=self.traces[i].fp_index,
                                                 zoom_factor=self.zoom_factor)
             _, points = trace.get_data()
             if len(points.shape) == 1:
-                self.traces.append(trace)
-                self.trace_colors.append(tmp_color[i])
+                trace.color = col
+                self.traces[i] = trace
             else:
-                print("Invalid trace generated from pix index:", self.pixel_indices[i]['pixel_index'])
+                print("Invalid trace generated from pix index:", self.traces[i].pixel_indices)
 
     def create_annotation_text(self, region_count, i):
-        px_ind = self.pixel_indices[i]['pixel_index']
-        fp_ind = self.pixel_indices[i]['fp_index']
+        px_ind = self.traces[i].pixel_indices
+        fp_ind = self.traces[i].fp_index
         trace_annotation_text = None
         if px_ind is None and type(fp_ind) == int:  # FP trace
             trace_annotation_text = "FP " + str(fp_ind)
@@ -267,7 +276,7 @@ class TraceViewer:
 
     def create_display_value(self, display_type, i, trace):
         value_to_display = None
-        pixel_index = self.pixel_indices[i]['pixel_index']
+        pixel_index = self.traces[i].pixel_indices
         if display_type == 'RLI':
             if pixel_index is not None and type(pixel_index) != int:
                 rli_frame = self.data.calculate_rli()
@@ -312,17 +321,18 @@ class TraceViewer:
         # For our plot, we assume all traces are normalized to [0,1] (see get_display_trace in data.py)
         for i in range(num_traces):
             trace = self.traces[i]
+            points = np.array([])
             if isinstance(trace, Trace):
                 trace.clip_time_window(self.data.get_crop_window())
-                times, trace = trace.get_data()
+                times, points = trace.get_data()
             else:
                 print("Not a Trace object:", type(trace))
 
-            if times.shape[0] != trace.shape[0]:
-                print("time and trace shape mismatch:", times.shape, trace.shape)
+            if times.shape[0] != points.shape[0]:
+                print("time and trace shape mismatch:", times.shape, points.shape)
             else:
-                trace += i  # add constant to plot trace in its own space.
-                self.ax.plot(times, trace, color=self.trace_colors[i])
+                points += i  # add constant to plot trace in its own space.
+                self.ax.plot(times, points, color=trace.color)
 
             # Annotation trace
             trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
@@ -365,23 +375,41 @@ class TraceViewer:
         trace = self.data.get_display_trace(index=pixel_index,
                                             fp_index=fp_index)
         if trace is not None:
-            self.pixel_indices.append({'pixel_index': pixel_index,
-                                       'fp_index': fp_index})
             self.traces.append(trace)
-            self.trace_colors.append(color)
+            trace.color = color
             self.update_new_traces()
             return True
         return False
+
+    def append_to_last_trace(self, pixel_index=None, trace_index=None):
+        if trace_index is None:
+            return False
+        trace = self.data.get_display_trace(index=pixel_index, zoom_factor=self.zoom_factor)
+
+        if trace is not None:
+            self.traces[trace_index].merge_trace(trace)  # need to merge traces.
+            self.update_new_traces()
+            return True
+        return trace is not None
 
     def clear_figure(self):
         self.fig.clf()
 
     def clear_traces(self):
-        self.pixel_indices = []
         self.traces = []
-        self.trace_colors = []
         self.clear_point_line_locations()
         self.update_new_traces()
+
+    # Ignoring FP traces
+    def get_last_pixel_trace_index(self):
+        ind = len(self.traces) - 1
+        if ind < 0:
+            return None
+        while ind >= 0 and self.traces[ind].is_fp_trace:
+            ind -= 1
+        if self.traces[ind] is None:
+            return None
+        return ind
 
     def get_point_line_locations(self, key=None):
         if key is None or key not in self.point_line_locations:

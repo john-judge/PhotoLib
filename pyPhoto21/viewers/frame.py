@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.figure as figure
 from matplotlib.widgets import Slider
-from matplotlib.animation import FuncAnimation
-import matplotlib.pyplot as plt
+from cv2 import findContours
+
 
 from collections import defaultdict
 
@@ -24,7 +24,9 @@ class FrameViewer:
         self.draw_path = []
         self.path_x_index = defaultdict(list)
         self.colors = ['red', 'green', 'cyan', 'magenta', 'yellow', 'black', 'blue']
-        self.shapes = []
+
+        # Key event state
+        self.control_key_down = False
 
         self.slider_enabled = self.should_use_frame_selector()
         self.smax = None
@@ -143,10 +145,21 @@ class FrameViewer:
             self.add_waypoint(event)
             self.moving = True
 
+    def onkeypress(self, event):
+        if event.key == 'control':
+            self.control_key_down = True
+
+    def onkeyrelease(self, event):
+        if event.key == 'control':
+            self.control_key_down = False
+
+    def is_control_key_held(self):
+        return self.control_key_down
+
     def onclick(self, event):
         if event.button == 3:  # right click
             self.tv.clear_traces()
-            self.clear_shapes()
+            self.update_new_image()
         elif event.button == 1:  # left click
             if event.inaxes == self.ax:
                 # clicked frame
@@ -158,17 +171,23 @@ class FrameViewer:
                         self.tv.add_trace(fp_index=i)
 
     def get_next_color(self):
-        return self.colors[(len(self.shapes) - 1) % len(self.colors)]
+        return self.colors[(len(self.tv.traces) - 1) % len(self.colors)]
 
     # Identified drag has completed
     def ondrag(self, event):
+        ctrl = self.is_control_key_held()
         color = self.get_next_color()
         draw = np.array(self.draw_path)
-        success = self.tv.add_trace(pixel_index=draw,
-                                    color=color)
-        if success:
-            self.add_shape(draw, color)
+        success = False
+        i = self.tv.get_last_pixel_trace_index()
+        if ctrl and i is not None:
+            success = self.tv.append_to_last_trace(pixel_index=draw, trace_index=i)
         else:
+            success = self.tv.add_trace(pixel_index=draw, color=color)
+
+        self.update_new_image()  # pulls the new mask from TraceViewer
+
+        if not success:
             print('No trace created for this ROI selection.')
         self.draw_path = []
         # Seal and determine selected ROI
@@ -185,38 +204,34 @@ class FrameViewer:
                 self.draw_path.append([x, y])
                 self.path_x_index[x].append(y)
 
-    # The points are a Nx2 numpy array of x,y coordinates representing a polygon path
-    def add_shape(self, points, color):
-        self.shapes.append(points)
-        self.ax.fill(points[:, 0],
-                     points[:, 1],
-                     color,
-                     alpha=0.5,
-                     edgecolor='white',
-                     linestyle="-",
-                     linewidth=2)
-        self.fig.canvas.draw_idle()
+    # convert mask to a list of x-y points, array of shape (k, 2)
+    @staticmethod
+    def convert_mask_to_polygon(mask):
 
-    def delete_shape(self, ind):
-        if 0 <= ind < len(self.shapes):
-            self.shapes.pop()
-            self.update_new_image()
+        def is_border_point(x_, y_):
+            return not (np.all(mask[y_, x_-1:x_+2])
+                        or np.all(mask[y_-1:y_+2, x_]))
 
-    def clear_shapes(self):
-        self.shapes = []
-        self.update_new_image()
+        points = []
+        for y in range(1, mask.shape[0] - 1):
+            for x in range(1, mask.shape[1] - 1):
+                if mask[y, x] and is_border_point(x, y):
+                    points.append([x, y])
+        points = np.array(points)
+        print(points.shape)
+        return points
 
     def plot_all_shapes(self):
-        for i in range(len(self.shapes)):
-            points = self.shapes[i]
-            col = self.tv.trace_colors[i]
-            self.ax.fill(points[:, 0],
-                         points[:, 1],
-                         col,
-                         alpha=0.5,
-                         edgecolor='white',
-                         linestyle="-",
-                         linewidth=2)
+        for tr in self.tv.traces:
+            if not tr.is_fp_trace:
+                polygon_pts = self.convert_mask_to_polygon(tr.mask)
+                self.ax.fill(polygon_pts[:, 0],
+                             polygon_pts[:, 1],
+                             tr.color,
+                             alpha=0.5,
+                             edgecolor='white',
+                             linestyle="-",
+                             linewidth=2)
 
     def clear_waypoints(self):
         self.draw_path = []

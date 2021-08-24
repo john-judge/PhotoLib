@@ -708,7 +708,6 @@ class Data(File):
 
     # returns a Trace object representing trace
     def get_display_trace(self, index=None, fp_index=None, zoom_factor=1.0):
-        trial = self.get_current_trial_index()
         if fp_index is not None:
             return self.get_display_fp_trace(fp_index)
 
@@ -718,6 +717,7 @@ class Data(File):
             return None
 
         ret_trace = None
+        mask = None
         if index is None:
             return ret_trace
         elif type(index) == np.ndarray:
@@ -738,7 +738,10 @@ class Data(File):
         ret_trace = Trace(ret_trace,
                           self.get_int_pts(),
                           start_frame=start,
-                          end_frame=end)
+                          end_frame=end,
+                          pixel_indices=index,
+                          fp_index=fp_index,
+                          mask=mask)
 
         # data inversing (BEFORE baseline correction)
         if self.get_is_data_inverse_enabled():

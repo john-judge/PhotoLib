@@ -142,11 +142,13 @@ class GUI:
     def plot_frame(self):
         fig = self.fv.get_fig()
 
-        # canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
         figure_canvas_agg = self.draw_figure(self.window['frame_canvas'].TKCanvas, fig)
         figure_canvas_agg.mpl_connect('button_release_event', self.fv.onrelease)
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onpress)
+        figure_canvas_agg.mpl_connect('key_press_event', self.fv.onkeypress)
+        figure_canvas_agg.mpl_connect('key_release_event', self.fv.onkeyrelease)
         figure_canvas_agg.mpl_connect('motion_notify_event', self.fv.onmove)
+        self.window['frame_canvas'].TKCanvas.focus_set()
         s_max = self.fv.get_slider_max()
         if s_max is not None:
             s_max.on_changed(self.fv.change_frame)
