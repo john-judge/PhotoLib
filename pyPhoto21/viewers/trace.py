@@ -46,6 +46,14 @@ class Trace:
             return
         self.points = 0 - self.points
 
+    def normalize(self):
+        # normalize amplitudes to [0, 1], clipping dependent
+        pts = self.get_data_clipped()
+        amp_max = np.max(pts)
+        amp_min = np.min(pts)
+        self.points = (self.points - amp_min) / (amp_max - amp_min)
+        return self.points
+
     # apply crop window, w/o overriding existing window
     def clip_time_window(self, window):
         n = len(self.points)
@@ -144,7 +152,7 @@ class Trace:
         # the trace length itself is same, but now
         # apply cropping to valid filtering domain, respecting any existing filtering
         if m is not None:
-            self.clip_time_window([m, n-m])
+            self.clip_time_window([m, n - m])
         self.points[:] = trace[:]
 
 
@@ -152,7 +160,7 @@ class TraceViewer:
     def __init__(self, data):
         self.data = data
         self.fig = figure.Figure()
-        self.axes = []
+        self.ax = None
         self.traces = []
         self.pixel_indices = []
         self.trace_colors = []
@@ -171,7 +179,7 @@ class TraceViewer:
 
     def onpress(self, event):
         if event.button == 2:
-            if event.xdata is not None and len(self.axes) > 0:
+            if event.xdata is not None and self.ax is not None:
                 x = int(event.xdata)
                 self.set_probe_line_location(x)
                 self.update_new_traces()
@@ -245,19 +253,19 @@ class TraceViewer:
         value_to_display = str(value_to_display)
         if len(value_to_display) > 6:
             value_to_display = value_to_display[:6]
-        return ", " + display_type + " " + value_to_display
+        return "\n" + display_type + " " + value_to_display
 
     def populate_figure(self):
         num_traces = len(self.traces)
-        int_pts = self.data.get_int_pts()
-        gs = self.fig.add_gridspec(max(1, num_traces), 1)
-        self.axes = []
-        n = self.data.get_num_pts()
+        gs = self.fig.add_gridspec(1, 1)  # previously had max(1, num_traces) rows, each trace in own subplot
+        self.ax = self.fig.add_subplot(gs[0, 0])
+        self.ax.get_yaxis().set_visible(False)  # intensity units are arbitrary
         times = None
         probe_line = self.get_point_line_locations(key='probe')
         region_count = 1
         value_type_to_display = self.get_display_value_options()[self.data.get_display_value_option_index()]
 
+        # For our plot, we assume all traces are normalized to [0,1] (see get_display_trace in data.py)
         for i in range(num_traces):
             trace = self.traces[i]
             if isinstance(trace, Trace):
@@ -266,13 +274,11 @@ class TraceViewer:
             else:
                 print("Not a Trace object:", type(trace))
 
-            self.axes.append(self.fig.add_subplot(gs[i, 0]))
             if times.shape[0] != trace.shape[0]:
                 print("time and trace shape mismatch:", times.shape, trace.shape)
             else:
-                self.axes[-1].plot(times, trace, color=self.trace_colors[i])
-            if num_traces > 4 and i != num_traces - 1:
-                self.axes[-1].get_xaxis().set_visible(False)
+                trace += i  # add constant to plot trace in its own space.
+                self.ax.plot(times, trace, color=self.trace_colors[i])
 
             # Annotation trace
             trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
@@ -281,34 +287,34 @@ class TraceViewer:
                 trace_annotation_text += self.create_display_value(value_type_to_display, i, trace)
                 trace_annotation_text = TextArea(trace_annotation_text)
                 ab = AnnotationBbox(trace_annotation_text,
-                                    (0.02, 0.95),
+                                    (-0.14, (i + 0.5) / num_traces),
                                     xycoords='axes fraction',
-                                    xybox=(0.02, 0.95),
+                                    xybox=(-0.14, (i + 0.5) / num_traces),
                                     boxcoords=("axes fraction", "axes fraction"),
                                     box_alignment=(0., 1.0))
-                self.axes[i].add_artist(ab)
+                self.ax.add_artist(ab)
 
-            # Point line (probe type)
-            if probe_line is not None:
-                self.axes[i].axvline(x=probe_line,
-                                     ymin=-20 * int(i == 0),  # only the first trace's line extends
-                                     ymax=1 + 10 * int(i == 0),
-                                     c="gray",
-                                     linewidth=3,
-                                     clip_on=False)
-                # Point line annotation
-                if num_traces > 0:
-                    probe_annotation = TextArea(str(probe_line)[:5] + " ms")
-                    y_annotate = self.axes[0].get_ylim()[1] * 0.9
-                    ab = AnnotationBbox(probe_annotation,
-                                        (probe_line, y_annotate),
-                                        xycoords='data',
-                                        xybox=(0.5, 1.16 - 0.16 * int(num_traces == 1)),
-                                        boxcoords=("axes fraction", "axes fraction"),
-                                        box_alignment=(0., 0.5),
-                                        arrowprops=dict(arrowstyle="->")
-                                        )
-                    self.axes[0].add_artist(ab)
+        # Point line (probe type) -- one for the whole plot, now
+        if probe_line is not None:
+            self.ax.axvline(x=probe_line,
+                            ymin=-20,
+                            ymax=1 + 10,
+                            c="gray",
+                            linewidth=3,
+                            clip_on=False)
+            # Point line annotation
+            if num_traces > 0:
+                probe_annotation = TextArea(str(probe_line)[:5] + " ms")
+                y_annotate = self.ax.get_ylim()[1] * 0.9
+                ab = AnnotationBbox(probe_annotation,
+                                    (probe_line, y_annotate),
+                                    xycoords='data',
+                                    xybox=(0.5, 1.16 - 0.16 * int(num_traces == 1)),
+                                    boxcoords=("axes fraction", "axes fraction"),
+                                    box_alignment=(0., 0.5),
+                                    arrowprops=dict(arrowstyle="->")
+                                    )
+                self.ax.add_artist(ab)
         self.fig.canvas.draw_idle()
 
     def add_trace(self, pixel_index=None, color='b', fp_index=None):

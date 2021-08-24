@@ -756,6 +756,9 @@ class Data(File):
             if self.validate_filter_size(filter_type, sigma_t):
                 ret_trace.filter_temporal(filter_type, sigma_t)  # applies time cropping if needed
 
+        # normalize
+        ret_trace.normalize()
+
         return ret_trace
 
     # Return true if filter size is not too big
