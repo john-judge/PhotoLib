@@ -4,7 +4,7 @@ import time
 import string
 import PySimpleGUI as sg
 import matplotlib
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from webbrowser import open as open_browser
 
 from pyPhoto21.viewers.frame import FrameViewer
@@ -30,7 +30,7 @@ class GUI:
         self.data = data
         self.hardware = data.hardware
         self.production_mode = production_mode
-        self.tv = TraceViewer(self.data)
+        self.tv = TraceViewer(self)
         self.fv = FrameViewer(self.data, self.tv)
         self.dv = DAQViewer(self.data)
         self.roi = ROI(self.data)
@@ -135,42 +135,21 @@ class GUI:
 
     def plot_trace(self):
         fig = self.tv.get_fig()
-        self.draw_figure_w_toolbar(self.window['trace_canvas'].TKCanvas,
-                                   fig,
-                                   self.window['trace_canvas_controls'].TKCanvas)
+        figure_canvas_agg = self.draw_figure(self.window['trace_canvas'].TKCanvas, fig)
+        figure_canvas_agg.mpl_connect('scroll_event', self.tv.onscroll)
+        figure_canvas_agg.mpl_connect('button_press_event', self.tv.onpress)
 
     def plot_frame(self):
         fig = self.fv.get_fig()
 
         # canvas_toolbar = self.window['frame_canvas_controls'].TKCanvas
-        canvas = self.window['frame_canvas'].TKCanvas
-
-        figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
-
-        figure_canvas_agg.get_tk_widget().pack(fill="none", expand=True)
-        # figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll) # currently scroll not used.
+        figure_canvas_agg = self.draw_figure(self.window['frame_canvas'].TKCanvas, fig)
         figure_canvas_agg.mpl_connect('button_release_event', self.fv.onrelease)
         figure_canvas_agg.mpl_connect('button_press_event', self.fv.onpress)
         figure_canvas_agg.mpl_connect('motion_notify_event', self.fv.onmove)
-        figure_canvas_agg.draw_idle()
         s_max = self.fv.get_slider_max()
         if s_max is not None:
             s_max.on_changed(self.fv.change_frame)
-
-    # include a matplotlib figure in a Tkinter canvas
-    def draw_figure_w_toolbar(self, canvas, fig, canvas_toolbar):
-        if canvas.children:
-            for child in canvas.winfo_children():
-                child.destroy()
-        if canvas_toolbar.children:
-            for child in canvas_toolbar.winfo_children():
-                child.destroy()
-        figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
-        figure_canvas_agg.mpl_connect('button_press_event', self.tv.onpress)
-        figure_canvas_agg.draw_idle()
-        toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
-        toolbar.update()
-        figure_canvas_agg.get_tk_widget().pack(fill='none', expand=True)
 
     @staticmethod
     def draw_figure(canvas, fig):
@@ -180,6 +159,7 @@ class GUI:
         figure_canvas_agg = FigureCanvasTkAgg(fig, master=canvas)
         figure_canvas_agg.draw_idle()
         figure_canvas_agg.get_tk_widget().pack(fill='none', expand=True)
+        return figure_canvas_agg
 
     def freeze_hardware_settings(self, v=True, include_buttons=True, freeze_file_flip=True):
         if type(v) == bool:
@@ -1140,8 +1120,3 @@ class GUI:
         self.notify_window("Export successful",
                            "Exported to .png/.tsv files with prefix:\n"
                            + file_prefix + '_*')
-
-
-class Toolbar(NavigationToolbar2Tk):
-    def __init__(self, *args, **kwargs):
-        super(Toolbar, self).__init__(*args, **kwargs)

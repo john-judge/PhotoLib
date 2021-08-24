@@ -197,6 +197,11 @@ class FrameViewer:
                      linewidth=2)
         self.fig.canvas.draw_idle()
 
+    def delete_shape(self, ind):
+        if 0 <= ind < len(self.shapes):
+            self.shapes.pop()
+            self.update_new_image()
+
     def clear_shapes(self):
         self.shapes = []
         self.update_new_image()

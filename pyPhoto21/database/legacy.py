@@ -20,7 +20,8 @@ class LegacyData(File):
         db.meta = meta
         self.create_npy_file(db, raw_data, rli, fp_data)
 
-    def create_npy_file(self, db, raw_data, rli, fp_data):
+    @staticmethod
+    def create_npy_file(db, raw_data, rli, fp_data):
         db.clear_or_resize_mmap_file()  # loads correct dimensions since we already set meta
         arr = db.load_data_raw()
         arr[:, :, :, :] = raw_data[:, :, :, :]
@@ -41,7 +42,8 @@ class LegacyData(File):
         fp_memmap = db.load_fp_data()
         fp_memmap[:, :, :] = fp_data[:, :, :]
 
-    def populate_meta(self, meta_obj, metadata_dict):
+    @staticmethod
+    def populate_meta(meta_obj, metadata_dict):
         meta_obj.version = metadata_dict['version']
         meta_obj.num_fp = metadata_dict['num_fp']
 

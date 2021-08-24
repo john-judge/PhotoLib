@@ -46,12 +46,17 @@ class Trace:
             return
         self.points = 0 - self.points
 
-    def normalize(self):
+    def normalize(self, zoom_factor=1.0):
         # normalize amplitudes to [0, 1], clipping dependent
+        # The zoom factor is the max amplitude
         pts = self.get_data_clipped()
         amp_max = np.max(pts)
         amp_min = np.min(pts)
-        self.points = (self.points - amp_min) / (amp_max - amp_min)
+        self.points = (self.points - amp_min)
+        if amp_max > amp_min:
+            self.points /= (amp_max - amp_min)
+        if zoom_factor != 1:
+            self.points *= zoom_factor
         return self.points
 
     # apply crop window, w/o overriding existing window
@@ -157,8 +162,9 @@ class Trace:
 
 
 class TraceViewer:
-    def __init__(self, data):
-        self.data = data
+    def __init__(self, gui):
+        self.data = gui.data
+        self.gui = gui
         self.fig = figure.Figure()
         self.ax = None
         self.traces = []
@@ -166,6 +172,8 @@ class TraceViewer:
         self.trace_colors = []
         self.point_line_locations = None
         self.clear_point_line_locations()
+        self.zoom_factor = 1.0
+        self.zoom_bounds = [0.1, 20.0]
 
     def get_traces(self):
         return self.traces
@@ -183,6 +191,41 @@ class TraceViewer:
                 x = int(event.xdata)
                 self.set_probe_line_location(x)
                 self.update_new_traces()
+        elif event.button == 1:  # left mouse
+            print( event)
+        elif event.button == 3:  # right mouse
+            self.delete_trace(int(event.ydata))
+
+    def onscroll(self, event):
+        if event.button == 'up':
+            self.increase_zoom()
+        elif event.button == 'down':
+            self.decrease_zoom()
+
+    def decrease_zoom(self):
+        tmp = self.zoom_factor
+        zoom_int = int(self.zoom_factor) ** 2
+        self.zoom_factor = max(self.zoom_bounds[0], self.zoom_factor - zoom_int)
+        self.update_new_traces()
+        if tmp != self.zoom_factor:
+            self.update_new_traces()
+
+    def increase_zoom(self):
+        tmp = self.zoom_factor
+        zoom_int = int(self.zoom_factor) ** 2
+        self.zoom_factor = min(self.zoom_bounds[1], self.zoom_factor + zoom_int)
+        if tmp != self.zoom_factor:
+            self.update_new_traces()
+
+    def delete_trace(self, ind):
+        # y_plot is the y-location, rounded down to the nearest int.
+        # trace at index i is located between [i, i+1)
+        if 0 <= ind < len(self.traces):
+            self.traces.pop(ind)
+            self.pixel_indices.pop(ind)
+            self.trace_colors.pop(ind)
+            self.gui.fv.delete_shape(ind)
+            self.update_new_traces()
 
     def update_new_traces(self):
         self.clear_figure()
@@ -199,7 +242,8 @@ class TraceViewer:
             if len(tmp_color) < i + 1:
                 tmp_color.append('red')
             trace = self.data.get_display_trace(index=self.pixel_indices[i]['pixel_index'],
-                                                fp_index=self.pixel_indices[i]['fp_index'])
+                                                fp_index=self.pixel_indices[i]['fp_index'],
+                                                zoom_factor=self.zoom_factor)
             _, points = trace.get_data()
             if len(points.shape) == 1:
                 self.traces.append(trace)
@@ -309,7 +353,7 @@ class TraceViewer:
                 ab = AnnotationBbox(probe_annotation,
                                     (probe_line, y_annotate),
                                     xycoords='data',
-                                    xybox=(0.5, 1.16 - 0.16 * int(num_traces == 1)),
+                                    xybox=(0.5, 1.1),
                                     boxcoords=("axes fraction", "axes fraction"),
                                     box_alignment=(0., 0.5),
                                     arrowprops=dict(arrowstyle="->")

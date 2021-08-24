@@ -707,7 +707,7 @@ class Data(File):
         return mask
 
     # returns a Trace object representing trace
-    def get_display_trace(self, index=None, fp_index=None):
+    def get_display_trace(self, index=None, fp_index=None, zoom_factor=1.0):
         trial = self.get_current_trial_index()
         if fp_index is not None:
             return self.get_display_fp_trace(fp_index)
@@ -757,7 +757,7 @@ class Data(File):
                 ret_trace.filter_temporal(filter_type, sigma_t)  # applies time cropping if needed
 
         # normalize
-        ret_trace.normalize()
+        ret_trace.normalize(zoom_factor=zoom_factor)
 
         return ret_trace
 
