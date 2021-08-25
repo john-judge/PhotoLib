@@ -8,6 +8,7 @@
 **/*.npy
 **/*.png
 **/*.tsv
+**/*.json
 
 ## Pyinstaller build and dist
 build

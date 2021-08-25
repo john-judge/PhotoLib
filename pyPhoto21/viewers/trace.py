@@ -7,9 +7,10 @@ from scipy.ndimage import gaussian_filter
 
 
 class Trace:
-    def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False):
-        if end_frame == -1:
-            end_frame = len(points)
+    def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False,
+                 pixel_indices=None, fp_index=None, mask=None):
+        if end_frame < 0:
+            end_frame += len(points)
         if type(points) != np.ndarray:
             points = np.array(points)
         self.points = points
@@ -18,18 +19,32 @@ class Trace:
         self.int_pts = int_pts
         self.is_fp_trace = is_fp_trace
 
+        self.pixel_indices = pixel_indices
+        self.color = 'b'
+        self.mask = mask
+        self.fp_index = fp_index
+
+    def merge_trace(self, trace):
+        if trace.is_fp_trace or self.is_fp_trace:
+            return  # can't merge FP traces
+        self.mask = np.logical_or(self.mask, trace.mask)
+
     def get_data(self):
-        t = np.linspace(self.start_frame * self.int_pts,
-                        self.end_frame * self.int_pts,
-                        self.end_frame - self.start_frame)
-        points = self.points[self.start_frame:self.end_frame]
+        start = min(self.start_frame, self.end_frame)
+        end = max(self.start_frame, self.end_frame)
+        t = np.linspace(start * self.int_pts,
+                        end * self.int_pts,
+                        end - start)
+        points = self.points[start:end]
         return t, points
 
     def get_data_unclipped(self):
         return self.points
 
     def get_data_clipped(self):
-        return self.points[self.start_frame:self.end_frame]
+        start = min(self.start_frame, self.end_frame)
+        end = max(self.start_frame, self.end_frame)
+        return self.points[start:end]
 
     def get_start_point(self):
         return self.start_frame
@@ -42,12 +57,25 @@ class Trace:
             return
         self.points = 0 - self.points
 
+    def normalize(self, zoom_factor=1.0):
+        # normalize amplitudes to [0, 1], clipping dependent
+        # The zoom factor is the max amplitude
+        pts = self.get_data_clipped()
+        amp_max = np.max(pts)
+        amp_min = np.min(pts)
+        self.points = (self.points - amp_min)
+        if amp_max > amp_min:
+            self.points /= (amp_max - amp_min)
+        if zoom_factor != 1:
+            self.points *= zoom_factor
+        return self.points
+
     # apply crop window, w/o overriding existing window
     def clip_time_window(self, window):
         n = len(self.points)
         start, end = window
-        if end == -1:
-            end = n
+        if end < 0:
+            end += n
         self.start_frame = max(self.start_frame, start)
         self.end_frame = min(self.end_frame, end)
 
@@ -59,17 +87,23 @@ class Trace:
         """ subtract background drift off of single trace """
         if self.is_fp_trace:
             return
+
+        # The baseline should use clipped data (unlike t-filter)
         t, trace = self.get_data()
-        n = len(trace)
+        full_t = np.linspace(0, len(self.points) * self.int_pts, len(self.points))
+        full_trace = self.get_data_unclipped()
 
         # Skip points
         skip_start, skip_end = skip_window
-        skip_int = [i for i in range(skip_start, skip_end)]
+
+        # Translate skip window by clip window
+        skip_start = max(0, skip_start - self.start_frame)
+        skip_end = min(self.end_frame, skip_end - self.start_frame)
+
+        skip_int = [i for i in range(skip_start, skip_end) if i < trace.shape[0]]
         trace_skipped = trace
         t_skipped = t
-        if skip_end >= trace.shape[0]:
-            print("Invalid skip window!", skip_window)
-        else:
+        if len(skip_int) > 0:
             trace_skipped = np.delete(trace, skip_int)
             t_skipped = np.delete(t, skip_int)
 
@@ -79,7 +113,7 @@ class Trace:
             "Polynomial-8th": 8
         }
         if fit_type in ["Exponential", "Linear"]:
-            t = t.reshape(-1, 1)
+            full_t = full_t.reshape(-1, 1)
             t_skipped = t_skipped.reshape(-1, 1)
             min_val = None
             if fit_type == "Exponential":
@@ -88,7 +122,7 @@ class Trace:
                     trace_skipped += (-1 * min_val + 0.01)  # make all positive
                 trace_skipped = np.log(trace_skipped)
             trace_skipped = trace_skipped.reshape(-1, 1)
-            reg = LinearRegression().fit(t_skipped, trace_skipped).predict(t)
+            reg = LinearRegression().fit(t_skipped, trace_skipped).predict(full_t)
             if fit_type == "Exponential":
                 reg = np.exp(reg)
                 if min_val <= 0:
@@ -96,20 +130,19 @@ class Trace:
         elif fit_type in poly_powers:
             power = poly_powers[fit_type]
             coeffs, stats = polynomial.polyfit(t_skipped, trace_skipped, power, full=True)
-            reg = np.array(polynomial.polyval(t, coeffs))
+            reg = np.array(polynomial.polyval(full_t, coeffs))
         else:
-            self.points = trace
             return trace
 
-        trace = (trace.reshape(-1, 1) - reg.reshape(-1, 1)).reshape(-1)
-        self.points = trace
+        full_trace = (full_trace.reshape(-1, 1) - reg.reshape(-1, 1)).reshape(-1)
+        self.points[:] = full_trace[:]
         return trace
 
     def filter_temporal(self, filter_type, sigma_t):
         """ Temporal filtering: 1-d binomial 8 filter (approx. Gaussian) """
         if self.is_fp_trace:
             return
-        t, trace = self.get_data()
+        trace = self.get_data_unclipped()
         n = len(trace)
         m = None  # filter kernel length
 
@@ -135,21 +168,24 @@ class Trace:
         # the trace length itself is same, but now
         # apply cropping to valid filtering domain, respecting any existing filtering
         if m is not None:
-            self.start_frame += m
-            self.end_frame -= m
-        self.points = trace
+            self.clip_time_window([m, n - m])
+        self.points[:] = trace[:]
 
 
 class TraceViewer:
-    def __init__(self, data):
-        self.data = data
+    def __init__(self, gui):
+        self.data = gui.data
+        self.gui = gui
         self.fig = figure.Figure()
-        self.axes = []
+        self.ax = None
+
+        # Arrays whose indices align (better to refactor to a list of TracePlot images)
         self.traces = []
-        self.pixel_indices = []
-        self.trace_colors = []
+
         self.point_line_locations = None
         self.clear_point_line_locations()
+        self.zoom_factor = 1.0
+        self.zoom_bounds = [0.1, 20.0]
 
     def get_traces(self):
         return self.traces
@@ -163,10 +199,46 @@ class TraceViewer:
 
     def onpress(self, event):
         if event.button == 2:
-            if event.xdata is not None and len(self.axes) > 0:
+            if event.xdata is not None and self.ax is not None:
                 x = int(event.xdata)
                 self.set_probe_line_location(x)
                 self.update_new_traces()
+        elif event.button == 1:  # left mouse
+            print(event)
+        elif event.button == 3:  # right mouse
+            self.delete_trace(int(event.ydata))
+            self.gui.fv.update_new_image()
+        else:
+            print("button:", event.button)
+
+    def onscroll(self, event):
+        print(event)
+        if event.button == 'up':
+            self.increase_zoom()
+        elif event.button == 'down':
+            self.decrease_zoom()
+
+    def decrease_zoom(self):
+        tmp = self.zoom_factor
+        zoom_int = int(self.zoom_factor) ** 2
+        self.zoom_factor = max(self.zoom_bounds[0], self.zoom_factor - zoom_int)
+        self.update_new_traces()
+        if tmp != self.zoom_factor:
+            self.update_new_traces()
+
+    def increase_zoom(self):
+        tmp = self.zoom_factor
+        zoom_int = int(self.zoom_factor) ** 2
+        self.zoom_factor = min(self.zoom_bounds[1], self.zoom_factor + zoom_int)
+        if tmp != self.zoom_factor:
+            self.update_new_traces()
+
+    def delete_trace(self, ind):
+        # y_plot is the y-location, rounded down to the nearest int.
+        # trace at index i is located between [i, i+1)
+        if 0 <= ind < len(self.traces):
+            self.traces.pop(ind)
+            self.update_new_traces()
 
     def update_new_traces(self):
         self.clear_figure()
@@ -176,24 +248,21 @@ class TraceViewer:
     # Recompute all traces from saved pixel indices.
     # Useful when processing settings have changed
     def regenerate_traces(self):
-        self.traces = []
-        tmp_color = self.trace_colors
-        self.trace_colors = []
-        for i in range(len(self.pixel_indices)):
-            if len(tmp_color) < i + 1:
-                tmp_color.append('red')
-            trace = self.data.get_display_trace(index=self.pixel_indices[i]['pixel_index'],
-                                                fp_index=self.pixel_indices[i]['fp_index'])
+        for i in range(len(self.traces)):
+            col = self.traces[i].color
+            trace = self.data.get_display_trace(index=self.traces[i].pixel_indices,
+                                                fp_index=self.traces[i].fp_index,
+                                                zoom_factor=self.zoom_factor)
             _, points = trace.get_data()
             if len(points.shape) == 1:
-                self.traces.append(trace)
-                self.trace_colors.append(tmp_color[i])
+                trace.color = col
+                self.traces[i] = trace
             else:
-                print("Invalid trace generated from pix index:", self.pixel_indices[i]['pixel_index'])
+                print("Invalid trace generated from pix index:", self.traces[i].pixel_indices)
 
     def create_annotation_text(self, region_count, i):
-        px_ind = self.pixel_indices[i]['pixel_index']
-        fp_ind = self.pixel_indices[i]['fp_index']
+        px_ind = self.traces[i].pixel_indices
+        fp_ind = self.traces[i].fp_index
         trace_annotation_text = None
         if px_ind is None and type(fp_ind) == int:  # FP trace
             trace_annotation_text = "FP " + str(fp_ind)
@@ -207,7 +276,7 @@ class TraceViewer:
 
     def create_display_value(self, display_type, i, trace):
         value_to_display = None
-        pixel_index = self.pixel_indices[i]['pixel_index']
+        pixel_index = self.traces[i].pixel_indices
         if display_type == 'RLI':
             if pixel_index is not None and type(pixel_index) != int:
                 rli_frame = self.data.calculate_rli()
@@ -237,32 +306,33 @@ class TraceViewer:
         value_to_display = str(value_to_display)
         if len(value_to_display) > 6:
             value_to_display = value_to_display[:6]
-        return ", " + display_type + " " + value_to_display
+        return "\n" + display_type + " " + value_to_display
 
     def populate_figure(self):
         num_traces = len(self.traces)
-        int_pts = self.data.get_int_pts()
-        gs = self.fig.add_gridspec(max(1, num_traces), 1)
-        self.axes = []
-        n = self.data.get_num_pts()
-        t = np.linspace(0, n * int_pts, num=n)
+        gs = self.fig.add_gridspec(1, 1)  # previously had max(1, num_traces) rows, each trace in own subplot
+        self.ax = self.fig.add_subplot(gs[0, 0])
+        self.ax.get_yaxis().set_visible(False)  # intensity units are arbitrary
+        times = None
         probe_line = self.get_point_line_locations(key='probe')
         region_count = 1
         value_type_to_display = self.get_display_value_options()[self.data.get_display_value_option_index()]
 
+        # For our plot, we assume all traces are normalized to [0,1] (see get_display_trace in data.py)
         for i in range(num_traces):
             trace = self.traces[i]
+            points = np.array([])
             if isinstance(trace, Trace):
-                t, trace = trace.get_data()
-            # Sometimes FP trace length doesn't match image trace length
-            elif n != trace.shape[0]:
-                n = trace.shape[0]
-                t = np.linspace(0, n * int_pts, num=n)
+                trace.clip_time_window(self.data.get_crop_window())
+                times, points = trace.get_data()
+            else:
+                print("Not a Trace object:", type(trace))
 
-            self.axes.append(self.fig.add_subplot(gs[i, 0]))
-            self.axes[-1].plot(t, trace, color=self.trace_colors[i])
-            if num_traces > 4 and i != num_traces - 1:
-                self.axes[-1].get_xaxis().set_visible(False)
+            if times.shape[0] != points.shape[0]:
+                print("time and trace shape mismatch:", times.shape, points.shape)
+            else:
+                points += i  # add constant to plot trace in its own space.
+                self.ax.plot(times, points, color=trace.color)
 
             # Annotation trace
             trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
@@ -271,57 +341,75 @@ class TraceViewer:
                 trace_annotation_text += self.create_display_value(value_type_to_display, i, trace)
                 trace_annotation_text = TextArea(trace_annotation_text)
                 ab = AnnotationBbox(trace_annotation_text,
-                                    (0.02, 0.95),
+                                    (-0.14, (i + 0.5) / num_traces),
                                     xycoords='axes fraction',
-                                    xybox=(0.02, 0.95),
+                                    xybox=(-0.14, (i + 0.5) / num_traces),
                                     boxcoords=("axes fraction", "axes fraction"),
                                     box_alignment=(0., 1.0))
-                self.axes[i].add_artist(ab)
+                self.ax.add_artist(ab)
 
-            # Point line (probe type)
-            if probe_line is not None:
-                self.axes[i].axvline(x=probe_line,
-                                     ymin=-20 * int(i == 0),  # only the first trace's line extends
-                                     ymax=1 + 10 * int(i == 0),
-                                     c="gray",
-                                     linewidth=3,
-                                     clip_on=False)
-                # Point line annotation
-                if num_traces > 0:
-                    probe_annotation = TextArea(str(probe_line)[:5] + " ms")
-                    y_annotate = self.axes[0].get_ylim()[1] * 0.9
-                    ab = AnnotationBbox(probe_annotation,
-                                        (probe_line, y_annotate),
-                                        xycoords='data',
-                                        xybox=(0.5, 1.16 - 0.16 * int(num_traces == 1)),
-                                        boxcoords=("axes fraction", "axes fraction"),
-                                        box_alignment=(0., 0.5),
-                                        arrowprops=dict(arrowstyle="->")
-                                        )
-                    self.axes[0].add_artist(ab)
+        # Point line (probe type) -- one for the whole plot, now
+        if probe_line is not None:
+            self.ax.axvline(x=probe_line,
+                            ymin=-20,
+                            ymax=1 + 10,
+                            c="gray",
+                            linewidth=3,
+                            clip_on=False)
+            # Point line annotation
+            if num_traces > 0:
+                probe_annotation = TextArea(str(probe_line)[:5] + " ms")
+                y_annotate = self.ax.get_ylim()[1] * 0.9
+                ab = AnnotationBbox(probe_annotation,
+                                    (probe_line, y_annotate),
+                                    xycoords='data',
+                                    xybox=(0.5, 1.1),
+                                    boxcoords=("axes fraction", "axes fraction"),
+                                    box_alignment=(0., 0.5),
+                                    arrowprops=dict(arrowstyle="->")
+                                    )
+                self.ax.add_artist(ab)
         self.fig.canvas.draw_idle()
 
     def add_trace(self, pixel_index=None, color='b', fp_index=None):
         trace = self.data.get_display_trace(index=pixel_index,
                                             fp_index=fp_index)
         if trace is not None:
-            self.pixel_indices.append({'pixel_index': pixel_index,
-                                       'fp_index': fp_index})
             self.traces.append(trace)
-            self.trace_colors.append(color)
+            trace.color = color
             self.update_new_traces()
             return True
         return False
+
+    def append_to_last_trace(self, pixel_index=None, trace_index=None):
+        if trace_index is None:
+            return False
+        trace = self.data.get_display_trace(index=pixel_index, zoom_factor=self.zoom_factor)
+
+        if trace is not None:
+            self.traces[trace_index].merge_trace(trace)  # need to merge traces.
+            self.update_new_traces()
+            return True
+        return trace is not None
 
     def clear_figure(self):
         self.fig.clf()
 
     def clear_traces(self):
-        self.pixel_indices = []
         self.traces = []
-        self.trace_colors = []
         self.clear_point_line_locations()
         self.update_new_traces()
+
+    # Ignoring FP traces
+    def get_last_pixel_trace_index(self):
+        ind = len(self.traces) - 1
+        if ind < 0:
+            return None
+        while ind >= 0 and self.traces[ind].is_fp_trace:
+            ind -= 1
+        if self.traces[ind] is None:
+            return None
+        return ind
 
     def get_point_line_locations(self, key=None):
         if key is None or key not in self.point_line_locations:

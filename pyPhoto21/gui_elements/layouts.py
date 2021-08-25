@@ -88,36 +88,26 @@ class Layouts:
     def create_acquisition_tab(self, gui):
         button_size = (10, 1)
         field_size = (6, 1)
-        small_button_size = (3, 1)
         long_button_size = (15, 1)
-        checkbox_size = (6, 1)
+        checkbox_size = (8, 1)
         return [
-            [sg.Text("Auto:", size=(8, 1)),
-             sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size, tooltip="Stop Acquisition Task"),
+            [sg.Button("STOP!", button_color=('black', 'yellow'), size=button_size, tooltip="Stop Acquisition Task"),
              sg.Button("Take RLI", button_color=('blue', 'white'), size=button_size,
                        tooltip="Record and Compute Resting Light Intensity (RLI) Frame"),
              sg.Button("Reset Cam", button_color=('brown', 'gray'), size=button_size,
                        tooltip="Click this if camera is misbehaving.")],
-            [sg.Checkbox('RLI', default=self.data.get_is_schedule_rli_enabled(), enable_events=True, key="Auto RLI",
-                         size=checkbox_size, tooltip='Automatically take RLI at the beginning of recording.'),
-             sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size,
+            [sg.Button("Live Feed", button_color=('black', 'gray'), size=button_size,
                        tooltip='View real-time camera output.'),
              sg.Button("Record", button_color=('black', 'red'), size=button_size,
-                       tooltip='Record images while electrically stimulating')
-             ],
-            [sg.Checkbox('Save', default=self.data.get_is_auto_save_enabled(), enable_events=True, key="Auto Save",
-                         size=checkbox_size, tooltip='Automatically save .npy/.pbz2 between records (sets of trials)'),
-             sg.Button("Save Analysis", button_color=('white', 'green'), size=button_size,
-                       tooltip='Export all analyzed data to Origin/Excel/R-'
-                               'interoperable formats (tab-separated values)'),
-             sg.Button("Unload File", button_color=('white', 'brown'), size=button_size,
-                       tooltip='Return to acquisition mode.'),
-             sg.Button("Save", button_color=('white', 'green'), size=button_size,
-                       tooltip='Save images as .npy file and metadata/preferences as .pbz2 file')],
+                       tooltip='Record images while electrically stimulating'),
+             sg.Checkbox('Auto RLI', default=self.data.get_is_schedule_rli_enabled(),
+                         enable_events=True, key="Auto RLI",
+                         size=checkbox_size, tooltip='Automatically take RLI at the beginning of recording.')],
             [sg.HorizontalSeparator()],
             [sg.Text("File Name:", size=(8, 1)),
              sg.InputText(key="File Name",
-                          default_text=str(gui.data.db.get_current_filename(no_path=True)),
+                          default_text=str(gui.data.db.get_current_filename(no_path=True,
+                                                                            extension=self.data.db.extension)),
                           enable_events=False,
                           disabled=True,
                           size=long_button_size,
@@ -176,6 +166,14 @@ class Layouts:
             t_stim[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
         return [
+            [sg.Checkbox('Analysis Mode', default=self.data.get_is_analysis_only_mode_enabled(), enable_events=True,
+                         key="Analysis Mode",
+                         size=(12, 1), tooltip='Automatically save .npy/.pbz2 between records (sets of trials)'),
+             sg.Button("Save Analysis", button_color=('white', 'green'), size=long_button_size,
+                       tooltip='Export all analyzed data to Origin/Excel/R-'
+                               'interoperable formats (tab-separated values)'),
+             sg.Button("Save", button_color=('white', 'green'), size=long_button_size,
+                       tooltip='Save images as .npy file and metadata/preferences as .pbz2 file')],
             [sg.Button("Pre-Stim Window",
                        button_color=('black', 'orange'),
                        size=long_button_size,
@@ -252,32 +250,30 @@ class Layouts:
                          size=long_button_size)],
         ]
 
-    @staticmethod
-    def create_array_tab(gui):
-        button_size = (10, 1)
+    def create_array_tab(self, gui):
+        checkbox_size = (10, 1)
         background_options = gui.data.get_background_options()
+        colormap_options = gui.fv.get_color_map_options()
         return [
-            [sg.Combo(background_options,
+            [sg.Text("Pixel Value:", size=checkbox_size),
+             sg.Combo(background_options,
                       enable_events=True,
                       default_value=background_options[gui.data.get_background_option_index()],
                       key="Select Background",
+                      disabled=gui.fv.get_show_rli_flag(),
                       tooltip="The data to compute, export, or display in the Frame Viewer.")],
-            [sg.Button("Load Image", button_color=('gray', 'black')),
-             sg.Checkbox('Show RLI',
+            [sg.Text("Colormap:", size=checkbox_size),
+             sg.Combo(colormap_options,
+                      enable_events=True,
+                      default_value=gui.fv.get_color_map_option_name(),
+                      key="Select Colormap",
+                      tooltip="Colormap scheme for intensity images shown in the Frame Viewer.")],
+            [sg.Checkbox('Show RLI',
                          default=gui.fv.get_show_rli_flag(),
                          enable_events=True,
                          key="Show RLI",
-                         size=button_size,
+                         size=checkbox_size,
                          tooltip="When selected, RLI frame is shown in the Frame Viewer.")],
-            [sg.Text("Digital Binning:"), sg.InputText(default_text=gui.data.meta.binning,
-                                                       key="Digital Binning",
-                                                       size=(5, 1),
-                                                       enable_events=True)]
-        ]
-
-    def create_dsp_tab(self):
-        checkbox_size = (10, 1)
-        return [
             [sg.Checkbox('RLI Division',
                          default=self.data.get_is_rli_division_enabled(),
                          enable_events=True,
@@ -287,23 +283,44 @@ class Layouts:
                          default=self.data.get_is_data_inverse_enabled(),
                          enable_events=True,
                          key='Data Inverse',
-                         size=checkbox_size)]
+                         size=checkbox_size)],
+            [sg.Text("Digital Binning:"), sg.InputText(default_text=gui.data.meta.binning,
+                                                       key="Digital Binning",
+                                                       size=(5, 1),
+                                                       enable_events=True)],
+            [sg.Button("Load Image", button_color=('gray', 'black'))],
         ]
 
-    def create_baseline_tab(self):
+    def create_dsp_tab(self, gui):
+        checkbox_size = (10, 1)
+        button_size = (6, 1)
+        long_button_size = (17, 1)
+        t_window = gui.data.get_crop_window()
+        if t_window[1] == -1:
+            t_window[1] = self.data.get_num_pts()
+        int_pts = self.data.get_int_pts()
+        return [
+
+        ]
+
+    def create_baseline_tab(self, gui):
         button_size = (8, 1)
         double_button_size = (20, 1)
         field_text_size = (12, 1)
         baseline_correction_options = self.data.core.get_baseline_correction_options()
         baseline_skip_default = self.data.core.get_baseline_skip_window()
+        button_size = (6, 1)
+        long_button_size = (17, 1)
+        t_window = gui.data.get_crop_window()
+        if t_window[1] == -1:
+            t_window[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
         return [
-            [sg.Text('Baseline Correction:', size=double_button_size),
+            [sg.Text('Baseline Correction:', size=(16, 1)),
              sg.Combo(baseline_correction_options,
                       enable_events=True,
                       default_value=baseline_correction_options[self.data.core.get_baseline_correction_type_index()],
                       key="Select Baseline Correction")],
-            [sg.Text('')],
             [sg.Button("Baseline Skip Window",
                        button_color=('black', 'orange'),
                        size=double_button_size)],
@@ -327,6 +344,34 @@ class Layouts:
                           enable_events=True,
                           size=button_size),
              sg.Text(" ms")],
+            [sg.Button("Measure Window",
+                       button_color=('black', 'orange'),
+                       size=long_button_size,
+                       tooltip="A time window to which to restrict processing and analysis.")],
+            [sg.InputText(key="Measure Window Start frames",
+                          default_text=str(t_window[0])[:6],
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="A time window to which to restrict processing and analysis."),
+             sg.Text(" to "),
+             sg.InputText(key="Measure Window End frames",
+                          default_text=str(t_window[1])[:6],
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="A time window to which to restrict processing and analysis."),
+             sg.Text(" frames")],
+            [sg.InputText(key="Measure Window Start (ms)",
+                          default_text=str(t_window[0] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="A time window to which to restrict processing and analysis."),
+             sg.Text(" to "),
+             sg.InputText(key="Measure Window End (ms)",
+                          default_text=str(t_window[1] * int_pts)[:6],
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="A time window to which to restrict processing and analysis."),
+             sg.Text(" ms")]
         ]
 
     def create_filter_tab(self):
@@ -371,9 +416,8 @@ class Layouts:
         acquisition_tab_layout = self.create_acquisition_tab(gui)
         analysis_tab_layout = self.create_analysis_tab(gui)
         array_tab_layout = self.create_array_tab(gui)
-        dsp_tab_layout = self.create_dsp_tab()
         filter_tab_layout = self.create_filter_tab()
-        baseline_tab_layout = self.create_baseline_tab()
+        baseline_tab_layout = self.create_baseline_tab(gui)
 
         tab_group_basic = [sg.TabGroup([[
             sg.Tab('Acquisition', acquisition_tab_layout),
@@ -382,7 +426,6 @@ class Layouts:
 
         tab_group_advanced = [sg.TabGroup([[
             sg.Tab('Array', array_tab_layout),
-            sg.Tab('DSP', dsp_tab_layout),
             sg.Tab("Baseline", baseline_tab_layout),
             sg.Tab("Filter", filter_tab_layout),
         ]])]
@@ -595,15 +638,19 @@ class Layouts:
             ]]
         return trace_viewer_canvas + trace_viewer_tab_group
 
-    def create_right_column(self, gui):
-        trace_viewer_layout = self.create_trace_viewer_tab(gui)
+    def create_notepad_tag(self):
+        return [[sg.Multiline(key="Notepad",
+                              default_text=self.data.meta.notepad_text,
+                              enable_events=True,
+                              size=(50, 600),
+                              tooltip="Notes for this recording, to be saved to metadata file.")]]
 
-        # plotting a small timeline of record/stim events
-        daq_layout = self.create_daq_config_tab()
+    def create_right_column(self, gui):
 
         tab_group_right = [sg.TabGroup([[
-            sg.Tab('Trace Viewer', trace_viewer_layout),
-            sg.Tab('DAQ Config', daq_layout)
+            sg.Tab('Trace Viewer', self.create_trace_viewer_tab(gui)),
+            sg.Tab('DAQ Config', self.create_daq_config_tab()),  # plotting a small timeline of record/stim events
+            sg.Tab('Notepad', self.create_notepad_tag(), key='Notes')
         ]])]
         return [tab_group_right]
 
@@ -628,7 +675,7 @@ class Layouts:
                 "num_trials",
                 "int_trials",
                 "Auto RLI",
-                "Auto Save"
+                "Analysis Mode"
                 ]
 
     @staticmethod

@@ -14,12 +14,12 @@ class AnalysisCore:
 
         # Filtering settings
         self.temporal_filter_options = [
-            'None',
-            'Gaussian',
-            'Low Pass',
-            'Binomial-8',
-            'Binomial-6',
-            'Binomial-4',
+            'None',         # 0
+            'Gaussian',     # 1
+            'Low Pass',     # 2
+            'Binomial-8',   # 3
+            'Binomial-6',   # 4
+            'Binomial-4',   # 5
         ]
 
         # Baseline Correction settings

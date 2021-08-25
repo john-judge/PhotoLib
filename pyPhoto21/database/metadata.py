@@ -1,6 +1,4 @@
-import os
-import struct
-import numpy as np
+import json
 
 
 class Metadata:
@@ -31,44 +29,39 @@ class Metadata:
         self.stim_duration = [1, 1]
         self.version = 6  # Little Dave version
 
-        # Larger data
-        # There's only 1 RLI recording per set of trials
-        self.rli_low = None
-        self.rli_high = None
-        self.rli_max = None
-        self.fp_data = None
         self.num_fp = 4
 
         self.num_pts = 600
-        self.int_pts = 0.5
+        self.int_pts = 1000 / 7500
 
         # Management and Automation / Workflow Settings
-        self.schedule_rli_flag = False
+        self.schedule_rli_flag = True
         self.display_value_option_index = 0
-        self.auto_save_enabled = True
-        self.schedule_rli_enabled = False
-        self.is_rli_division_enabled = False
+        self.is_analysis_only_mode_enabled = True
+        self.is_schedule_rli_enabled = False
+        self.is_rli_division_enabled = True
         self.is_data_inverse_enabled = True
         self.is_trial_averaging_enabled = False
+        self.notepad_text = 'Notes for this recording...'
 
         # TraceViewer settings
-        self.crop_window = [0, -1]  # Time Window cropping applied to the temporal axis.
+        self.crop_window = [30, self.num_pts-10]  # Time Window cropping applied to the temporal axis.
+        # Default is to crop out frames for artifact exclusion
 
         # FrameViewer settings
         self.show_rli = True
+        self.color_map_option = 0  # default jet
         self.binning = 1
 
         # Analysis Settings
         self.baseline_correction_type_index = 0
         self.baseline_skip_window = [94, 134]
-        self.is_temporal_filer_enabled = False
+        self.is_temporal_filer_enabled = True
         self.temporal_filter_radius = 25.0
-        self.temporal_filter_type_index = 0
-        self.is_spatial_filer_enabled = False
+        self.temporal_filter_type_index = 3
+        self.is_spatial_filer_enabled = True
         self.spatial_filter_sigma = 1.0
         self.background_option_index = 0
 
         # ROI Identification
         self.is_roi_enabled = False
-
-

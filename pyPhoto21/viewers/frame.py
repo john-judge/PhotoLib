@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.figure as figure
 from matplotlib.widgets import Slider
-from matplotlib.animation import FuncAnimation
-import matplotlib.pyplot as plt
+from cv2 import findContours
+
 
 from collections import defaultdict
 
@@ -24,8 +24,11 @@ class FrameViewer:
         self.draw_path = []
         self.path_x_index = defaultdict(list)
         self.colors = ['red', 'green', 'cyan', 'magenta', 'yellow', 'black', 'blue']
-        self.shapes = []
 
+        # Key event state
+        self.control_key_down = False
+
+        self.slider_enabled = self.should_use_frame_selector()
         self.smax = None
 
         self.fig = figure.Figure(constrained_layout=True)
@@ -40,8 +43,33 @@ class FrameViewer:
 
         self.update()
 
+    def should_use_frame_selector(self):
+        bg_name = self.data.get_background_options()[self.data.get_background_option_index()]
+        return (not self.data.db.meta.show_rli) and self.data.bg_uses_frame_selector(bg_name)
+
     def get_current_frame(self):
         return self.current_frame
+
+    @staticmethod
+    def get_color_map_options():
+        return ['jet', 'gray', 'viridis', 'hot', 'Spectral', 'turbo', 'rainbow']
+
+    def get_color_map_option_index(self):
+        return self.data.meta.color_map_option
+
+    def get_color_map_option_name(self):
+        return self.get_color_map_options()[self.get_color_map_option_index()]
+
+    def set_color_map_option_name(self, **kwargs):
+        v = kwargs['values']
+        opt_ind = self.get_color_map_options().index(v)
+        self.set_color_map_option_index(opt_ind)
+
+    def set_color_map_option_index(self, v):
+        tmp = self.data.meta.color_map_option
+        self.data.meta.color_map_option = v
+        if tmp != v:
+            self.update_new_image()
 
     def populate_figure(self):
         # top row of Field Potential traces
@@ -62,27 +90,35 @@ class FrameViewer:
 
         # Rest of the plot is the image
         self.ax = self.fig.add_subplot(gs[1:-1, :])  # leaves last row blank -- for Slider
-        axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
-        self.smax = Slider(axmax,
-                           'Frame Selector',
-                           0,
-                           self.num_frames,
-                           valinit=self.ind)
+        if self.slider_enabled:
+            axmax = self.fig.add_axes([0.25, 0.01, 0.65, 0.03])
+
+            self.smax = Slider(axmax,
+                               'Frame Selector',
+                               0,
+                               self.num_frames,
+                               valinit=self.ind)
 
         self.refresh_current_frame()
         if self.current_frame is not None:
             self.im = self.ax.imshow(self.current_frame,
                                      aspect='auto',
-                                     cmap='jet')
+                                     cmap=self.get_color_map_option_name())
+
+    def enable_disable_slider(self):
+        self.slider_enabled = self.should_use_frame_selector()
+        self.update_new_image()
 
     def get_slider_max(self):
-        return self.smax
+        if self.slider_enabled:
+            return self.smax
+        return None
 
     def get_fig(self):
         return self.fig
 
     def change_frame(self, event):
-        if not self.get_show_rli_flag():
+        if not self.get_show_rli_flag() and self.slider_enabled:
             new_ind = int(self.smax.val) % self.num_frames
             if new_ind != self.ind:
                 self.ind = new_ind
@@ -109,10 +145,21 @@ class FrameViewer:
             self.add_waypoint(event)
             self.moving = True
 
+    def onkeypress(self, event):
+        if event.key == 'control':
+            self.control_key_down = True
+
+    def onkeyrelease(self, event):
+        if event.key == 'control':
+            self.control_key_down = False
+
+    def is_control_key_held(self):
+        return self.control_key_down
+
     def onclick(self, event):
         if event.button == 3:  # right click
             self.tv.clear_traces()
-            self.clear_shapes()
+            self.update_new_image()
         elif event.button == 1:  # left click
             if event.inaxes == self.ax:
                 # clicked frame
@@ -124,17 +171,23 @@ class FrameViewer:
                         self.tv.add_trace(fp_index=i)
 
     def get_next_color(self):
-        return self.colors[(len(self.shapes) - 1) % len(self.colors)]
+        return self.colors[(len(self.tv.traces) - 1) % len(self.colors)]
 
     # Identified drag has completed
     def ondrag(self, event):
+        ctrl = self.is_control_key_held()
         color = self.get_next_color()
         draw = np.array(self.draw_path)
-        success = self.tv.add_trace(pixel_index=draw,
-                                    color=color)
-        if success:
-            self.add_shape(draw, color)
+        success = False
+        i = self.tv.get_last_pixel_trace_index()
+        if ctrl and i is not None:
+            success = self.tv.append_to_last_trace(pixel_index=draw, trace_index=i)
         else:
+            success = self.tv.add_trace(pixel_index=draw, color=color)
+
+        self.update_new_image()  # pulls the new mask from TraceViewer
+
+        if not success:
             print('No trace created for this ROI selection.')
         self.draw_path = []
         # Seal and determine selected ROI
@@ -151,29 +204,34 @@ class FrameViewer:
                 self.draw_path.append([x, y])
                 self.path_x_index[x].append(y)
 
-    # The points are a Nx2 numpy array of x,y coordinates representing a polygon path
-    def add_shape(self, points, color):
-        self.shapes.append(points)
-        self.ax.fill(points[:, 0],
-                     points[:, 1],
-                     color,
-                     alpha=0.5,
-                     edgecolor=color)
-        self.fig.canvas.draw_idle()
+    # convert mask to a list of x-y points, array of shape (k, 2)
+    @staticmethod
+    def convert_mask_to_polygon(mask):
 
-    def clear_shapes(self):
-        self.shapes = []
-        self.update_new_image()
+        def is_border_point(x_, y_):
+            return not (np.all(mask[y_, x_-1:x_+2])
+                        or np.all(mask[y_-1:y_+2, x_]))
+
+        points = []
+        for y in range(1, mask.shape[0] - 1):
+            for x in range(1, mask.shape[1] - 1):
+                if mask[y, x] and is_border_point(x, y):
+                    points.append([x, y])
+        points = np.array(points)
+        print(points.shape)
+        return points
 
     def plot_all_shapes(self):
-        for i in range(len(self.shapes)):
-            points = self.shapes[i]
-            col = self.tv.trace_colors[i]
-            self.ax.fill(points[:, 0],
-                         points[:, 1],
-                         col,
-                         alpha=0.5,
-                         edgecolor=col)
+        for tr in self.tv.traces:
+            if not tr.is_fp_trace:
+                polygon_pts = self.convert_mask_to_polygon(tr.mask)
+                self.ax.fill(polygon_pts[:, 0],
+                             polygon_pts[:, 1],
+                             tr.color,
+                             alpha=0.5,
+                             edgecolor='white',
+                             linestyle="-",
+                             linewidth=2)
 
     def clear_waypoints(self):
         self.draw_path = []
@@ -202,7 +260,7 @@ class FrameViewer:
         self.livefeed_im = self.ax.imshow(self.current_frame.astype(np.uint16),
                                           interpolation='nearest',
                                           aspect='auto',
-                                          cmap='jet')
+                                          cmap=self.get_color_map_option_name())
         self.fig.canvas.draw_idle()
 
     def end_livefeed_animation(self):
@@ -223,14 +281,16 @@ class FrameViewer:
 
         # self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw_idle()
-        if self.hyperslicer is not None and update_hyperslicer:
-            self.hyperslicer.update_data(show_rli=self.get_show_rli_flag())
+        if self.hyperslicer is not None and update_hyperslicer and not self.get_show_rli_flag():
+            self.hyperslicer.update_data()
 
     def get_show_rli_flag(self):
         return self.data.db.meta.show_rli
 
     def redraw_slider(self):
         # Adjust the slider values to match the data dimensions
+        if not self.slider_enabled:
+            return
         self.update_num_frames()
         if self.smax is not None:
             self.smax.valmax = self.num_frames

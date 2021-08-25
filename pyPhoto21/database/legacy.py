@@ -9,24 +9,41 @@ from pyPhoto21.database.metadata import Metadata
 # Support for legacy data file (ZDA)
 class LegacyData(File):
 
-    def __init__(self):
+    def __init__(self, save_dir):
         super().__init__(None)
+        self.save_dir = save_dir
 
     def load_zda(self, filename, db, meta):
 
         raw_data, metadata_dict, rli, fp_data = self.read_zda_to_variables(filename)
         self.populate_meta(meta, metadata_dict)
-        self.populate_meta_rli(meta, rli)
-        self.populate_meta_fp(meta, fp_data)
         db.meta = meta
-        self.create_npy_file(db, raw_data)
+        self.create_npy_file(db, raw_data, rli, fp_data)
 
-    def create_npy_file(self, db, raw_data):
+    @staticmethod
+    def create_npy_file(db, raw_data, rli, fp_data):
         db.clear_or_resize_mmap_file()  # loads correct dimensions since we already set meta
         arr = db.load_data_raw()
         arr[:, :, :, :] = raw_data[:, :, :, :]
+        rli_low = db.get_rli_low()
+        rli_low[:, :] = rli['rli_low'][:, :]
 
-    def populate_meta(self, meta_obj, metadata_dict):
+        rli_high = db.get_rli_high()
+        rli_high[:, :] = rli['rli_high'][:, :]
+
+        rli_max = db.get_rli_max()
+        rli_max[:, :] = rli['rli_max'][:, :]
+
+        sh = fp_data.shape
+        if len(sh) < 3:
+            t, n = sh
+            fp_data = fp_data.reshape(1, t, n)
+
+        fp_memmap = db.load_fp_data()
+        fp_memmap[:, :, :] = fp_data[:, :, :]
+
+    @staticmethod
+    def populate_meta(meta_obj, metadata_dict):
         meta_obj.version = metadata_dict['version']
         meta_obj.num_fp = metadata_dict['num_fp']
 
@@ -46,18 +63,6 @@ class LegacyData(File):
         meta_obj.num_pts = metadata_dict['points_per_trace']
         meta_obj.int_pts = metadata_dict['interval_between_samples']
 
-    def populate_meta_fp(self, meta_obj, fp_data):
-        sh = fp_data.shape
-        if len(sh) < 3:
-            t, n = sh
-            fp_data = fp_data.reshape(1, t, n)
-        meta_obj.fp_data = fp_data
-
-    def populate_meta_rli(self, meta_obj, rli):
-        meta_obj.rli_low = rli['rli_low']
-        meta_obj.rli_high = rli['rli_high']
-        meta_obj.rli_max = rli['rli_max']
-
     def read_zda_to_variables(self, zda_file):
         """ Reads ZDA file to dataframe, and returns
         metadata as a dict.
@@ -66,7 +71,7 @@ class LegacyData(File):
         print("Reading legacy ZDA file. This can take several seconds." +
               "\n\t Important Note: Legacy ZDA file format (2006) will be"
               "\n\t automatically converted to the new .npy and metadata" +
-              "\n\t formats (compressed pickle .pbz2).")
+              "\n\t formats (JSON (.json)).")
         file = open(zda_file, 'rb')
         # data type sizes in bytes
         ch_size = 1

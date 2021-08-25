@@ -45,7 +45,7 @@ Controller::Controller()
 	taskHandle_out = NULL;
 
 	// Acquisition
-	acquiOnset = float(50);
+	acquiOnset = 0;
 
 	// Number of points per trace
 	program = 7;
@@ -263,7 +263,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 		DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
 		DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
 		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync (cam clock) to trigger input
-			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size() - getAcquiOnset()));
+			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size() - (float64)getAcquiOnset()));
 		//DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_in, "/Dev1/PFI2", DAQmx_Val_Rising));
 		DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
 	}
@@ -762,13 +762,13 @@ int Controller::getNumPts()
 //=============================================================================
 // Acquisition Onset
 //=============================================================================
-void Controller::setAcquiOnset(float p)
+void Controller::setAcquiOnset(int p)
 {
 	acquiOnset = p;
 }
 
 //=============================================================================
-float Controller::getAcquiOnset()
+int Controller::getAcquiOnset()
 {
 	return acquiOnset;
 }

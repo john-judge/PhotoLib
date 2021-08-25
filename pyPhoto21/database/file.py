@@ -1,9 +1,17 @@
 import os
-import struct
-import numpy as np
-
 import bz2
 import _pickle as cPickle
+import json
+from json import JSONEncoder
+
+import numpy as np
+
+
+class FileEncoder(JSONEncoder):
+    def default(self, o):
+        # if type(o) == np.ndarray:
+        #     return o.tolist()
+        return o.__dict__
 
 
 class File:
@@ -11,9 +19,14 @@ class File:
     def __init__(self, meta):
         self.save_dir = os.getcwd()
         self.meta = meta
+        self.save_dir_was_changed = False
+
+    def is_save_dir_default(self):
+        return not self.save_dir_was_changed
 
     def set_save_dir(self, directory):
         self.save_dir = directory
+        self.save_dir_was_changed = True
 
     def get_save_dir(self):
         if self.save_dir is None:
@@ -45,6 +58,24 @@ class File:
         return s
 
     @staticmethod
+    def retrieve_python_object_from_json(filename):
+        try:
+            f = open(filename)
+            obj = json.load(f)
+            if type(obj) == str:
+                obj = json.loads(obj)
+            f.close()
+            return obj
+        except Exception as e:
+            print("could not load file:", filename)
+            print(e)
+
+    @staticmethod
+    def dump_python_object_to_json(filename, obj):
+        with open(filename, 'w') as f:
+            json.dump(obj, f, cls=FileEncoder)
+
+    @staticmethod
     def retrieve_python_object_from_pickle(filename):
         try:
             data = bz2.BZ2File(filename, 'rb')
@@ -68,11 +99,11 @@ class File:
         if len(parts) != 2:
             return []
         filename, ext = parts
-        if ext not in ['npy', 'pbz2']:
+        if ext not in ['npy', 'json']:
             return []
         parts = filename.split('-')
         if len(parts) != 3:
-            return []
+            return [filename, ext]
         if all([i.isnumeric() for i in parts]):
             return [int(i) for i in parts] + [ext]
-        return []
+        return [filename, ext]

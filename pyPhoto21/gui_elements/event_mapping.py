@@ -11,11 +11,11 @@ class EventMapping:
                 'args': {}
             },
             'Save': {
-                'function': gui.data.save_metadata_to_compressed_file,
+                'function': gui.data.save_metadata_to_json,
                 'args': {}
             },
-            'Auto Save': {
-                'function': gui.toggle_auto_save,
+            'Analysis Mode': {
+                'function': gui.toggle_analysis_mode,
                 'args': {}
             },
             'Auto RLI': {
@@ -52,6 +52,10 @@ class EventMapping:
             },
             '-psg-': {
                 'function': gui.launch_github_page,
+                'args': {'kind': "issue"},
+            },
+            '-timer-': {
+                'function': gui.launch_little_dave_calendar,
                 'args': {'kind': "issue"},
             },
             'Digital Binning': {
@@ -190,7 +194,7 @@ class EventMapping:
                          'kind': 'pre_stim',
                          'form': 'ms'}
             },
-            "Time Window Start frames Stim": {
+            "Time Window Start frames stim": {
                 'function': gui.set_roi_time_window,
                 'args': {'index': 0,
                          'kind': 'stim',
@@ -254,10 +258,6 @@ class EventMapping:
                 'function': gui.validate_and_pass_int,
                 'args': {'call': gui.data.set_int_records},
             },
-            'Unload File': {
-                'function': gui.unload_file,
-                'args': {}
-            },
             "Increment Trial": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.increment_current_trial_index,
@@ -301,12 +301,14 @@ class EventMapping:
             "Increment File": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.increment_file,
-                         'call2': gui.update_tracking_num_fields}
+                         'call2': gui.update_tracking_num_fields,
+                         'call3': gui.sync_gui_fields_from_meta}
             },
             "Decrement File": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.decrement_file,
-                         'call2': gui.update_tracking_num_fields}
+                         'call2': gui.update_tracking_num_fields,
+                         'call3': gui.sync_gui_fields_from_meta}
             },
             "Trial Number": {
                 'function': gui.validate_and_pass_int,
@@ -442,6 +444,38 @@ class EventMapping:
             },
             'Export all of the above': {
                 'function': gui.export_all_data,
+                'args': {}
+            },
+            "Measure Window Start frames": {
+                'function': gui.set_measure_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+            "Measure Window End frames": {
+                'function': gui.set_measure_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+            "Measure Window Start (ms)": {
+                'function': gui.set_measure_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'ms'}
+            },
+            "Measure Window End (ms)": {
+                'function': gui.set_measure_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'ms'}
+            },
+            "Notepad": {
+                'function': gui.data.set_notepad_text,
+                'args': {}
+            },
+            "Select Colormap": {
+                'function': gui.fv.set_color_map_option_name,
                 'args': {}
             }
 

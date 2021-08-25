@@ -31,12 +31,13 @@ class Data(File):
         self.is_loaded_from_file = False
         self.is_live_feed_enabled = False
         self.current_trial_index = 0
-        self.metadata_extension = '.pbz2'
+        self.metadata_extension = '.json'
+        self.is_metadata_dirty = False
+        self.meta_daemon_stop_flag = False
 
         # Memory not written to file
         # raw RLI frames are not written to file or even shown.
         # We will calculate averages before writing in metadata.
-        self.rli_images = None
         self.livefeed_frame = None
 
         # Little Dave reference data
@@ -95,8 +96,10 @@ class Data(File):
         self.full_data_processor.update_full_processed_data()
 
     # numpy autosaves the image arrays; only need to save meta actively
-    def save_metadata_to_compressed_file(self):
-        self.save_metadata_to_file(self.db.get_current_filename(extension=self.metadata_extension))
+    def save_metadata_to_json(self):
+        fn = self.db.get_current_filename(extension=self.metadata_extension)
+        print("Saving metadata to:", fn)
+        self.save_metadata_to_file(fn)
 
     def sync_hardware_from_metadata(self):
         # if self.get_is_loaded_from_file():
@@ -128,7 +131,7 @@ class Data(File):
         self.hardware.set_int_bursts(value=self.db.meta.int_bursts[1],
                                      channel=2)
 
-        self.hardware.set_acqui_onset(acqui_onset=self.db.meta.acqui_onset)
+        self.set_acqui_onset(self.db.meta.acqui_onset)
 
         self.hardware.set_stim_onset(value=self.db.meta.stim_onset[0],
                                      channel=1)
@@ -150,39 +153,39 @@ class Data(File):
             self.allocate_image_memory()
 
     def load_current_metadata_file(self):
-        meta_file = self.db.get_current_filename(no_path=True, extension=self.metadata_extension)
+        meta_file = self.db.get_current_filename(extension=self.metadata_extension)
         meta_no_path = self.strip_path(meta_file)
         if not self.file_exists(meta_no_path):
-            # instead of blanking out defaults, persist current settings but clear data
-            self.meta.rli_low = None
-            self.meta.rli_high = None
-            self.meta.rli_max = None
-            self.meta.fp_data = None
+            # Need to create a metadata file
+            # instead of blanking out and going to clean defaults,
+            # persist current settings but clear data
             self.meta.num_fp = 4
             self.meta.version = 6
+            self.meta.notepad_text = 'Notes for this recording...'
             self.set_camera_program(7)
             self.save_metadata_to_file(meta_file)
+            print("No metadata file found: \n", meta_file,
+                  "\nA metadata file has been created. Please make any corrections to the "
+                  "file manually by opening it with a text editor.")
+            # other defaults are more handy to persist.
         else:
             meta_obj = self.load_metadata_from_file(meta_file)
-            self.set_meta(meta_obj, suppress_resize=True)
+            if meta_obj is not None:
+                self.set_meta(meta_obj, suppress_resize=True)
 
     # assumes file has already been validated to exist
     def load_preference_file(self, file):
         file_prefix, extension = file.split('.')
-        if extension != 'pbz2':
-            print("Failed to load", file, "\n\t Only .pbz2 files are supported.")
+        if extension != 'json':
+            print("Failed to load", file, "\n\t Only .json files are supported.")
             return
         meta_obj = self.load_metadata_from_file(file)
-        self.set_meta(meta_obj, suppress_resize=True)
+        if meta_obj is not None:
+            self.set_meta(meta_obj, suppress_resize=True)
 
-    def save_preference_file(self, folder):
-        meta_file = folder + "\\" + self.db.get_current_filename(no_path=True, extension='.pbz2')
+    def save_preference_file(self, meta_file):
         self.save_metadata_to_file(meta_file)
         print("Saved your preferences to:\n", meta_file)
-
-    def set_next_unused_filename(self):
-        self.increment_record_until_filename_free()
-        self.db.clear_or_resize_mmap_file()
 
     def load_from_file(self, file):
         self.set_is_loaded_from_file(True)
@@ -197,12 +200,12 @@ class Data(File):
 
             new_meta = Metadata()
             self.set_meta(new_meta, suppress_resize=True)
-            LegacyData().load_zda(orig_path_prefix + '.zda',
-                                  self.db,
-                                  new_meta)  # side-effect is to create and populate .npy file
-            meta_file = self.db.get_current_filename(no_path=False, extension='.pbz2')
-            self.save_metadata_to_file(meta_file)
-        elif extension in ['npy', 'pbz2']:
+            ld = LegacyData(self.get_save_dir())
+            ld.load_zda(orig_path_prefix + '.zda',
+                        self.db,
+                        new_meta)  # side-effect is to create and populate .npy file
+            self.save_metadata_to_json()
+        elif extension in ['npy', 'json']:
             meta_no_path = file_prefix + self.metadata_extension
             meta_file = orig_path_prefix + self.metadata_extension
             data_no_path = file_prefix + self.db.extension
@@ -213,16 +216,35 @@ class Data(File):
             if not self.file_exists(data_no_path):
                 print("Corresponding data file", data_no_path, "not found. Loading as preference-only file.")
             meta_obj = self.load_metadata_from_file(meta_file)
-            self.set_meta(meta_obj, suppress_resize=True)
-            self.db.load_mmap_file(filename=data_file, mode="r+")
+            if meta_obj is not None:
+                self.set_meta(meta_obj, suppress_resize=True)
+                self.db.load_mmap_file(filename=data_file, mode="r+")
 
     def save_metadata_to_file(self, filename):
         """ Pickle the instance of Metadata class """
-        self.dump_python_object_to_pickle(filename, self.db.meta)
+        self.dump_python_object_to_json(filename, self.db.meta)
 
     def load_metadata_from_file(self, filename):
         """ Read instance of Metadata class and load into usage"""
-        return self.retrieve_python_object_from_pickle(filename)
+        meta_dict = self.retrieve_python_object_from_json(filename)
+        if meta_dict is not None and type(meta_dict) == dict:
+            meta = self.handle_missing_meta_attributes(meta_dict)
+            return meta
+        else:
+            print("Failed to load metadata object from", filename)
+            print(type(meta_dict), meta_dict)
+
+    # load metadata defaults into file metadata for backwards compatibility
+    @staticmethod
+    def handle_missing_meta_attributes(loaded_meta_dict):
+        new_meta = Metadata()
+        loaded_ct = 0
+        for attr in loaded_meta_dict:
+            if not attr.startswith("_"):
+                setattr(new_meta, attr, loaded_meta_dict[attr])
+                loaded_ct += 1
+        print("Loaded", loaded_ct, "attributes from the metadata file.")
+        return new_meta  # defaults kept if not in loaded dict
 
     def get_record_array_shape(self):
         return (self.get_num_trials(),
@@ -251,6 +273,7 @@ class Data(File):
         self.db.meta.current_location = 0
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
+        self.db.open_filename = None
         self.load_current_metadata_file()
         self.db.load_mmap_file(mode=None)
         self.full_data_processor.update_full_processed_data()
@@ -259,6 +282,7 @@ class Data(File):
         self.db.meta.current_location += num
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
+        self.db.open_filename = None
         self.load_current_metadata_file()
         self.db.load_mmap_file(mode=None)
         self.full_data_processor.update_full_processed_data()
@@ -266,6 +290,7 @@ class Data(File):
     def increment_record(self, num=1, suppress_file_create=False):
         self.db.meta.current_record += num
         self.set_current_trial_index(0)
+        self.db.open_filename = None
         if not suppress_file_create:
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
@@ -277,6 +302,7 @@ class Data(File):
         paired_files = []
         # turn files list into a map
         file_map = {}
+        unindexed_map = {}
         for file in files:
             parts = self.decompose_filename(file)
             if len(parts) == 4:
@@ -287,24 +313,27 @@ class Data(File):
                     file_map[slic][loc] = {}
                 if rec not in file_map[slic][loc]:
                     file_map[slic][loc][rec] = []
-                if ext not in file_map[slic][loc][rec] and ext in ['pbz2', 'npy']:
+                if ext not in file_map[slic][loc][rec] and ext in ['json', 'npy']:
                     file_map[slic][loc][rec].append(file)
                     if len(file_map[slic][loc][rec]) == 2:
                         file, _ = file.split('.')
                         paired_files.append(file)
+            # unconventionally named files: name is not indexed
+            elif len(parts) == 2:
+                file_prefix, _ = parts
+                if file_prefix not in unindexed_map:
+                    unindexed_map[file_prefix] = []
+                unindexed_map[file_prefix].append(file)
+                if len(unindexed_map[file_prefix]) == 2:
+                    file, _ = file.split('.')
+                    paired_files.append(file)
 
         curr_filename = self.db.get_current_filename(extension='', no_path=True)
         if curr_filename not in paired_files:
             paired_files.append(curr_filename)
         paired_files.sort()
 
-        ind = None
-        try:
-            ind = paired_files.index(curr_filename) + direction
-        except ValueError:
-            return None
-        if ind < 0 or ind >= len(paired_files):
-            return None
+        ind = (paired_files.index(curr_filename) + direction) % len(paired_files)
         file_prefix = self.get_save_dir() + "\\" + paired_files[ind]
         return file_prefix + self.metadata_extension, file_prefix + self.db.extension
 
@@ -314,9 +343,10 @@ class Data(File):
             return
         meta_file, data_file = files
         meta_obj = self.load_metadata_from_file(meta_file)
-        self.set_meta(meta_obj, suppress_resize=True)
-        self.db.load_mmap_file(mode='r+', filename=data_file)
-        self.full_data_processor.update_full_processed_data()
+        if meta_obj is not None:
+            self.set_meta(meta_obj, suppress_resize=True)
+            self.db.load_mmap_file(mode='r+', filename=data_file)
+            self.full_data_processor.update_full_processed_data()
 
     def increment_file(self):
         self.auto_change_file(direction=1)
@@ -327,15 +357,17 @@ class Data(File):
     def decrement_slice(self, num=1):
         self.db.meta.current_slice -= num
         if self.db.meta.current_slice >= 0:
-            self.db.meta.current_location = 0
-            self.db.meta.current_record = 0
             self.set_current_trial_index(0)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_slice = 0
             if num > 1:
+                self.db.meta.current_location = 0
+                self.db.meta.current_record = 0
+                self.db.open_filename = None
                 self.load_current_metadata_file()
                 self.db.load_mmap_file(mode=None)
                 self.full_data_processor.update_full_processed_data()
@@ -345,12 +377,14 @@ class Data(File):
         if self.db.meta.current_location >= 0:
             self.db.meta.current_record = 0
             self.set_current_trial_index(0)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_location = 0
             if num > 1:
+                self.db.open_filename = None
                 self.load_current_metadata_file()
                 self.db.load_mmap_file(mode=None)
                 self.full_data_processor.update_full_processed_data()
@@ -358,12 +392,14 @@ class Data(File):
     def decrement_record(self, num=1):
         self.db.meta.current_record -= num
         if self.db.meta.current_record >= 0:
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         else:
             self.db.meta.current_record = 0
             if num > 1:
+                self.db.open_filename = None
                 self.load_current_metadata_file()
                 self.db.load_mmap_file(mode=None)
                 self.full_data_processor.update_full_processed_data()
@@ -371,11 +407,13 @@ class Data(File):
     def set_slice(self, v):
         if v > self.db.meta.current_slice:
             self.increment_slice(v - self.db.meta.current_slice)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         elif v < self.db.meta.current_slice:
             self.decrement_slice(self.db.meta.current_slice - v)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
@@ -383,11 +421,13 @@ class Data(File):
     def set_record(self, v):
         if v > self.db.meta.current_record:
             self.increment_record(v - self.db.meta.current_record)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         elif v < self.db.meta.current_record:
             self.decrement_record(self.db.meta.current_record - v)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
@@ -395,11 +435,13 @@ class Data(File):
     def set_location(self, v):
         if v > self.db.meta.current_location:
             self.increment_location(v - self.db.meta.current_location)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
         if v < self.db.meta.current_location:
             self.decrement_location(self.db.meta.current_location - v)
+            self.db.open_filename = None
             self.load_current_metadata_file()
             self.db.load_mmap_file(mode=None)
             self.full_data_processor.update_full_processed_data()
@@ -430,25 +472,30 @@ class Data(File):
 
     def set_camera_program(self, program, force_resize=False, prevent_resize=False, suppress_processing=False):
         curr_program = self.hardware.get_camera_program()
-        self.hardware.set_camera_program(program=program)
+        if curr_program is not None:
+            self.hardware.set_camera_program(program=program)
         if (force_resize or curr_program != program) and not prevent_resize:
             self.db.meta.camera_program = program
             self.db.meta.width = self.get_display_width()
             self.db.meta.height = self.get_display_height()
-            self.set_next_unused_filename()
+            self.meta.int_pts = self.get_int_pts()  # syncs from hardware
+            self.increment_record_until_filename_free()
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
+        if curr_program is not None and curr_program != program:
+            self.save_metadata_to_json()
 
     def get_camera_program(self):
-        if self.get_is_loaded_from_file():
+        cam_prog = self.hardware.get_camera_program()
+        if self.get_is_loaded_from_file() or cam_prog is None:
             return self.db.meta.camera_program
-        return self.hardware.get_camera_program()
+        return cam_prog
 
-    def set_crop_window(self, v, index=None, suppress_processing=False):
+    def set_crop_window(self, kind, index, value, suppress_processing=False):
         if index is None:
-            self.db.meta.crop_window = v
+            self.db.meta.crop_window = value
         elif index == 0 or index == 1:
-            self.db.meta.crop_window[index] = v
+            self.db.meta.crop_window[index] = value
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
 
@@ -458,9 +505,10 @@ class Data(File):
         return self.db.meta.crop_window[index]
 
     def get_num_pts(self):
-        if self.get_is_loaded_from_file():
+        num_pts = self.hardware.get_num_pts()
+        if self.get_is_loaded_from_file() or num_pts is None:
             return self.db.meta.num_pts
-        return self.hardware.get_num_pts()
+        return num_pts
 
     def get_num_pulses(self, ch):
         if self.get_is_loaded_from_file():
@@ -488,16 +536,12 @@ class Data(File):
 
         # raw RLI frames are not written to file or even shown.
         # We will calculate averages before writing in metadata.
-        self.rli_images = np.zeros((2,
-                                    self.get_num_rli_pts(),
-                                    h,
-                                    w,),
-                                   dtype=np.uint16)
-        self.db.meta.fp_data = np.zeros((self.get_num_trials(),
-                                         self.get_num_pts(),
-                                         self.get_num_fp()),
-                                        dtype=np.int16)
-        self.set_next_unused_filename()
+        self.db.rli_images = np.zeros((2,
+                                       self.get_num_rli_pts(),
+                                       h,
+                                       w),
+                                      dtype=np.uint16)
+        self.increment_record_until_filename_free()
 
     def increment_record_until_filename_free(self):
         if self.get_is_loaded_from_file():  # more interested in looking at existing files.
@@ -508,10 +552,23 @@ class Data(File):
                                                               extension=self.db.extension))
                 or self.file_exists(self.db.get_current_filename(no_path=True,
                                                                  extension=self.metadata_extension))):
-            self.increment_record(suppress_file_create=True)
-            i += 1
+            if self.db.is_current_data_file_empty():  # will load file
+                print(self.db.get_current_filename(no_path=True,
+                                                   extension=self.db.extension),
+                      "exists but is all zeros. Planning to overwrite.")
+                return
+            else:
+                self.db.open_filename = None  # don't consider it fully loaded
+
+            if self.db.open_filename is not None:
+                self.db.open_filename = None
+            else:
+                self.increment_record(suppress_file_create=True)  # can create new files
+                i += 1
+
         if i >= 100:
             print("data.py: searched 100 filenames for free name. Likely an issue.")
+        self.db.load_mmap_file(self.db.get_current_filename(extension=self.db.extension), mode=None)
 
     def get_background_option_index(self):
         return self.db.meta.background_option_index
@@ -520,20 +577,30 @@ class Data(File):
     def get_background_options():
         return ['Frame Selector Amp', 'Max Amp', 'MaxAmp/SD', 'Mean Amp', 'MeanAmp/SD']
 
+    @staticmethod
+    def bg_uses_frame_selector(bg_name):
+        return "Frame Selector" in bg_name
+
     def apply_temporal_aggregration_frame(self, images):
         ret_frame = None
+        if images.size < 1:
+            return None
         agg_type = self.get_background_options()[self.get_background_option_index()]
 
         if agg_type == 'Amp at Frame Selector':
-            pass
+            return images
         elif agg_type == 'Max Amp':
             ret_frame = np.max(images, axis=0)
         elif agg_type == 'MaxAmp/SD':
-            ret_frame = np.max(images, axis=0) / np.std(images, axis=0)
+            std = np.std(images, axis=0)
+            std[std == 0] = 0.0000001
+            ret_frame = np.max(images, axis=0) / std
         elif agg_type == 'Mean Amp':
             ret_frame = np.average(images, axis=0)
         elif agg_type == 'MeanAmp/SD':
-            ret_frame = np.average(images, axis=0) / np.std(images, axis=0)
+            std = np.std(images, axis=0)
+            std[std == 0] = 0.0000001
+            ret_frame = np.average(images, axis=0) / std
         return ret_frame
 
     # Based on system state, create/get the frame that should be displayed.
@@ -564,11 +631,12 @@ class Data(File):
 
         # Temporal selection index: a single time index or a time window
         ret_frame = None
+        # Apply measure window if applicable
+        bg_name = self.get_background_options()[self.get_background_option_index()]
+        if index is None or not self.bg_uses_frame_selector(bg_name):
+            index = self.get_crop_window()
         if type(index) == int and (index < images.shape[0]) and index >= 0:
-            if "Frame Selector" not in self.get_background_options()[self.get_background_option_index()]:
-                ret_frame = self.apply_temporal_aggregration_frame(images)
-            else:
-                ret_frame = images[index, :, :]
+            ret_frame = images[index, :, :]
         elif type(index) == list and len(index) == 2:
             ret_frame = self.apply_temporal_aggregration_frame(images[index[0]:index[1], :, :])
         else:
@@ -577,24 +645,23 @@ class Data(File):
         if self.full_data_processor.enabled and using_preprocessed:  # can skip the minimal processing.
             self.drop_processing_lock()
             print("Showing frame from fully processed data.")
-            return ret_frame[1:-2, 1:-2]
+            return ret_frame
+
+        if ret_frame is None:
+            return None
 
         # RLI division
         if self.get_is_rli_division_enabled():
             rli = self.calculate_rli()
             if rli is not None and rli.shape == ret_frame.shape:
                 ret_frame = ret_frame.astype(np.float32) / rli
-                ret_frame = ret_frame.astype(np.int32)
+                ret_frame = ret_frame.astype(np.float32)
                 ret_frame = np.nan_to_num(ret_frame)
-                min_val = np.min(ret_frame)
-                if min_val < 0:
-                    ret_frame -= min_val  # make everything positive
             elif rli.shape != ret_frame.shape:
                 print("RLI and data shapes don't match:",
                       rli.shape,
                       ret_frame.shape,
-                      "Skipping RLI division.\n",
-                      "You may be using a legacy ZDA data file (or a converted legacy data file)?")
+                      "Skipping RLI division.")
 
         # digital binning
         ret_frame = self.core.create_binned_data(ret_frame, binning_factor=binning)
@@ -606,7 +673,7 @@ class Data(File):
             return None
 
         # crop out 1px borders
-        ret_frame = ret_frame[1:-2, 1:-2]
+        ret_frame = ret_frame
         return ret_frame
 
     def get_display_fp_trace(self, fp_index):
@@ -614,7 +681,12 @@ class Data(File):
         traces = self.get_fp_data()
         if trial is None:
             traces = np.average(traces, axis=0)
-        return Trace(traces[:, fp_index], self.get_int_pts(), is_fp_trace=True)
+        start, end = self.get_crop_window()
+        return Trace(traces[:, fp_index],
+                     self.get_int_pts(),
+                     is_fp_trace=True,
+                     start_frame=start,
+                     end_frame=end)
 
     @staticmethod
     def get_frame_mask(h, w, index=None):
@@ -634,10 +706,8 @@ class Data(File):
             return mask
         return mask
 
-    # Move to GUI? or TV?
     # returns a Trace object representing trace
-    def get_display_trace(self, index=None, fp_index=None):
-        trial = self.get_current_trial_index()
+    def get_display_trace(self, index=None, fp_index=None, zoom_factor=1.0):
         if fp_index is not None:
             return self.get_display_fp_trace(fp_index)
 
@@ -647,6 +717,7 @@ class Data(File):
             return None
 
         ret_trace = None
+        mask = None
         if index is None:
             return ret_trace
         elif type(index) == np.ndarray:
@@ -663,10 +734,14 @@ class Data(File):
         if ret_trace is None:
             return None
 
+        start, end = self.get_crop_window()
         ret_trace = Trace(ret_trace,
                           self.get_int_pts(),
-                          start_frame=self.meta.crop_window[0],
-                          end_frame=self.meta.crop_window[1])
+                          start_frame=start,
+                          end_frame=end,
+                          pixel_indices=index,
+                          fp_index=fp_index,
+                          mask=mask)
 
         # data inversing (BEFORE baseline correction)
         if self.get_is_data_inverse_enabled():
@@ -681,20 +756,31 @@ class Data(File):
         if self.core.get_is_temporal_filter_enabled():
             filter_type = self.core.get_temporal_filter_options()[self.core.get_temporal_filter_index()]
             sigma_t = self.core.get_temporal_filter_radius()
-            ret_trace.filter_temporal(filter_type, sigma_t)  # applies time cropping if needed
+            if self.validate_filter_size(filter_type, sigma_t):
+                ret_trace.filter_temporal(filter_type, sigma_t)  # applies time cropping if needed
+
+        # normalize
+        ret_trace.normalize(zoom_factor=zoom_factor)
 
         return ret_trace
 
+    # Return true if filter size is not too big
+    def validate_filter_size(self, filter_type, sigma_t):
+        n = self.get_num_pts()
+        m = None
+        if filter_type == 'Low Pass':  # i.e. Moving Average
+            m = int(sigma_t)
+        elif filter_type.startswith('Binomial-'):
+            m = int(filter_type[-1]) + 1
+        else:
+            return True
+        return n - m > m
+
     def get_fp_data(self):
         trial = self.get_current_trial_index()
-        if self.db.meta.fp_data is None:
-            self.db.meta.fp_data = np.zeros((self.get_num_trials(),
-                                             self.get_num_pts(),
-                                             self.get_num_fp()),
-                                            dtype=np.int16)
         if trial is None:
-            return self.db.meta.fp_data
-        return self.db.meta.fp_data[trial, :, :]
+            return self.db.load_fp_data()
+        return self.db.load_trial_fp_data(trial)
 
     def get_acqui_images(self):
         trial = self.get_current_trial_index()
@@ -724,23 +810,22 @@ class Data(File):
         else:
             return self.db.load_trial_data_processed(trial)
 
+    # not the memmapped files, but the memory used for RLI acquisition and calc
     def get_rli_images(self):
-        return self.rli_images[0, :, :, :]
+        return self.db.rli_images[0, :, :, :]
 
     def get_rli_memory(self):
-        return self.rli_images[:, :, :, :]
+        return self.db.rli_images[:, :, :, :]
 
     def set_num_pts(self, value=1, force_resize=False, prevent_resize=False, suppress_processing=True):
         if type(value) != int or value < 1:
             return
         tmp = self.get_num_pts()
         if (force_resize or tmp != value) and not prevent_resize:
-            self.set_next_unused_filename()
-            self.db.meta.fp_data = np.resize(self.db.meta.fp_data,
-                                             (self.get_num_trials(),
-                                              self.get_num_fp(),
-                                              self.get_num_pts()))
+            self.increment_record_until_filename_free()
         self.hardware.set_num_pts(value=value)
+        self.save_metadata_to_json()
+        self.meta.num_pts = value
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
 
@@ -749,33 +834,36 @@ class Data(File):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
-        if self.get_is_loaded_from_file() and self.db.meta.rli_high is not None:
-            return self.db.meta.rli_high
+        rli_high = self.db.get_rli_high()
+        if np.any(rli_high != 0):
+            return rli_high
         n = self.get_num_rli_pts()
         rli_light_frames = self.get_rli_images()[d + margins + 1:n - 1 - margins, :, :]
-        if rli_light_frames is None:
+        if rli_light_frames is None or rli_light_frames.shape[0] == 0:
             return None
-        self.db.meta.rli_high = np.average(rli_light_frames, axis=0)
-        return self.db.meta.rli_high
+        rli_high[:, :] = np.average(rli_light_frames, axis=0)[:, :]
+        return rli_high
 
     def calculate_dark_rli_frame(self, margins=40):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
-        if self.get_is_loaded_from_file() and self.db.meta.rli_low is not None:
-            return self.db.meta.rli_low
+        rli_low = self.db.get_rli_low()
+        if np.any(rli_low != 0):
+            return rli_low
         rli_dark_frames = self.get_rli_images()[margins + 1:d - margins - 1, :, :]
-        if rli_dark_frames is None:
+        if rli_dark_frames is None or rli_dark_frames.shape[0] == 0:
             return None
-        self.db.meta.rli_low = np.average(rli_dark_frames, axis=0)
-        return self.db.meta.rli_low
+        rli_low[:, :] = np.average(rli_dark_frames, axis=0)[:, :]
+        return rli_low
 
     def calculate_max_rli_frame(self):
-        if self.get_is_loaded_from_file() or self.db.meta.rli_max is not None:
-            return self.db.meta.rli_max
+        rli_max = self.db.get_rli_max()
+        if np.any(rli_max != 0):
+            return rli_max
         rli_frames = self.get_rli_images()
-        self.db.meta.rli_max = np.max(rli_frames, axis=0)
-        return self.db.meta.rli_max
+        rli_max[:, :] = np.max(rli_frames, axis=0)[:, :]
+        return rli_max
 
     def calculate_rli(self):
         light = self.calculate_light_rli_frame()
@@ -793,10 +881,10 @@ class Data(File):
         if (force_resize or tmp != dark_rli) and not prevent_resize:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (2,
-                                        self.get_num_rli_pts(),
-                                        w,
-                                        h))
+            np.resize(self.db.rli_images, (2,
+                                           self.get_num_rli_pts(),
+                                           w,
+                                           h))
         self.hardware.set_num_dark_rli(dark_rli=dark_rli)
 
     def set_num_light_rli(self, light_rli, force_resize=False, prevent_resize=False):
@@ -804,16 +892,17 @@ class Data(File):
         if (force_resize or tmp != light_rli) and not prevent_resize:
             w = self.get_display_width()
             h = self.get_display_height()
-            np.resize(self.rli_images, (2,  # extra mem for C++ reassembly
-                                        self.get_num_rli_pts(),
-                                        w,
-                                        h))
+            np.resize(self.db.rli_images, (2,  # extra mem for C++ reassembly
+                                           self.get_num_rli_pts(),
+                                           w,
+                                           h))
         self.hardware.set_num_light_rli(light_rli=light_rli)
 
     def get_num_trials(self):
         return self.db.meta.num_trials
 
     def set_num_trials(self, value):
+        self.save_metadata_to_json()
         self.db.meta.num_trials = value
 
     def get_int_trials(self):
@@ -840,24 +929,25 @@ class Data(File):
     def set_is_loaded_from_file(self, value):
         self.is_loaded_from_file = value
 
-    def get_is_auto_save_enabled(self):
-        return self.db.meta.auto_save_enabled
+    def get_is_analysis_only_mode_enabled(self):
+        return self.db.meta.is_analysis_only_mode_enabled
 
-    def set_is_auto_save_enabled(self, value):
-        self.db.meta.auto_save_enabled = value
+    def set_is_analysis_only_mode_enabled(self, value):
+        self.db.meta.is_analysis_only_mode_enabled = value
 
     def get_is_schedule_rli_enabled(self):
-        return self.db.meta.schedule_rli_enabled
+        return self.db.meta.is_schedule_rli_enabled
 
     def set_is_schedule_rli_enabled(self, value):
-        self.db.meta.schedule_rli_enabled = value
+        self.db.meta.is_schedule_rli_enabled = value
 
     ''' Attributes controlled at Hardware level '''
 
     def get_int_pts(self):
-        if self.get_is_loaded_from_file():
+        int_pts = self.hardware.get_int_pts()
+        if self.get_is_loaded_from_file() or int_pts is None:
             return self.db.meta.int_pts
-        return self.hardware.get_int_pts()
+        return int_pts
 
     def get_acqui_duration(self):
         if self.get_is_loaded_from_file():
@@ -868,9 +958,14 @@ class Data(File):
         return self.hardware.get_num_dark_rli() + self.hardware.get_num_light_rli()
 
     def get_acqui_onset(self):
-        if self.get_is_loaded_from_file():
+        onset = self.hardware.get_acqui_onset()
+        if self.get_is_loaded_from_file() or onset is None:
             return self.db.meta.acqui_onset
-        return self.hardware.get_acqui_onset()
+        return onset
+
+    def set_acqui_onset(self, v):
+        self.meta.acqui_onset = v
+        self.hardware.set_acqui_onset(acqui_onset=v)
 
     def get_stim_onset(self, ch):
         if ch == 1 or ch == 2:
@@ -878,11 +973,23 @@ class Data(File):
                 return self.db.meta.stim_onset[ch - 1]
             return self.hardware.get_stim_onset(channel=ch)
 
+    def set_stim_onset(self, **kwargs):
+        if kwargs['value'] is None or type(kwargs['value']) != int:
+            kwargs['value'] = 0
+        self.hardware.set_stim_onset(kwargs)
+        self.meta.stim_onset[kwargs['channel'] - 1] = float(kwargs['value'])
+
     def get_stim_duration(self, ch):
         if ch == 1 or ch == 2:
             if self.get_is_loaded_from_file():
                 return self.db.meta.stim_duration[ch - 1]
             return self.hardware.get_stim_duration(channel=ch)
+
+    def set_stim_duration(self, **kwargs):
+        if kwargs['value'] is None or type(kwargs['value']) != int:
+            kwargs['value'] = 0
+        self.hardware.set_stim_duration(kwargs)
+        self.meta.stim_duration[kwargs['channel'] - 1] = float(kwargs['value'])
 
     def get_current_trial_index(self):
         return self.current_trial_index
@@ -891,10 +998,14 @@ class Data(File):
         self.current_trial_index = v
 
     def increment_current_trial_index(self):
+        if self.current_trial_index is None:
+            self.current_trial_index = 0
         self.current_trial_index = min(self.current_trial_index + 1,
                                        self.get_num_trials() - 1)
 
     def decrement_current_trial_index(self):
+        if self.current_trial_index is None:
+            self.current_trial_index = 0
         self.current_trial_index = max(self.current_trial_index - 1, 0)
 
     def get_is_rli_division_enabled(self):
@@ -937,3 +1048,7 @@ class Data(File):
 
     def clear_livefeed_frame(self):
         self.livefeed_frame = None
+
+    def set_notepad_text(self, **kwargs):
+        v = kwargs['values']
+        self.meta.notepad_text = v

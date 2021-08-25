@@ -5,6 +5,10 @@ from pyPhoto21.hardware import Hardware
 from pyPhoto21.data import Data
 from pyPhoto21.database.metadata import Metadata
 
+# Change directory
+dir = os.getcwd()
+os.chdir(dir + "\\..\\..")
+
 PRODUCTION_MODE = False
 print("\tLaunching PhotoZ Version 6.0 (Little Dave) \n\twith pyPhoto21 interface \n\tIn mode:")
 if PRODUCTION_MODE:

@@ -2,16 +2,32 @@
 Builds a camera/electrode management DLL to expose to (Python) applications. Includes a GUI application for acquisition and analysis, written in Python.
 
 ## Building Executable
+Uses `pyinstaller`. Navigate to the `PhotoLib` directory.
 
-Uses `pyinstaller`. Currently use:
+### One-File Mode
+Not recommended because start-up is slow, but it is simpler. If you want a single exe for analysis only and portability between folders, shared drivers, machine, etc. For one-file mode:
 ```
-pyinstaller -F --add-data nicaiu.dll;. --add-data clseredt.dll;. driver.py
+pyinstaller -F -n pyPhoto21 --add-data nicaiu.dll;. --add-data clseredt.dll;. --add-data ./x64/Release/PhotoLib.dll;./x64/Release/ onefile.py
 ```
+
 This will take serveral minutes. 
 
-Excludes ` --add-data ./x64/Release/PhotoLib.dll;./x64/Release/` because finicky, but that means that the .exe must be launched from the same directory from which `driver.py` is able to run and locate `PhotoLib.dll` (otherwise it runs in analysis-only mode). I'm looking for a solution to this, but it's not a big problem.
+### Building for Rig Computer (One-Folder Mode)
+Or in one-folder mode (faster startup, but files are messy):
+```
+ pyinstaller -n pyPhoto21 --add-data nicaiu.dll;. --add-data clseredt.dll;. driver.py --distpath dist --add-data ./x64/Release/PhotoLib.dll;./x64/Release/
+ ```
 
-The .exe is ~400 MB, so it will have to be distributed via shared network, Google Drive, or building locally on destination machine.
+Avoid using the `--clean --noconfirm` options.
+
+This will take serveral minutes. 
+
+Create a shortcut to the executable in the current directory. Place the shortcut anywhere you like, but do not move any files in the folder in which pyinstaller was run, and do not change the location of the folder either.
+
+### Distributing This Application
+
+If single-file mode, the .exe is ~400 MB, so it will have to be distributed via shared network, Google Drive, USB/external drive, or building locally on destination machine.
+If single-folder mode, right-click > Send To > Compressed File to zip before distributing. The entire repository folder (PhotoLib), not just the pyinstaller dist path, must be zipped and distributed.
 
 ## Hardware Requirements
 - DLL targets 64-bit machines
