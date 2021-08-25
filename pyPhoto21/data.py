@@ -707,7 +707,10 @@ class Data(File):
         return mask
 
     # returns a Trace object representing trace
-    def get_display_trace(self, index=None, fp_index=None, zoom_factor=1.0):
+    # when mask is not None, it overrides the index argument.
+    # Index is a pixel specifier argument.
+    # fp_index is the integer corresponding to the FP trace index
+    def get_display_trace(self, index=None, fp_index=None, zoom_factor=1.0, masks=None):
         if fp_index is not None:
             return self.get_display_fp_trace(fp_index)
 
@@ -717,8 +720,15 @@ class Data(File):
             return None
 
         ret_trace = None
-        mask = None
-        if index is None:
+        master_mask = None
+        if masks is not None and len(masks) > 0:
+            master_mask = masks[0]
+            for m in masks[1:]:
+                master_mask = np.logical_or(master_mask, m)
+
+            ret_trace = images[:, master_mask]
+            ret_trace = np.average(ret_trace, axis=1)
+        elif index is None:
             return ret_trace
         elif type(index) == np.ndarray:
             if index.shape[0] == 1:
@@ -735,13 +745,17 @@ class Data(File):
             return None
 
         start, end = self.get_crop_window()
+        if masks is None:
+            masks = [mask]
+            master_mask = mask
         ret_trace = Trace(ret_trace,
                           self.get_int_pts(),
                           start_frame=start,
                           end_frame=end,
                           pixel_indices=index,
                           fp_index=fp_index,
-                          mask=mask)
+                          masks=masks,
+                          master_mask=master_mask)
 
         # data inversing (BEFORE baseline correction)
         if self.get_is_data_inverse_enabled():

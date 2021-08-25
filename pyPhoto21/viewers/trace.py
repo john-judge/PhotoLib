@@ -8,7 +8,7 @@ from scipy.ndimage import gaussian_filter
 
 class Trace:
     def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False,
-                 pixel_indices=None, fp_index=None, mask=None):
+                 pixel_indices=None, fp_index=None, masks=None, master_mask=None):
         if end_frame < 0:
             end_frame += len(points)
         if type(points) != np.ndarray:
@@ -21,13 +21,40 @@ class Trace:
 
         self.pixel_indices = pixel_indices
         self.color = 'b'
-        self.mask = mask
+        self.masks = masks
+        self.master_mask = master_mask
+        if master_mask is None and masks is not None and len(masks) > 0:
+            self.master_mask = masks[0]
+            for m in masks[1:]:
+                self.master_mask = np.logical_or(self.master_mask, m)
         self.fp_index = fp_index
 
     def merge_trace(self, trace):
         if trace.is_fp_trace or self.is_fp_trace:
             return  # can't merge FP traces
-        self.mask = np.logical_or(self.mask, trace.mask)
+        # intersection detection: if the mask's pixel counts are less than the sum,
+        # we have only 1 shape and not 2
+        # note that we need a union-find algorithm because the number of merges could
+        # be any number. See https://en.wikipedia.org/wiki/Disjoint-set_data_structure
+        # We utilize the assumption that masks in each mask list are pairwise disjoint,
+        # having been union-find merged earlier.
+        for new_mask in trace.masks:
+            self.master_mask = np.logical_or(self.master_mask, new_mask)
+            indices_intersects_with = []
+            for i in range(len(self.masks)):
+                is_intersect, union = self.do_masks_intersect(new_mask, self.masks[i])
+                if is_intersect:
+                    new_mask = union
+                    indices_intersects_with.append(i)
+            for ind in indices_intersects_with[::-1]:  # iterate backwards since we are deleting elements
+                self.masks.pop(ind)
+            self.masks.append(new_mask)
+
+    # returns True if masks intersect, and also returns union of masks
+    @staticmethod
+    def do_masks_intersect(mask1, mask2):
+        union = np.logical_or(mask1, mask2)
+        return np.sum(mask1) + np.sum(mask2) > np.sum(union), union
 
     def get_data(self):
         start = min(self.start_frame, self.end_frame)
@@ -212,15 +239,20 @@ class TraceViewer:
             print("button:", event.button)
 
     def onscroll(self, event):
-        print(event)
         if event.button == 'up':
             self.increase_zoom()
         elif event.button == 'down':
             self.decrease_zoom()
 
+    def get_zoom_int(self):
+        zoom_int = 0.2
+        # if self.zoom_factor > 0.8:
+        #     zoom_int = int(self.zoom_factor) ** 2
+        return zoom_int
+
     def decrease_zoom(self):
         tmp = self.zoom_factor
-        zoom_int = int(self.zoom_factor) ** 2
+        zoom_int = self.get_zoom_int()
         self.zoom_factor = max(self.zoom_bounds[0], self.zoom_factor - zoom_int)
         self.update_new_traces()
         if tmp != self.zoom_factor:
@@ -228,7 +260,7 @@ class TraceViewer:
 
     def increase_zoom(self):
         tmp = self.zoom_factor
-        zoom_int = int(self.zoom_factor) ** 2
+        zoom_int = self.get_zoom_int()
         self.zoom_factor = min(self.zoom_bounds[1], self.zoom_factor + zoom_int)
         if tmp != self.zoom_factor:
             self.update_new_traces()
@@ -252,7 +284,8 @@ class TraceViewer:
             col = self.traces[i].color
             trace = self.data.get_display_trace(index=self.traces[i].pixel_indices,
                                                 fp_index=self.traces[i].fp_index,
-                                                zoom_factor=self.zoom_factor)
+                                                zoom_factor=self.zoom_factor,
+                                                masks=self.traces[i].masks)
             _, points = trace.get_data()
             if len(points.shape) == 1:
                 trace.color = col
@@ -381,16 +414,17 @@ class TraceViewer:
             return True
         return False
 
-    def append_to_last_trace(self, pixel_index=None, trace_index=None):
-        if trace_index is None:
+    def append_to_last_trace(self, pixel_index=None):
+        i = self.get_last_pixel_trace_index()
+        if i is None:
             return False
         trace = self.data.get_display_trace(index=pixel_index, zoom_factor=self.zoom_factor)
 
         if trace is not None:
-            self.traces[trace_index].merge_trace(trace)  # need to merge traces.
+            self.traces[i].merge_trace(trace)  # need to merge traces.
             self.update_new_traces()
             return True
-        return trace is not None
+        return False
 
     def clear_figure(self):
         self.fig.clf()

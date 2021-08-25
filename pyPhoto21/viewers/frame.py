@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.figure as figure
 from matplotlib.widgets import Slider
-from cv2 import findContours
-
+from imantics import Polygons, Mask
 
 from collections import defaultdict
 
@@ -179,9 +178,8 @@ class FrameViewer:
         color = self.get_next_color()
         draw = np.array(self.draw_path)
         success = False
-        i = self.tv.get_last_pixel_trace_index()
-        if ctrl and i is not None:
-            success = self.tv.append_to_last_trace(pixel_index=draw, trace_index=i)
+        if ctrl:
+            success = self.tv.append_to_last_trace(pixel_index=draw)
         else:
             success = self.tv.add_trace(pixel_index=draw, color=color)
 
@@ -206,32 +204,43 @@ class FrameViewer:
 
     # convert mask to a list of x-y points, array of shape (k, 2)
     @staticmethod
-    def convert_mask_to_polygon(mask):
-
-        def is_border_point(x_, y_):
-            return not (np.all(mask[y_, x_-1:x_+2])
-                        or np.all(mask[y_-1:y_+2, x_]))
-
-        points = []
-        for y in range(1, mask.shape[0] - 1):
-            for x in range(1, mask.shape[1] - 1):
-                if mask[y, x] and is_border_point(x, y):
-                    points.append([x, y])
-        points = np.array(points)
-        print(points.shape)
-        return points
+    def convert_masks_to_polygons(masks):
+        polygons_points = []
+        for mask in masks:
+            polygons = Mask(mask).polygons()
+            if len(polygons.points) == 1:
+                points = np.array(polygons.points)
+                if points.size % 2 == 0:
+                    points = points.reshape(-1, 2)
+                    polygons_points.append(points)
+                else:
+                    print("Excluding bad polygon with vertex conversion:", points)
+            else:
+                for poly in polygons.points:
+                    points = np.array(poly)
+                    if points.size % 2 == 0:
+                        points = points.reshape(-1, 2)
+                        polygons_points.append(points)
+                    else:
+                        print("Excluding bad polygon with vertex conversion:", points)
+        return polygons_points
 
     def plot_all_shapes(self):
         for tr in self.tv.traces:
             if not tr.is_fp_trace:
-                polygon_pts = self.convert_mask_to_polygon(tr.mask)
-                self.ax.fill(polygon_pts[:, 0],
-                             polygon_pts[:, 1],
-                             tr.color,
-                             alpha=0.5,
-                             edgecolor='white',
-                             linestyle="-",
-                             linewidth=2)
+                polygons = self.convert_masks_to_polygons(tr.masks)
+                for polygon_pts in polygons:
+                    try:
+                        self.ax.fill(polygon_pts[:, 0],
+                                     polygon_pts[:, 1],
+                                     tr.color,
+                                     alpha=0.5,
+                                     edgecolor='white',
+                                     linestyle="-",
+                                     linewidth=2)
+                    except ValueError as e:
+                        print(polygon_pts)
+                        print(e)
 
     def clear_waypoints(self):
         self.draw_path = []
