@@ -29,16 +29,16 @@ class Trace:
                 self.master_mask = np.logical_or(self.master_mask, m)
         self.fp_index = fp_index
 
-    def merge_trace(self, trace):
-        if trace.is_fp_trace or self.is_fp_trace:
-            return  # can't merge FP traces
+    def merge_masks(self, masks):
+        if self.is_fp_trace:
+            return  # can't merge mask into FP traces
         # intersection detection: if the mask's pixel counts are less than the sum,
         # we have only 1 shape and not 2
         # note that we need a union-find algorithm because the number of merges could
         # be any number. See https://en.wikipedia.org/wiki/Disjoint-set_data_structure
         # We utilize the assumption that masks in each mask list are pairwise disjoint,
         # having been union-find merged earlier.
-        for new_mask in trace.masks:
+        for new_mask in masks:
             self.master_mask = np.logical_or(self.master_mask, new_mask)
             indices_intersects_with = []
             for i in range(len(self.masks)):
@@ -50,11 +50,23 @@ class Trace:
                 self.masks.pop(ind)
             self.masks.append(new_mask)
 
+    def subtract_mask(self, mask):
+        if self.is_fp_trace:
+            return  # N/A for FP traces
+        self.master_mask = self.mask_subtraction(self.master_mask, mask)
+        for i in range(len(self.masks)):
+            self.masks[i] = self.mask_subtraction(self.masks[i], mask)
+
     # returns True if masks intersect, and also returns union of masks
     @staticmethod
     def do_masks_intersect(mask1, mask2):
         union = np.logical_or(mask1, mask2)
         return np.sum(mask1) + np.sum(mask2) > np.sum(union), union
+
+    # remove mask2 intersect mask1 from mask1
+    @staticmethod
+    def mask_subtraction(mask1, mask2):
+        return np.logical_and(mask1, np.logical_xor(mask1, mask2))
 
     def get_data(self):
         start = min(self.start_frame, self.end_frame)
@@ -418,10 +430,26 @@ class TraceViewer:
         i = self.get_last_pixel_trace_index()
         if i is None:
             return False
-        trace = self.data.get_display_trace(index=pixel_index, zoom_factor=self.zoom_factor)
+        h = self.data.get_display_height()
+        w = self.data.get_display_width()
+        mask = self.data.get_frame_mask(h, w, index=pixel_index)
 
-        if trace is not None:
-            self.traces[i].merge_trace(trace)  # need to merge traces.
+        if mask is not None:
+            self.traces[i].merge_masks([mask])  # need to merge traces.
+            self.update_new_traces()
+            return True
+        return False
+
+    def remove_from_last_trace(self, pixel_index=None):
+        i = self.get_last_pixel_trace_index()
+        if i is None:
+            return False
+        h = self.data.get_display_height()
+        w = self.data.get_display_width()
+        mask = self.data.get_frame_mask(h, w, index=pixel_index)
+
+        if mask is not None:
+            self.traces[i].subtract_mask(mask)  # need to merge traces.
             self.update_new_traces()
             return True
         return False

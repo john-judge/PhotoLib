@@ -721,6 +721,7 @@ class Data(File):
 
         ret_trace = None
         master_mask = None
+        mask = None
         if masks is not None and len(masks) > 0:
             master_mask = masks[0]
             for m in masks[1:]:
@@ -745,7 +746,7 @@ class Data(File):
             return None
 
         start, end = self.get_crop_window()
-        if masks is None:
+        if masks is None and mask is not None:
             masks = [mask]
             master_mask = mask
         ret_trace = Trace(ret_trace,

@@ -134,13 +134,13 @@ class FrameViewer:
 
     def onpress(self, event):
         if not self.press:
-            if event.button == 1:
+            if event.button == 1 or event.button == 3:
                 self.clear_waypoints()
                 self.add_waypoint(event)
             self.press = True
 
     def onmove(self, event):
-        if self.press and event.button == 1:  # left mouse
+        if self.press and event.button in [1, 3]:  # left or right mouse
             self.add_waypoint(event)
             self.moving = True
 
@@ -174,13 +174,17 @@ class FrameViewer:
 
     # Identified drag has completed
     def ondrag(self, event):
+        is_deletion = (event.button == 3)
         ctrl = self.is_control_key_held()
         color = self.get_next_color()
         draw = np.array(self.draw_path)
         success = False
-        if ctrl:
+        if is_deletion:
+            self.tv.remove_from_last_trace(pixel_index=draw)
+            success = True
+        elif ctrl:
             success = self.tv.append_to_last_trace(pixel_index=draw)
-        else:
+        if not success:  # if append failed, try to add.
             success = self.tv.add_trace(pixel_index=draw, color=color)
 
         self.update_new_image()  # pulls the new mask from TraceViewer
@@ -199,8 +203,20 @@ class FrameViewer:
             if x in self.path_x_index and y in self.path_x_index[x]:
                 pass
             else:
+                if len(self.draw_path) > 0:
+                    last_point = self.draw_path[-1]
+                    self.draw_line(last_point, [x, y], event.button == 3)
                 self.draw_path.append([x, y])
                 self.path_x_index[x].append(y)
+
+    def draw_line(self, p1, p2, is_deletion):
+        xs = [p1[0], p2[0]]
+        ys = [p1[1], p2[1]]
+        color = 'white'
+        if is_deletion:
+            color = 'red'
+        self.ax.plot(xs, ys, color)
+        self.fig.canvas.draw_idle()
 
     # convert mask to a list of x-y points, array of shape (k, 2)
     @staticmethod
