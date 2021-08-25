@@ -55,9 +55,15 @@ This project is built with Visual Studio Code 2017 or 2019 with the Dynamic Load
 ## Python GUI
 Install the conda environment from `environment.yml`:
 ```
-conda env create -f environment.yml
+conda env create --name PhotoLib -f environment.yml
 ```
-Then run `python driver.py`
+
+Activate with `conda activate PhotoLib` and then run `python driver.py`
+
+To update environment from changed yml file:
+```
+ conda env update --name PhotoLib --file environment.yml  --prune
+```
 
 Development: if additional conda dependencies are added to the environment, update the  `environment.yml` with:
 ```
