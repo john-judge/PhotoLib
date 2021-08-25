@@ -435,9 +435,14 @@ class GUI:
             self.exporter.set_save_dir(folder)
             print("New save location:", folder)
 
-    def browse_for_file(self, file_extensions):
+    def browse_for_file(self, file_extensions, multi_file=False, tsv_only=False):
+        layout_choice = None
+        if not multi_file:
+            layout_choice = self.layouts.create_file_browser()
+        else:
+            layout_choice = self.layouts.create_files_browser()
         file_window = sg.Window('File Browser',
-                                self.layouts.create_file_browser(),
+                                layout_choice,
                                 finalize=True,
                                 element_justification='center',
                                 resizable=True,
@@ -1125,3 +1130,11 @@ class GUI:
         self.notify_window("Export successful",
                            "Exported to .png/.tsv files with prefix:\n"
                            + file_prefix + '_*')
+
+    def import_regions_from_tsv(self, **kwargs):
+        files = self.browse_for_file(['tsv'], multi_file=True, tsv_only=True)
+        if files is None:
+            return
+        files = files.split(';')
+        for f in files:
+            self.exporter.import_regions_from_tsv(f)

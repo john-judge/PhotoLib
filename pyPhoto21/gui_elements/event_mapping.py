@@ -448,6 +448,10 @@ class EventMapping:
                 'function': gui.export_all_data,
                 'args': {}
             },
+            'Import Regions from TSV(s)': {
+                'function': gui.import_regions_from_tsv,
+                'args': {}
+            },
             "Measure Window Start frames": {
                 'function': gui.set_measure_window,
                 'args': {'index': 0,

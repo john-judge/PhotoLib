@@ -8,7 +8,8 @@ from scipy.ndimage import gaussian_filter
 
 class Trace:
     def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False,
-                 pixel_indices=None, fp_index=None, masks=None, master_mask=None):
+                 pixel_indices=None, fp_index=None, masks=None, master_mask=None,
+                 annotation=None):
         if end_frame < 0:
             end_frame += len(points)
         if type(points) != np.ndarray:
@@ -21,6 +22,7 @@ class Trace:
 
         self.pixel_indices = pixel_indices
         self.color = 'b'
+        self.annotation = annotation
         self.masks = masks
         self.master_mask = master_mask
         if master_mask is None and masks is not None and len(masks) > 0:
@@ -306,6 +308,8 @@ class TraceViewer:
                                                 fp_index=self.traces[i].fp_index,
                                                 zoom_factor=self.zoom_factor,
                                                 masks=self.traces[i].masks)
+            trace.annotation = self.traces[i].annotation
+            trace.color = col
             _, points = trace.get_data()
             if len(points.shape) == 1:
                 trace.color = col
@@ -323,7 +327,7 @@ class TraceViewer:
             x_px, y_px = px_ind[0]
             trace_annotation_text = "(" + str(x_px) + ", " + str(y_px) + ") px"
         elif len(px_ind) > 1 and fp_ind is None:  # region trace
-            trace_annotation_text = "Region #" + str(region_count)
+            trace_annotation_text = "Region " + str(region_count)
             region_count += 1
         return trace_annotation_text, region_count
 
@@ -388,7 +392,9 @@ class TraceViewer:
                 self.ax.plot(times, points, color=trace.color)
 
             # Annotation trace
-            trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
+            trace_annotation_text = trace.annotation
+            if trace_annotation_text is None:
+                trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
 
             if trace_annotation_text is not None:
                 trace_annotation_text += self.create_display_value(value_type_to_display, i, trace)
@@ -435,7 +441,7 @@ class TraceViewer:
         return False
 
     def append_to_last_trace(self, pixel_index=None):
-        i = self.get_last_pixel_trace_index()
+        i = self.get_last_region_index()
         if i is None:
             return False
         h = self.data.get_display_height()
@@ -449,7 +455,7 @@ class TraceViewer:
         return False
 
     def remove_from_last_trace(self, pixel_index=None):
-        i = self.get_last_pixel_trace_index()
+        i = self.get_last_region_index()
         if i is None:
             return False
         h = self.data.get_display_height()
@@ -471,11 +477,11 @@ class TraceViewer:
         self.update_new_traces()
 
     # Ignoring FP traces
-    def get_last_pixel_trace_index(self):
+    def get_last_region_index(self):
         ind = len(self.traces) - 1
         if ind < 0:
             return None
-        while ind >= 0 and self.traces[ind].is_fp_trace:
+        while ind >= 0 and (self.traces[ind].is_fp_trace or self.traces[ind].master_mask is None):
             ind -= 1
         if self.traces[ind] is None:
             return None

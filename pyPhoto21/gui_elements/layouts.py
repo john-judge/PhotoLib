@@ -27,7 +27,8 @@ class Layouts:
                     ['Export', ['---', 'Selected Frame to TSV', 'Selected Traces to TSV',
                                 '---', 'Selected Frame to PNG', 'Selected Traces to PNG',
                                 '---', 'Selected Regions to TSV',
-                                '---', 'Export all of the above']]]
+                                '---', 'Export all of the above',
+                                '---', 'Import Regions from TSV(s)']]]
         toolbar_buttons = [[sg.Button('', image_data=self.close64[22:],
                                       button_color=('white', sg.COLOR_SYSTEM_DEFAULT),
                                       pad=(0, 0), key='-close-',
@@ -70,6 +71,19 @@ class Layouts:
             sg.FileBrowse(key="file_window.browse",
                           # file_types=(("Raw Data Files", "*.zda"))
                           )],
+            [sg.Button("Open", key='file_window.open')]]
+
+    @staticmethod
+    def create_files_browser(tsv_only=False):
+        fb = None
+        if tsv_only:
+            fb = sg.FilesBrowse(key="file_window.browse",
+                                file_types=(("Tab-Separated Value file", "*.tsv"),))
+        else:
+            fb = sg.FilesBrowse(key="file_window.browse")
+        return [
+            [sg.In(size=(25, 1), enable_events=True, key="-FILE-"),
+             fb],
             [sg.Button("Open", key='file_window.open')]]
 
     @staticmethod
