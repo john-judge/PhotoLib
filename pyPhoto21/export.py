@@ -42,6 +42,8 @@ class Exporter(File):
                 for j in range(len(traces)):
                     if starts[j] <= i <= ends[j]:
                         row.append(str(data[j][i])[:precision])
+                    else:
+                        row.append('')
                 tsv_writer.writerow(row)
 
     def export_frame_to_png(self, filename):
@@ -51,3 +53,35 @@ class Exporter(File):
     def export_traces_to_png(self, filename):
         fig = self.tv.get_fig()
         fig.savefig(filename)
+
+    def export_regions_to_tsv(self, filename):
+        traces = self.tv.get_traces()
+        if len(traces) < 1:
+            return
+        tr_annotations = []
+        region_ct = 1
+        max_pixel_count_len = 0
+        mask_pixels = []
+        for i in range(len(traces)):
+            text, region_ct = self.tv.create_annotation_text(region_ct, i)
+            tr_annotations.append(text)
+            max_pixel_count_len = max(max_pixel_count_len, traces[i].get_pixel_count())
+            mask_pixels.append(np.where(traces[i].master_mask))
+
+        with open(filename, 'wt') as output_file:
+            tsv_writer = csv.writer(output_file, delimiter='\t')
+            tsv_writer.writerow(tr_annotations)
+            for row_ct in range(max_pixel_count_len):
+                row = []
+                for i in range(len(traces)):
+                    tr_pixels = mask_pixels[i]
+                    if tr_annotations[i].startswith("Region") and row_ct < tr_pixels[0].size:
+                        row.append(tr_pixels[0][row_ct])  # x location of pixel
+                        row.append(tr_pixels[1][row_ct])  # y location of pixel
+                    else:
+                        row.append('')
+                        row.append('')
+                tsv_writer.writerow(row)
+
+    def import_regions_from_tsv(self, filename):
+        pass

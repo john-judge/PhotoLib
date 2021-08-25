@@ -1097,6 +1097,8 @@ class GUI:
                 self.exporter.export_traces_to_tsv(file)
             elif kind == 'frame':
                 self.exporter.export_frame_to_tsv(file)
+            elif kind == 'regions':
+                self.exporter.export_regions_to_tsv(file)
         elif form == 'png':
             file = self.browse_for_save_as_file(file_types=(("Portable Network Graphics file", "*.png"),))
             if file is None or len(file) < 1:
@@ -1119,6 +1121,7 @@ class GUI:
         self.exporter.export_frame_to_tsv(file_prefix + '_frame.tsv')
         self.exporter.export_traces_to_png(file_prefix + '_traces.png')
         self.exporter.export_frame_to_png(file_prefix + '_frame.png')
+        self.exporter.export_regions_to_tsv(file_prefix + '_regions.tsv')
         self.notify_window("Export successful",
                            "Exported to .png/.tsv files with prefix:\n"
                            + file_prefix + '_*')

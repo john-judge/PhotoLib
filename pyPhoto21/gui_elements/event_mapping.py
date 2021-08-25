@@ -301,13 +301,11 @@ class EventMapping:
             "Increment File": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.increment_file,
-                         'call2': gui.update_tracking_num_fields,
                          'call3': gui.sync_gui_fields_from_meta}
             },
             "Decrement File": {
                 'function': gui.pass_no_arg_calls,
                 'args': {'call': gui.data.decrement_file,
-                         'call2': gui.update_tracking_num_fields,
                          'call3': gui.sync_gui_fields_from_meta}
             },
             "Trial Number": {
@@ -425,6 +423,10 @@ class EventMapping:
             'Selected Frame to TSV': {
                 'function': gui.export_data,
                 'args': {'kind': 'frame', 'form': 'tsv'}
+            },
+            'Selected Regions to TSV': {
+                'function': gui.export_data,
+                'args': {'kind': 'regions', 'form': 'tsv'}
             },
             'Selected Traces to TSV': {
                 'function': gui.export_data,

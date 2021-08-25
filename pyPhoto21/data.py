@@ -161,7 +161,6 @@ class Data(File):
             # persist current settings but clear data
             self.meta.num_fp = 4
             self.meta.version = 6
-            self.meta.notepad_text = 'Notes for this recording...'
             self.set_camera_program(7)
             self.save_metadata_to_file(meta_file)
             print("No metadata file found: \n", meta_file,
@@ -188,6 +187,7 @@ class Data(File):
         print("Saved your preferences to:\n", meta_file)
 
     def load_from_file(self, file):
+        self.save_metadata_to_json()
         self.set_is_loaded_from_file(True)
         print("Loading from:", file)
         orig_path_prefix = file.split(".")[0]
@@ -269,6 +269,7 @@ class Data(File):
         self.meta.is_trial_averaging_enabled = v
 
     def increment_slice(self, num=1):
+        self.save_metadata_to_json()
         self.db.meta.current_slice += num
         self.db.meta.current_location = 0
         self.db.meta.current_record = 0
@@ -279,6 +280,7 @@ class Data(File):
         self.full_data_processor.update_full_processed_data()
 
     def increment_location(self, num=1):
+        self.save_metadata_to_json()
         self.db.meta.current_location += num
         self.db.meta.current_record = 0
         self.set_current_trial_index(0)
@@ -288,6 +290,7 @@ class Data(File):
         self.full_data_processor.update_full_processed_data()
 
     def increment_record(self, num=1, suppress_file_create=False):
+        self.save_metadata_to_json()
         self.db.meta.current_record += num
         self.set_current_trial_index(0)
         self.db.open_filename = None
@@ -338,6 +341,7 @@ class Data(File):
         return file_prefix + self.metadata_extension, file_prefix + self.db.extension
 
     def auto_change_file(self, direction=1):
+        self.save_metadata_to_json()
         files = self.find_existing_file_pair(direction=direction)  # includes paths
         if files is None:
             return
@@ -355,6 +359,7 @@ class Data(File):
         self.auto_change_file(direction=-1)
 
     def decrement_slice(self, num=1):
+        self.save_metadata_to_json()
         self.db.meta.current_slice -= num
         if self.db.meta.current_slice >= 0:
             self.set_current_trial_index(0)
@@ -373,6 +378,7 @@ class Data(File):
                 self.full_data_processor.update_full_processed_data()
 
     def decrement_location(self, num=1):
+        self.save_metadata_to_json()
         self.db.meta.current_location -= num
         if self.db.meta.current_location >= 0:
             self.db.meta.current_record = 0
@@ -390,6 +396,7 @@ class Data(File):
                 self.full_data_processor.update_full_processed_data()
 
     def decrement_record(self, num=1):
+        self.save_metadata_to_json()
         self.db.meta.current_record -= num
         if self.db.meta.current_record >= 0:
             self.db.open_filename = None
@@ -405,6 +412,7 @@ class Data(File):
                 self.full_data_processor.update_full_processed_data()
 
     def set_slice(self, v):
+        self.save_metadata_to_json()
         if v > self.db.meta.current_slice:
             self.increment_slice(v - self.db.meta.current_slice)
             self.db.open_filename = None
@@ -419,6 +427,7 @@ class Data(File):
             self.full_data_processor.update_full_processed_data()
 
     def set_record(self, v):
+        self.save_metadata_to_json()
         if v > self.db.meta.current_record:
             self.increment_record(v - self.db.meta.current_record)
             self.db.open_filename = None
@@ -433,6 +442,7 @@ class Data(File):
             self.full_data_processor.update_full_processed_data()
 
     def set_location(self, v):
+        self.save_metadata_to_json()
         if v > self.db.meta.current_location:
             self.increment_location(v - self.db.meta.current_location)
             self.db.open_filename = None
@@ -482,8 +492,6 @@ class Data(File):
             self.increment_record_until_filename_free()
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
-        if curr_program is not None and curr_program != program:
-            self.save_metadata_to_json()
 
     def get_camera_program(self):
         cam_prog = self.hardware.get_camera_program()
@@ -839,7 +847,6 @@ class Data(File):
         if (force_resize or tmp != value) and not prevent_resize:
             self.increment_record_until_filename_free()
         self.hardware.set_num_pts(value=value)
-        self.save_metadata_to_json()
         self.meta.num_pts = value
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
@@ -917,7 +924,6 @@ class Data(File):
         return self.db.meta.num_trials
 
     def set_num_trials(self, value):
-        self.save_metadata_to_json()
         self.db.meta.num_trials = value
 
     def get_int_trials(self):

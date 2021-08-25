@@ -26,6 +26,7 @@ class Layouts:
                     ['Preference', ['Save Preference', 'Load Preference'], ],
                     ['Export', ['---', 'Selected Frame to TSV', 'Selected Traces to TSV',
                                 '---', 'Selected Frame to PNG', 'Selected Traces to PNG',
+                                '---', 'Selected Regions to TSV',
                                 '---', 'Export all of the above']]]
         toolbar_buttons = [[sg.Button('', image_data=self.close64[22:],
                                       button_color=('white', sg.COLOR_SYSTEM_DEFAULT),

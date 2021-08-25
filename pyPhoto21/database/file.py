@@ -72,6 +72,7 @@ class File:
 
     @staticmethod
     def dump_python_object_to_json(filename, obj):
+        print("Saving metadata ", filename)
         with open(filename, 'w') as f:
             json.dump(obj, f, cls=FileEncoder)
 

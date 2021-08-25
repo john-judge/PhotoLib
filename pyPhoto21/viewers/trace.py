@@ -50,6 +50,13 @@ class Trace:
                 self.masks.pop(ind)
             self.masks.append(new_mask)
 
+    def get_pixel_count(self):
+        if self.is_fp_trace:
+            return 0
+        if self.master_mask is None:
+            return 0
+        return np.sum(self.master_mask)
+
     def subtract_mask(self, mask):
         if self.is_fp_trace:
             return  # N/A for FP traces
@@ -104,6 +111,7 @@ class Trace:
         amp_min = np.min(pts)
         self.points = (self.points - amp_min)
         if amp_max > amp_min:
+            print(type(self.points), type(amp_min))
             self.points /= (amp_max - amp_min)
         if zoom_factor != 1:
             self.points *= zoom_factor

@@ -243,7 +243,7 @@ class FrameViewer:
 
     def plot_all_shapes(self):
         for tr in self.tv.traces:
-            if not tr.is_fp_trace:
+            if not tr.is_fp_trace and tr.master_mask is not None:
                 polygons = self.convert_masks_to_polygons(tr.masks)
                 for polygon_pts in polygons:
                     try:
