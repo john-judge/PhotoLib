@@ -32,8 +32,10 @@ class Trace:
         self.fp_index = fp_index
 
     def merge_masks(self, masks):
-        if self.is_fp_trace:
+        if self.is_fp_trace or self.master_mask is None:
             return  # can't merge mask into FP traces
+        if self.masks is None:
+            self.masks = [self.master_mask]
         # intersection detection: if the mask's pixel counts are less than the sum,
         # we have only 1 shape and not 2
         # note that we need a union-find algorithm because the number of merges could
@@ -53,18 +55,23 @@ class Trace:
             self.masks.append(new_mask)
 
     def get_pixel_count(self):
-        if self.is_fp_trace:
+        if self.is_fp_trace or self.master_mask is None:
             return 0
         if self.master_mask is None:
             return 0
         return np.sum(self.master_mask)
 
     def subtract_mask(self, mask):
-        if self.is_fp_trace:
+        if self.is_fp_trace or self.master_mask is None:
             return  # N/A for FP traces
         self.master_mask = self.mask_subtraction(self.master_mask, mask)
-        for i in range(len(self.masks)):
+        if np.sum(self.master_mask) == 0:
+            self.masks = []
+            return
+        for i in range(len(self.masks)-1, -1, -1):
             self.masks[i] = self.mask_subtraction(self.masks[i], mask)
+            if np.sum(self.masks[i]) == 0:
+                self.masks.pop(i)  # delete empty masks
 
     # returns True if masks intersect, and also returns union of masks
     @staticmethod
@@ -111,10 +118,9 @@ class Trace:
         pts = self.get_data_clipped()
         amp_max = np.max(pts)
         amp_min = np.min(pts)
-        self.points = (self.points - amp_min)
+        self.points = (self.points - amp_min).astype(np.float32)
         if amp_max > amp_min:
-            print(type(self.points), type(amp_min))
-            self.points /= (amp_max - amp_min)
+            self.points /= float(amp_max - amp_min)
         if zoom_factor != 1:
             self.points *= zoom_factor
         return self.points
@@ -397,7 +403,7 @@ class TraceViewer:
                 trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
 
             if trace_annotation_text is not None:
-                trace_annotation_text += self.create_display_value(value_type_to_display, i, trace)
+                trace_annotation_text += self.create_display_value(value_type_to_display, i, points)
                 trace_annotation_text = TextArea(trace_annotation_text)
                 ab = AnnotationBbox(trace_annotation_text,
                                     (-0.14, (i + 0.5) / num_traces),
@@ -464,6 +470,8 @@ class TraceViewer:
 
         if mask is not None:
             self.traces[i].subtract_mask(mask)  # need to merge traces.
+            if self.traces[i].get_pixel_count() < 1:
+                self.traces.pop(i)
             self.update_new_traces()
             return True
         return False
@@ -483,8 +491,9 @@ class TraceViewer:
             return None
         while ind >= 0 and (self.traces[ind].is_fp_trace or self.traces[ind].master_mask is None):
             ind -= 1
-        if self.traces[ind] is None:
+        if self.traces[ind] is None or ind < 0:
             return None
+        print(ind)
         return ind
 
     def get_point_line_locations(self, key=None):

@@ -23,6 +23,7 @@ class Data(File):
         self.hardware = hardware
         self.db = Database()
         self.core = AnalysisCore(self.db.meta)
+        self.gui = None
 
         self.full_data_processor = Processor(self)
         super().__init__(self.db.meta)
@@ -168,6 +169,7 @@ class Data(File):
                   "file manually by opening it with a text editor.")
             # other defaults are more handy to persist.
         else:
+            self.set_is_loaded_from_file(True)
             meta_obj = self.load_metadata_from_file(meta_file)
             if meta_obj is not None:
                 self.set_meta(meta_obj, suppress_resize=True)
@@ -345,6 +347,7 @@ class Data(File):
         files = self.find_existing_file_pair(direction=direction)  # includes paths
         if files is None:
             return
+        self.set_is_loaded_from_file(True)
         meta_file, data_file = files
         meta_obj = self.load_metadata_from_file(meta_file)
         if meta_obj is not None:
@@ -663,7 +666,6 @@ class Data(File):
             rli = self.calculate_rli()
             if rli is not None and rli.shape == ret_frame.shape:
                 ret_frame = ret_frame.astype(np.float32) / rli
-                ret_frame = ret_frame.astype(np.float32)
                 ret_frame = np.nan_to_num(ret_frame)
             elif rli.shape != ret_frame.shape:
                 print("RLI and data shapes don't match:",
@@ -733,6 +735,8 @@ class Data(File):
         if masks is not None and len(masks) > 0:
             master_mask = masks[0]
             for m in masks[1:]:
+                if m.shape != master_mask.shape:
+                    return None  # image must have changed, region no longer valid.
                 master_mask = np.logical_or(master_mask, m)
 
             ret_trace = images[:, master_mask]
@@ -741,11 +745,18 @@ class Data(File):
             return ret_trace
         elif type(index) == np.ndarray:
             if index.shape[0] == 1:
+                if index[0, 1] >= images.shape[1]:
+                    return None  # image must have changed, pixel no longer valid.
+                if index[0, 0] >= images.shape[2]:
+                    return None  # image must have changed, pixel no longer valid.
                 ret_trace = images[:, index[0, 1], index[0, 0]]
             elif np.size(index) > 0:
                 _, h, w = images.shape
                 mask = self.get_frame_mask(h, w, index=index)
-                ret_trace = images[:, mask]
+                try:
+                    ret_trace = images[:, mask]
+                except IndexError as e:
+                    return None
                 ret_trace = np.average(ret_trace, axis=1)
             else:
                 print("get_display_trace: drawn shape is empty:", index)
@@ -894,7 +905,7 @@ class Data(File):
             return np.zeros((self.get_display_height(),
                              self.get_display_width()),
                             dtype=np.uint16)
-        diff = (light - dark)
+        diff = (light - dark).astype(np.float32)
         diff[diff == 0] = 0.000001  # avoid div by 0
         return diff
 
@@ -948,6 +959,11 @@ class Data(File):
         return self.is_loaded_from_file
 
     def set_is_loaded_from_file(self, value):
+        if value:
+            self.gui.freeze_hardware_settings(freeze_file_flip=False,
+                                              include_buttons=False)
+        else:
+            self.gui.unfreeze_hardware_settings()
         self.is_loaded_from_file = value
 
     def get_is_analysis_only_mode_enabled(self):

@@ -28,6 +28,7 @@ class GUI:
         matplotlib.use("TkAgg")
         sg.theme('DarkBlue12')
         self.data = data
+        data.gui = self
         self.hardware = data.hardware
         self.production_mode = production_mode
         self.tv = TraceViewer(self)
@@ -600,7 +601,7 @@ class GUI:
         w["Baseline Skip Window Start (ms)"].update(base_skip[0] * int_pts)
         w["Baseline Skip Window End (ms)"].update(base_skip[1] * int_pts)
         w['T-Filter'].update(self.data.core.get_is_temporal_filter_enabled())
-        w['Select Temporal Filter'].update(self.data.core.get_temporal_filter_index())
+        w['Select Temporal Filter'].update(self.data.core.get_temporal_filter_options()[self.data.core.get_temporal_filter_index()])
         w['Temporal Filter Radius'].update(self.data.core.get_temporal_filter_radius())
         w['S-Filter'].update(self.data.core.get_is_spatial_filter_enabled())
         w['Spatial Filter Sigma'].update(self.data.core.get_spatial_filter_sigma())
