@@ -49,12 +49,12 @@ class Metadata:
         # Default is to crop out frames for artifact exclusion
 
         # FrameViewer settings
-        self.show_rli = True
+        self.show_rli = False
         self.color_map_option = 0  # default jet
         self.binning = 1
 
         # Analysis Settings
-        self.baseline_correction_type_index = 0
+        self.baseline_correction_type_index = 1  # RLI default
         self.baseline_skip_window = [94, 134]
         self.is_temporal_filer_enabled = True
         self.temporal_filter_radius = 25.0
