@@ -716,7 +716,7 @@ class Layouts:
 
     @staticmethod
     def list_file_events():
-        return ["Save Analysis", "Unload File", "Save"]
+        return ["Save Analysis", "Save"]
 
     @staticmethod
     def create_roi_settings_form(gui):
