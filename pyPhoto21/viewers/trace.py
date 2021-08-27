@@ -388,7 +388,7 @@ class TraceViewer:
             trace = self.traces[i]
             points = np.array([])
             if isinstance(trace, Trace):
-                trace.clip_time_window(self.data.get_measure_window())
+                trace.clip_time_window(self.data.get_artifact_exclusion_window())
                 times, points = trace.get_data()
             else:
                 print("Not a Trace object:", type(trace))

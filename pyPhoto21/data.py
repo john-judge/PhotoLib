@@ -532,7 +532,7 @@ class Data(File):
     # the stim time, etc
     def get_cropped_linspace(self, start_frames=None, end_frames=None):
         if start_frames is None or end_frames is None:
-            start_frames, end_frames = self.get_measure_window()
+            start_frames, end_frames = self.get_artifact_exclusion_window()
         if end_frames < 0:
             end_frames = self.get_num_pts()
         int_pts = self.get_int_pts()
@@ -691,7 +691,7 @@ class Data(File):
         traces = self.get_fp_data()
         if trial is None:
             traces = np.average(traces, axis=0)
-        start, end = self.get_measure_window()
+        start, end = self.get_artifact_exclusion_window()
         return Trace(traces[:, fp_index],
                      self.get_int_pts(),
                      is_fp_trace=True,
@@ -764,7 +764,7 @@ class Data(File):
         if ret_trace is None:
             return None
 
-        start, end = self.get_measure_window()
+        start, end = self.get_artifact_exclusion_window()
         if masks is None and mask is not None:
             masks = [mask]
             master_mask = mask

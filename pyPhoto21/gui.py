@@ -614,10 +614,18 @@ class GUI:
         t_measure = self.data.get_measure_window()
         if t_measure[1] == -1:
             t_measure[1] = self.data.get_num_pts()
-        w['Measure Window Start frames'].update(str(t_measure[1] * int_pts)[:6])
-        w['Measure Window End frames'].update(str(t_measure[0] * int_pts)[:6])
-        w['Measure Window Start (ms)'].update(str(t_measure[1])[:6])
-        w['Measure Window End (ms)'].update(str(t_measure[0])[:6])
+        w['Measure Window End (ms)'].update(str(t_measure[1] * int_pts)[:6])
+        w['Measure Window Start (ms)'].update(str(t_measure[0] * int_pts)[:6])
+        w['Measure Window End frames'].update(str(t_measure[1])[:6])
+        w['Measure Window Start frames'].update(str(t_measure[0])[:6])
+
+        t_art = self.data.get_artifact_exclusion_window()
+        if t_art[1] == -1:
+            t_art[1] = self.data.get_num_pts()
+        w['Camera Artifact Exclusion Window Start (ms)'].update(str(t_art[0] * int_pts)[:6])
+        w['Camera Artifact Exclusion Window End (ms)'].update(str(t_art[1] * int_pts)[:6])
+        w['Camera Artifact Exclusion Window Start frames'].update(str(t_art[0])[:6])
+        w['Camera Artifact Exclusion Window End frames'].update(str(t_art[1])[:6])
 
         # ROI Settings
         t_pre_stim = self.roi.get_time_window('pre_stim')
