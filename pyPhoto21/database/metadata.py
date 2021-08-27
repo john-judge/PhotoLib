@@ -45,13 +45,16 @@ class Metadata:
         self.notepad_text = 'Notes for this recording...'
 
         # TraceViewer settings
-        self.crop_window = [30, self.num_pts-10]  # Time Window cropping applied to the temporal axis.
+        self.measure_window = [94, 134]  # Time Window cropping applied to the temporal axis.
         # Default is to crop out frames for artifact exclusion
+        self.camera_artifact_exclusion_window = [30, self.num_pts-10]
 
         # FrameViewer settings
         self.show_rli = False
         self.color_map_option = 0  # default jet
         self.binning = 1
+        self.contrast_scaling = 1.0  # the original max intensity is kept as the saturation point, and
+        #                               all values are scaled by this factor.
 
         # Analysis Settings
         self.baseline_correction_type_index = 1  # RLI default

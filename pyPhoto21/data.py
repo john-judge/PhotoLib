@@ -502,18 +502,18 @@ class Data(File):
             return self.db.meta.camera_program
         return cam_prog
 
-    def set_crop_window(self, kind, index, value, suppress_processing=False):
+    def set_measure_window(self, kind, index, value, suppress_processing=False):
         if index is None:
-            self.db.meta.crop_window = value
+            self.db.meta.measure_window = value
         elif index == 0 or index == 1:
-            self.db.meta.crop_window[index] = value
+            self.db.meta.measure_window[index] = value
         if not suppress_processing:
             self.full_data_processor.update_full_processed_data()
 
-    def get_crop_window(self, index=None):
+    def get_measure_window(self, index=None):
         if index is None:
-            return self.db.meta.crop_window
-        return self.db.meta.crop_window[index]
+            return self.db.meta.measure_window
+        return self.db.meta.measure_window[index]
 
     def get_num_pts(self):
         num_pts = self.hardware.get_num_pts()
@@ -532,7 +532,7 @@ class Data(File):
     # the stim time, etc
     def get_cropped_linspace(self, start_frames=None, end_frames=None):
         if start_frames is None or end_frames is None:
-            start_frames, end_frames = self.get_crop_window()
+            start_frames, end_frames = self.get_measure_window()
         if end_frames < 0:
             end_frames = self.get_num_pts()
         int_pts = self.get_int_pts()
@@ -645,7 +645,7 @@ class Data(File):
         # Apply measure window if applicable
         bg_name = self.get_background_options()[self.get_background_option_index()]
         if index is None or not self.bg_uses_frame_selector(bg_name):
-            index = self.get_crop_window()
+            index = self.get_measure_window()
         if type(index) == int and (index < images.shape[0]) and index >= 0:
             ret_frame = images[index, :, :]
         elif type(index) == list and len(index) == 2:
@@ -691,7 +691,7 @@ class Data(File):
         traces = self.get_fp_data()
         if trial is None:
             traces = np.average(traces, axis=0)
-        start, end = self.get_crop_window()
+        start, end = self.get_measure_window()
         return Trace(traces[:, fp_index],
                      self.get_int_pts(),
                      is_fp_trace=True,
@@ -764,7 +764,7 @@ class Data(File):
         if ret_trace is None:
             return None
 
-        start, end = self.get_crop_window()
+        start, end = self.get_measure_window()
         if masks is None and mask is not None:
             masks = [mask]
             master_mask = mask
@@ -1089,3 +1089,16 @@ class Data(File):
     def set_notepad_text(self, **kwargs):
         v = kwargs['values']
         self.meta.notepad_text = v
+
+    def get_contrast_scaling(self):
+        return self.meta.contrast_scaling
+
+    def set_contrast_scaling(self, v):
+        self.meta.contrast_scaling = v
+
+    def get_artifact_exclusion_window(self):
+        return self.meta.camera_artifact_exclusion_window
+
+    def set_artifact_exclusion_window(self, ind, v):
+        if ind in [0, 1]:
+            self.meta.camera_artifact_exclusion_window[ind] = v

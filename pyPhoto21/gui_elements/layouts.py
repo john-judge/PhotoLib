@@ -136,7 +136,7 @@ class Layouts:
                          tooltip='Compute and display for averages of all trials in this recording set (file).',
                          size=(8, 1)),
              ],
-            [sg.Text("Slice:", size=(8, 1), justification='right'),
+            [sg.Text("Slice:", size=(6, 1), justification='right'),
              sg.InputText(key="Slice Number",
                           default_text=str(gui.data.get_slice_num()),
                           enable_events=True,
@@ -152,7 +152,7 @@ class Layouts:
                           size=field_size),
              sg.Button('<', key='Decrement Location', tooltip='Decrement location number.'),
              sg.Button('>', key='Increment Location', tooltip='Inccrement location number.')],
-            [sg.Text("Record:", size=(8, 1), justification='right'),
+            [sg.Text("Record:", size=(6, 1), justification='right'),
              sg.InputText(key="Record Number",
                           default_text=str(gui.data.get_record_num()),
                           enable_events=True,
@@ -170,7 +170,7 @@ class Layouts:
              sg.Button('>', key='Increment Trial', tooltip="Decrement trial number.")],
         ]
 
-    def create_analysis_tab(self, gui):
+    def create_roi_tab(self, gui):
         button_size = (6, 1)
         long_button_size = (17, 1)
         t_pre_stim = gui.roi.get_time_window('pre_stim')
@@ -181,14 +181,6 @@ class Layouts:
             t_stim[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
         return [
-            [sg.Checkbox('Analysis Mode', default=self.data.get_is_analysis_only_mode_enabled(), enable_events=True,
-                         key="Analysis Mode",
-                         size=(12, 1), tooltip='Automatically save .npy/.pbz2 between records (sets of trials)'),
-             sg.Button("Save Analysis", button_color=('white', 'green'), size=long_button_size,
-                       tooltip='Export all analyzed data to Origin/Excel/R-'
-                               'interoperable formats (tab-separated values)'),
-             sg.Button("Save", button_color=('white', 'green'), size=long_button_size,
-                       tooltip='Save images as .npy file and metadata/preferences as .pbz2 file')],
             [sg.Button("Pre-Stim Window",
                        button_color=('black', 'orange'),
                        size=long_button_size,
@@ -252,9 +244,6 @@ class Layouts:
                           size=button_size,
                           tooltip="A time window indicating the stimulation and stimulation response period."),
              sg.Text(" ms")],
-            [sg.Button("Launch Hyperslicer",
-                       button_color=('white', 'blue'),
-                       size=long_button_size)],
             [sg.Button("ROI Identifier Config",
                        button_color=('black', 'green'),
                        size=long_button_size),
@@ -264,6 +253,36 @@ class Layouts:
                          key="Identify ROI",
                          size=long_button_size)],
         ]
+
+    def create_hyperslicer_tab(self):
+        long_button_size = (17, 1)
+        return [[sg.Button("Launch Hyperslicer",
+                           button_color=('white', 'blue'),
+                           size=long_button_size)]]
+
+    def create_freq_decomp_tab(self):
+        return []
+
+    def create_analyses_tab_group(self, gui):
+        return [sg.TabGroup([[
+            sg.Tab('Cluster/ROI', self.create_roi_tab(gui)),
+            sg.Tab("Hyperslicer", self.create_hyperslicer_tab()),
+            sg.Tab("FreqDecomp", self.create_freq_decomp_tab()),
+        ]])]
+
+    def create_analysis_tab(self, gui):
+        return [
+                   [sg.Checkbox('Analysis Mode',
+                                default=self.data.get_is_analysis_only_mode_enabled(),
+                                enable_events=True,
+                                key="Analysis Mode",
+                                size=(12, 1), tooltip='Automatically save .npy/.pbz2 between records (sets of trials)'),
+                    sg.Button("Save Analysis", button_color=('white', 'green'), size=(12, 1),
+                              tooltip='Export all analyzed data to Origin/Excel/R-'
+                                      'interoperable formats (tab-separated values)'),
+                    sg.Button("Save", button_color=('white', 'green'), size=(10, 1),
+                              tooltip='Save images as .npy file and metadata/preferences as .pbz2 file')],
+               ] + [self.create_analyses_tab_group(gui)]
 
     def create_array_tab(self, gui):
         checkbox_size = (10, 1)
@@ -306,18 +325,6 @@ class Layouts:
             [sg.Button("Load Image", button_color=('gray', 'black'))],
         ]
 
-    def create_dsp_tab(self, gui):
-        checkbox_size = (10, 1)
-        button_size = (6, 1)
-        long_button_size = (17, 1)
-        t_window = gui.data.get_crop_window()
-        if t_window[1] == -1:
-            t_window[1] = self.data.get_num_pts()
-        int_pts = self.data.get_int_pts()
-        return [
-
-        ]
-
     def create_baseline_tab(self, gui):
         button_size = (8, 1)
         double_button_size = (20, 1)
@@ -326,7 +333,7 @@ class Layouts:
         baseline_skip_default = self.data.core.get_baseline_skip_window()
         button_size = (6, 1)
         long_button_size = (17, 1)
-        t_window = gui.data.get_crop_window()
+        t_window = gui.data.get_measure_window()
         if t_window[1] == -1:
             t_window[1] = self.data.get_num_pts()
         int_pts = self.data.get_int_pts()
@@ -389,6 +396,64 @@ class Layouts:
              sg.Text(" ms")]
         ]
 
+    def create_artifact_tab(self, gui):
+        button_size = (10, 1)
+        long_button_size = (14, 1)
+
+        t_cae = gui.data.get_artifact_exclusion_window()
+        if t_cae[1] == -1:
+            t_cae[1] = self.data.get_num_pts()
+        int_pts = self.data.get_int_pts()
+        return [
+            [sg.Button("Exclusion Window",
+                       button_color=('black', 'orange'),
+                       size=long_button_size,
+                       tooltip="Time window to be adjusted to an interval that excludes camera artifacts."),
+             sg.InputText(key="Camera Artifact Exclusion Window frames",
+                          default_text=str(t_cae[0]),
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="Time window to be adjusted to an interval that excludes camera artifacts."),
+             sg.Text(" to "),
+             sg.InputText(key="Camera Artifact Exclusion Window End frames",
+                          default_text=str(t_cae[1]),
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="Time window to be adjusted to an interval that excludes camera artifacts."),
+             sg.Text(" frames")],
+            [sg.Text("", size=long_button_size),
+             sg.InputText(key="Camera Artifact Exclusion Window Start (ms)",
+                          default_text=str(t_cae[0] * int_pts),
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="Time window to be adjusted to an interval that excludes camera artifacts."),
+             sg.Text(" to "),
+             sg.InputText(key="Camera Artifact Exclusion Window (ms)",
+                          default_text=str(t_cae[1] * int_pts),
+                          enable_events=True,
+                          size=button_size,
+                          tooltip="Time window to be adjusted to an interval that excludes camera artifacts."),
+             sg.Text(" ms")],
+            [sg.Text("", size=button_size, justification='right')]
+        ]
+
+    def create_contrast_tab(self):
+        button_size = (10, 1)
+        slider_size = (20, 40)
+        return [
+            [sg.Text('Contrast Adjuster',
+             tooltip="This contrast adjustment induces saturation. It"
+                     " applies to visualization only, not to exported data.")],
+            [sg.Slider(range=(0.5, 50.0),
+                       default_value=self.data.get_contrast_scaling(),
+                       resolution=1.0,
+                       enable_events=True,
+                       size=slider_size,
+                       orientation='horizontal',
+                       tooltip="This contrast adjustment induces saturation. It"
+                               " applies to visualization only, not to exported data.",
+                       key="Contrast Scaling")]]
+
     def create_filter_tab(self):
         button_size = (10, 1)
         slider_size = (20, 40)
@@ -433,6 +498,7 @@ class Layouts:
         array_tab_layout = self.create_array_tab(gui)
         filter_tab_layout = self.create_filter_tab()
         baseline_tab_layout = self.create_baseline_tab(gui)
+        contrast_layout = self.create_contrast_tab()
 
         tab_group_basic = [sg.TabGroup([[
             sg.Tab('Acquisition', acquisition_tab_layout),
@@ -443,6 +509,7 @@ class Layouts:
             sg.Tab('Array', array_tab_layout),
             sg.Tab("Baseline", baseline_tab_layout),
             sg.Tab("Filter", filter_tab_layout),
+            sg.Tab("Contrast", contrast_layout),
         ]])]
 
         frame_viewer_layout = [
@@ -649,6 +716,7 @@ class Layouts:
         trace_viewer_tab_group = [
             [sg.TabGroup([[
                 sg.Tab('Display', self.create_display_tab(gui)),
+                sg.Tab('Artifact', self.create_artifact_tab(gui)),
                 sg.Tab('Simulation', self.create_simulation_tab())]])
             ]]
         return trace_viewer_canvas + trace_viewer_tab_group

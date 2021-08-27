@@ -611,7 +611,7 @@ class GUI:
         w['Data Inverse'].update(self.data.get_is_data_inverse_enabled())
         w['Average Trials'].update(self.data.get_is_trial_averaging_enabled())
 
-        t_measure = self.data.get_crop_window()
+        t_measure = self.data.get_measure_window()
         if t_measure[1] == -1:
             t_measure[1] = self.data.get_num_pts()
         w['Measure Window Start frames'].update(str(t_measure[1] * int_pts)[:6])
@@ -933,7 +933,7 @@ class GUI:
         self.set_time_window_generic(self.roi.set_time_window, kwargs)
 
     def set_measure_window(self, **kwargs):
-        self.set_time_window_generic(self.data.set_crop_window, kwargs)
+        self.set_time_window_generic(self.data.set_measure_window, kwargs)
         self.fv.update_new_image()
         self.tv.update_new_traces()
 
