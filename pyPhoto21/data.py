@@ -1099,6 +1099,8 @@ class Data(File):
     def get_artifact_exclusion_window(self):
         return self.meta.camera_artifact_exclusion_window
 
-    def set_artifact_exclusion_window(self, ind, v):
+    def set_artifact_exclusion_window(self, kind, ind, v):
+        if ind is None:
+            self.meta.camera_artifact_exclusion_window = v
         if ind in [0, 1]:
             self.meta.camera_artifact_exclusion_window[ind] = v

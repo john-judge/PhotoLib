@@ -161,6 +161,8 @@ class Trace:
         if len(skip_int) > 0:
             trace_skipped = np.delete(trace, skip_int)
             t_skipped = np.delete(t, skip_int)
+        if t_skipped.size < 1:
+            return trace
 
         poly_powers = {
             'Quadratic': 2,

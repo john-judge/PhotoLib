@@ -330,25 +330,25 @@ class GUI:
     def continue_livefeed_in_background(self, lf_frame, fps=50):
         if not self.data.get_is_livefeed_enabled():
             return
-        is_image_started = False
         interval = 1.0 / float(fps)
 
         num_images_shown = 0
         start = time.time()
+        lf_img = None
+        fig = None
 
         # C++ DLL has stored pointer to lf_frame, no need to keep passing
         while not self.hardware.get_stop_flag():  # the GUI flag
             timeout = 80.0
             if self.hardware.get_livefeed_produced_image_flag():
                 # print(lf_frame[0, :, :], np.std(lf_frame[0, :, :]))
-                if is_image_started:
+                if lf_img is not None and fig is not None:  # already started
                     lf_img.set_data(lf_frame[0, :, :].astype(np.uint16))
                     fig.canvas.draw_idle()
                 else:
                     self.fv.start_livefeed_animation()
                     lf_img = self.fv.livefeed_im
                     fig = self.fv.get_fig()
-                    is_image_started = True
                 num_images_shown += 1
 
                 # Allows DLL to continue to next image
@@ -937,6 +937,11 @@ class GUI:
         self.fv.update_new_image()
         self.tv.update_new_traces()
 
+    def set_artifact_window(self, **kwargs):
+        self.set_time_window_generic(self.data.set_artifact_exclusion_window, kwargs)
+        self.fv.update_new_image()
+        self.tv.update_new_traces()
+
     def select_baseline_skip_window(self):
         print("select_baseline_skip_window (graphical method) not implemented")
 
@@ -1139,3 +1144,8 @@ class GUI:
         files = files.split(';')
         for f in files:
             self.exporter.import_regions_from_tsv(f)
+
+    def set_contrast_scaling(self, **kwargs):
+        v = kwargs['values']
+        self.data.set_contrast_scaling(v)
+        self.fv.update_new_image()

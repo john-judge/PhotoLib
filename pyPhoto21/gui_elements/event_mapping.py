@@ -483,8 +483,35 @@ class EventMapping:
             "Select Colormap": {
                 'function': gui.fv.set_color_map_option_name,
                 'args': {}
+            },
+            "Camera Artifact Exclusion Window Start frames": {
+                'function': gui.set_artifact_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+            "Camera Artifact Exclusion Window End frames": {
+                'function': gui.set_artifact_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'frames'}
+            },
+            "Camera Artifact Exclusion Window Start (ms)": {
+                'function': gui.set_artifact_window,
+                'args': {'index': 0,
+                         'kind': None,
+                         'form': 'ms'}
+            },
+            "Camera Artifact Exclusion Window End (ms)": {
+                'function': gui.set_artifact_window,
+                'args': {'index': 1,
+                         'kind': None,
+                         'form': 'ms'}
+            },
+            "Contrast Scaling": {
+                'function': gui.set_contrast_scaling,
+                'args': {}
             }
-
 
         }
 

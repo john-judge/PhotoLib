@@ -276,6 +276,11 @@ class FrameViewer:
         self.current_frame = self.data.get_display_frame(index=self.ind,
                                                          get_rli=self.get_show_rli_flag(),
                                                          binning=self.get_digital_binning())
+        # See, contrast scaling applied only to visualization, not to exported data.
+        contrast_scaling = self.data.get_contrast_scaling()
+        new_vmax = np.max(self.current_frame) / contrast_scaling
+        # purposely induce saturation:
+        self.current_frame[self.current_frame >= new_vmax] = new_vmax
 
     def start_livefeed_animation(self):
         print("Starting livefeed animation...")
