@@ -68,7 +68,7 @@ class Trace:
         if np.sum(self.master_mask) == 0:
             self.masks = []
             return
-        for i in range(len(self.masks)-1, -1, -1):
+        for i in range(len(self.masks) - 1, -1, -1):
             self.masks[i] = self.mask_subtraction(self.masks[i], mask)
             if np.sum(self.masks[i]) == 0:
                 self.masks.pop(i)  # delete empty masks
@@ -239,8 +239,8 @@ class TraceViewer:
         # Arrays whose indices align (better to refactor to a list of TracePlot images)
         self.traces = []
 
-        self.point_line_locations = None
-        self.clear_point_line_locations()
+        self.probe_line_location = None
+        self.clear_probe_line_location()
         self.zoom_factor = 1.0
         self.zoom_bounds = [0.1, 20.0]
 
@@ -379,16 +379,16 @@ class TraceViewer:
         self.ax = self.fig.add_subplot(gs[0, 0])
         self.ax.get_yaxis().set_visible(False)  # intensity units are arbitrary
         times = None
-        probe_line = self.get_point_line_locations(key='probe')
+        probe_line = self.get_probe_line_locations()
         region_count = 1
         value_type_to_display = self.get_display_value_options()[self.data.get_display_value_option_index()]
-
+        view_window = self.data.get_artifact_exclusion_window()
         # For our plot, we assume all traces are normalized to [0,1] (see get_display_trace in data.py)
         for i in range(num_traces):
             trace = self.traces[i]
             points = np.array([])
             if isinstance(trace, Trace):
-                trace.clip_time_window(self.data.get_artifact_exclusion_window())
+                trace.clip_time_window(view_window)
                 times, points = trace.get_data()
             else:
                 print("Not a Trace object:", type(trace))
@@ -418,8 +418,8 @@ class TraceViewer:
         # Point line (probe type) -- one for the whole plot, now
         if probe_line is not None:
             self.ax.axvline(x=probe_line,
-                            ymin=-20,
-                            ymax=1 + 10,
+                            ymin=-2,
+                            ymax=2,
                             c="gray",
                             linewidth=3,
                             clip_on=False)
@@ -430,13 +430,66 @@ class TraceViewer:
                 ab = AnnotationBbox(probe_annotation,
                                     (probe_line, y_annotate),
                                     xycoords='data',
-                                    xybox=(0.5, 1.1),
+                                    xybox=(0.5, 1.05),
                                     boxcoords=("axes fraction", "axes fraction"),
                                     box_alignment=(0., 0.5),
-                                    arrowprops=dict(arrowstyle="->")
-                                    )
+                                    arrowprops=dict(arrowstyle="->"))
                 self.ax.add_artist(ab)
+
+        # Measure window visualization
+        if num_traces > 0:
+            self.draw_measure_window()
+            self.draw_baseline_window()
+
         self.fig.canvas.draw_idle()
+
+    def draw_baseline_window(self):
+        bl_start, bl_end = self.data.core.get_baseline_skip_window()
+        self.draw_window(bl_start, bl_end, "Baseline Skip", 'red', -0.1)
+
+    def draw_measure_window(self):
+        measure_start, measure_end = self.data.get_measure_window()
+        self.draw_window(measure_start, measure_end, "Measure", 'blue', 1.1)
+
+    def draw_window(self, start, end, name, color, y_loc):
+        start, end = self.normalize_and_restrict_window(start,
+                                                        end,
+                                                        self.data.get_artifact_exclusion_window())
+        start *= self.data.get_int_pts()
+        end *= self.data.get_int_pts()
+        if start < end:
+            self.ax.axvspan(start,
+                            end,
+                            color=color,
+                            alpha=0.2)
+            box_x_loc = (start + end) / 2
+            ab = AnnotationBbox(TextArea(name),
+                                (start, y_loc),
+                                xycoords=("data", "axes fraction"),
+                                xybox=(box_x_loc, y_loc),
+                                boxcoords=("data", "axes fraction"),
+                                box_alignment=(0., 0.5),
+                                arrowprops=dict(arrowstyle="->"))
+            self.ax.add_artist(ab)
+            ab = AnnotationBbox(TextArea(name),
+                                (end, y_loc),
+                                xycoords=("data", "axes fraction"),
+                                xybox=(box_x_loc, y_loc),
+                                boxcoords=("data", "axes fraction"),
+                                box_alignment=(0., 0.5),
+                                arrowprops=dict(arrowstyle="->"))
+            self.ax.add_artist(ab)
+
+    # make window positive and restrict to within view window
+    def normalize_and_restrict_window(self, start, end, view_window):
+        n = self.data.get_num_pts()
+        if end == -1:
+            end = n
+        start = max(view_window[0] % n, start % n)
+        end = min(view_window[1] % n, end % n)
+        if end < start:
+            end, start = start, end
+        return start, end
 
     def add_trace(self, pixel_index=None, color='b', fp_index=None):
         trace = self.data.get_display_trace(index=pixel_index,
@@ -483,7 +536,7 @@ class TraceViewer:
 
     def clear_traces(self):
         self.traces = []
-        self.clear_point_line_locations()
+        self.clear_probe_line_location()
         self.update_new_traces()
 
     # Ignoring FP traces
@@ -498,16 +551,11 @@ class TraceViewer:
         print(ind)
         return ind
 
-    def get_point_line_locations(self, key=None):
-        if key is None or key not in self.point_line_locations:
-            return self.point_line_locations
-        return self.point_line_locations[key]
+    def get_probe_line_locations(self):
+        return self.probe_line_location
 
     def set_probe_line_location(self, v):
-        self.point_line_locations['probe'] = v
+        self.probe_line_location = v
 
-    def clear_point_line_locations(self):
-        self.point_line_locations = {
-            'probe': None,
-            'measure_window': []
-        }
+    def clear_probe_line_location(self):
+        self.probe_line_location = None

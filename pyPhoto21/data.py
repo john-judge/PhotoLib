@@ -646,6 +646,7 @@ class Data(File):
         bg_name = self.get_background_options()[self.get_background_option_index()]
         if index is None or not self.bg_uses_frame_selector(bg_name):
             index = self.get_measure_window()
+            print("data.py index", index)
         if type(index) == int and (index < images.shape[0]) and index >= 0:
             ret_frame = images[index, :, :]
         elif type(index) == list and len(index) == 2:
@@ -658,7 +659,7 @@ class Data(File):
             print("Showing frame from fully processed data.")
             return ret_frame
 
-        if ret_frame is None:
+        if ret_frame is None or ret_frame.size < 1:
             return None
 
         # RLI division
@@ -679,7 +680,7 @@ class Data(File):
         # spatial filtering
         ret_frame = self.core.filter_spatial(ret_frame)
 
-        if ret_frame is None:
+        if ret_frame is None or ret_frame.size < 1:
             return None
 
         # crop out 1px borders
@@ -740,6 +741,8 @@ class Data(File):
                 master_mask = np.logical_or(master_mask, m)
 
             ret_trace = images[:, master_mask]
+            if ret_trace.size < 1:
+                return None
             ret_trace = np.average(ret_trace, axis=1)
         elif index is None:
             return ret_trace
@@ -757,11 +760,13 @@ class Data(File):
                     ret_trace = images[:, mask]
                 except IndexError as e:
                     return None
+                if ret_trace.size < 1:
+                    return None
                 ret_trace = np.average(ret_trace, axis=1)
             else:
                 print("get_display_trace: drawn shape is empty:", index)
 
-        if ret_trace is None:
+        if ret_trace is None or ret_trace.size < 1:
             return None
 
         start, end = self.get_artifact_exclusion_window()
