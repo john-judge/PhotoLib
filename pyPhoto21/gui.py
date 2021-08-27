@@ -139,6 +139,7 @@ class GUI:
         figure_canvas_agg = self.draw_figure(self.window['trace_canvas'].TKCanvas, fig)
         figure_canvas_agg.mpl_connect('scroll_event', self.tv.onscroll)
         figure_canvas_agg.mpl_connect('button_press_event', self.tv.onpress)
+        figure_canvas_agg.mpl_connect('motion_notify_event', self.tv.onmove)
 
     def plot_frame(self):
         fig = self.fv.get_fig()

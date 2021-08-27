@@ -3,13 +3,13 @@ import matplotlib.figure as figure
 from matplotlib.widgets import Slider
 from imantics import Polygons, Mask
 
-from collections import defaultdict
-
+from pyPhoto21.viewers.viewer import Viewer
 from pyPhoto21.analysis.hyperslicer import HyperSlicer
 
 
-class FrameViewer:
+class FrameViewer(Viewer):
     def __init__(self, data, tv):
+        super().__init__()
         self.data = data
         self.hyperslicer = None
         self.num_frames = None
@@ -17,15 +17,7 @@ class FrameViewer:
         self.tv = tv  # TraceViewer
         self.show_processed_data = False
 
-        # Mouse event state
-        self.press = False
-        self.moving = False
-        self.draw_path = []
-        self.path_x_index = defaultdict(list)
         self.colors = ['red', 'green', 'cyan', 'magenta', 'yellow', 'black', 'blue']
-
-        # Key event state
-        self.control_key_down = False
 
         self.slider_enabled = self.should_use_frame_selector()
         self.smax = None
@@ -132,29 +124,6 @@ class FrameViewer:
         self.press = False
         self.moving = False
 
-    def onpress(self, event):
-        if not self.press:
-            if event.button == 1 or event.button == 3:
-                self.clear_waypoints()
-                self.add_waypoint(event)
-            self.press = True
-
-    def onmove(self, event):
-        if self.press and event.button in [1, 3]:  # left or right mouse
-            self.add_waypoint(event)
-            self.moving = True
-
-    def onkeypress(self, event):
-        if event.key == 'control':
-            self.control_key_down = True
-
-    def onkeyrelease(self, event):
-        if event.key == 'control':
-            self.control_key_down = False
-
-    def is_control_key_held(self):
-        return self.control_key_down
-
     def onclick(self, event):
         if event.button == 3:  # right click
             self.tv.clear_traces()
@@ -192,8 +161,6 @@ class FrameViewer:
         if not success:
             print('No trace created for this ROI selection.')
         self.draw_path = []
-        # Seal and determine selected ROI
-        # Average traces and add subplot in TraceViewer
 
     def add_waypoint(self, event):
         if event.xdata is not None and event.ydata is not None:
@@ -257,10 +224,6 @@ class FrameViewer:
                     except ValueError as e:
                         print(polygon_pts)
                         print(e)
-
-    def clear_waypoints(self):
-        self.draw_path = []
-        self.path_x_index = defaultdict(list)
 
     def update_new_image(self):
         self.fig.clf()

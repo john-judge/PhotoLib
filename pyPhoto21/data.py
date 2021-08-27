@@ -646,7 +646,6 @@ class Data(File):
         bg_name = self.get_background_options()[self.get_background_option_index()]
         if index is None or not self.bg_uses_frame_selector(bg_name):
             index = self.get_measure_window()
-            print("data.py index", index)
         if type(index) == int and (index < images.shape[0]) and index >= 0:
             ret_frame = images[index, :, :]
         elif type(index) == list and len(index) == 2:

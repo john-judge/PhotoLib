@@ -5,6 +5,8 @@ from sklearn.linear_model import LinearRegression
 from numpy.polynomial import polynomial
 from scipy.ndimage import gaussian_filter
 
+from pyPhoto21.viewers.viewer import Viewer
+
 
 class Trace:
     def __init__(self, points, int_pts, start_frame=0, end_frame=-1, is_fp_trace=False,
@@ -113,7 +115,7 @@ class Trace:
         self.points = 0 - self.points
 
     def normalize(self, zoom_factor=1.0):
-        # normalize amplitudes to [0, 1], clipping dependent
+        # normalize amplitudes to [-0.5, 0.5], clipping dependent
         # The zoom factor is the max amplitude
         pts = self.get_data_clipped()
         amp_max = np.max(pts)
@@ -121,6 +123,13 @@ class Trace:
         self.points = (self.points - amp_min).astype(np.float32)
         if amp_max > amp_min:
             self.points /= float(amp_max - amp_min)
+        else:
+            return self.points
+
+        # [0,1] -> [-0.5, 0.5]
+        self.points -= 0.5
+
+        # apply y-zoom factor
         if zoom_factor != 1:
             self.points *= zoom_factor
         return self.points
@@ -229,8 +238,10 @@ class Trace:
         self.points[:] = trace[:]
 
 
-class TraceViewer:
+class TraceViewer(Viewer):
     def __init__(self, gui):
+        super().__init__()
+
         self.data = gui.data
         self.gui = gui
         self.fig = figure.Figure()
@@ -241,8 +252,12 @@ class TraceViewer:
 
         self.probe_line_location = None
         self.clear_probe_line_location()
-        self.zoom_factor = 1.0
-        self.zoom_bounds = [0.1, 20.0]
+        self.y_zoom_factor = 1.0
+        self.y_zoom_bounds = [0.1, 20.0]
+        self.x_zoom_factor = 2.0
+        self.x_zoom_bounds = [0.5, 20.0]
+        self.x_pan_start = None
+        self.x_pan_offset = 0.0
 
     def get_traces(self):
         return self.traces
@@ -261,38 +276,90 @@ class TraceViewer:
                 self.set_probe_line_location(x)
                 self.update_new_traces()
         elif event.button == 1:  # left mouse
-            print(event)
+            self.x_pan_start = event.x
+            self.press = True
         elif event.button == 3:  # right mouse
-            self.delete_trace(int(event.ydata))
+            if self.gui.fv.is_control_key_held():
+                self.reset_trace_view()
+            else:
+                self.delete_trace(int(event.ydata))
             self.gui.fv.update_new_image()
         else:
             print("button:", event.button)
 
-    def onscroll(self, event):
-        if event.button == 'up':
-            self.increase_zoom()
-        elif event.button == 'down':
-            self.decrease_zoom()
-
-    def get_zoom_int(self):
-        zoom_int = 0.2
-        # if self.zoom_factor > 0.8:
-        #     zoom_int = int(self.zoom_factor) ** 2
-        return zoom_int
-
-    def decrease_zoom(self):
-        tmp = self.zoom_factor
-        zoom_int = self.get_zoom_int()
-        self.zoom_factor = max(self.zoom_bounds[0], self.zoom_factor - zoom_int)
-        self.update_new_traces()
-        if tmp != self.zoom_factor:
+    def onmove(self, event):
+        if self.press and event.button == 1 and self.x_pan_start is not None:
+            if event.xdata is not None:
+                width_in_px = self.ax.get_window_extent().transformed(
+                    self.fig.dpi_scale_trans.inverted()).width * self.fig.dpi
+                curr_x_lims = self.ax.get_xlim()
+                self.x_pan_offset += (self.x_pan_start - event.x) / width_in_px \
+                                     * (curr_x_lims[1] - curr_x_lims[0])
+            self.x_pan_start = event.x
+            self.moving = True
             self.update_new_traces()
 
-    def increase_zoom(self):
-        tmp = self.zoom_factor
+    def onrelease(self, event):
+        if self.press and not self.moving:
+            self.onpress(event)
+        self.press = False
+        self.moving = False
+        self.x_pan_start = None
+        self.x_pan_offset = 0.0
+
+    def onscroll(self, event):
+        if self.gui.fv.is_control_key_held():  # frameviewer has the focus and gets the keypresses
+            if event.button == 'up':
+                self.increase_x_zoom()
+            elif event.button == 'down':
+                self.decrease_x_zoom()
+        else:
+            if event.button == 'up':
+                self.increase_y_zoom()
+            elif event.button == 'down':
+                self.decrease_y_zoom()
+
+    def get_current_x_pan_offset(self):
+        return self.x_pan_offset
+
+    def reset_trace_view(self):
+        print("reset_trace_view")
+        self.x_pan_offset = 0.0
+        self.x_zoom_factor = 2.0
+        self.y_zoom_factor = 1.0
+
+    @staticmethod
+    def get_zoom_int():
+        return 0.2
+
+    def decrease_y_zoom(self):
+        tmp = self.y_zoom_factor
         zoom_int = self.get_zoom_int()
-        self.zoom_factor = min(self.zoom_bounds[1], self.zoom_factor + zoom_int)
-        if tmp != self.zoom_factor:
+        self.y_zoom_factor = max(self.y_zoom_bounds[0], self.y_zoom_factor - zoom_int)
+        self.update_new_traces()
+        if tmp != self.y_zoom_factor:
+            self.update_new_traces()
+
+    def increase_y_zoom(self):
+        tmp = self.y_zoom_factor
+        zoom_int = self.get_zoom_int()
+        self.y_zoom_factor = min(self.y_zoom_bounds[1], self.y_zoom_factor + zoom_int)
+        if tmp != self.y_zoom_factor:
+            self.update_new_traces()
+
+    def decrease_x_zoom(self):
+        tmp = self.x_zoom_factor
+        zoom_int = self.get_zoom_int()
+        self.x_zoom_factor = max(self.x_zoom_bounds[0], self.x_zoom_factor - zoom_int)
+        self.update_new_traces()
+        if tmp != self.x_zoom_factor:
+            self.update_new_traces()
+
+    def increase_x_zoom(self):
+        tmp = self.x_zoom_factor
+        zoom_int = self.get_zoom_int()
+        self.x_zoom_factor = min(self.x_zoom_bounds[1], self.x_zoom_factor + zoom_int)
+        if tmp != self.x_zoom_factor:
             self.update_new_traces()
 
     def delete_trace(self, ind):
@@ -314,16 +381,17 @@ class TraceViewer:
             col = self.traces[i].color
             trace = self.data.get_display_trace(index=self.traces[i].pixel_indices,
                                                 fp_index=self.traces[i].fp_index,
-                                                zoom_factor=self.zoom_factor,
+                                                zoom_factor=self.y_zoom_factor,
                                                 masks=self.traces[i].masks)
-            trace.annotation = self.traces[i].annotation
-            trace.color = col
-            _, points = trace.get_data()
-            if len(points.shape) == 1:
+            if trace is not None:
+                trace.annotation = self.traces[i].annotation
                 trace.color = col
-                self.traces[i] = trace
-            else:
-                print("Invalid trace generated from pix index:", self.traces[i].pixel_indices)
+                _, points = trace.get_data()
+                if len(points.shape) == 1:
+                    trace.color = col
+                    self.traces[i] = trace
+                else:
+                    print("Invalid trace generated from pix index:", self.traces[i].pixel_indices)
 
     def create_annotation_text(self, region_count, i):
         px_ind = self.traces[i].pixel_indices
@@ -349,9 +417,15 @@ class TraceViewer:
                 h, w = rli_frame.shape
                 mask = self.data.get_frame_mask(h, w, pixel_index)
                 if mask is not None:  # region
-                    value_to_display = np.average(rli_frame[mask])
+                    try:
+                        value_to_display = np.average(rli_frame[mask])
+                    except IndexError:
+                        return ''
                 else:  # single pixel
-                    value_to_display = rli_frame[pixel_index[0, 1], pixel_index[0, 0]]
+                    if pixel_index[0, 1] < h and pixel_index[0, 0] < w:
+                        value_to_display = rli_frame[pixel_index[0, 1], pixel_index[0, 0]]
+                    else:
+                        return ''
             else:  # FP, no RLI
                 return ''
         elif display_type == "Max Amp":
@@ -399,7 +473,7 @@ class TraceViewer:
                 points += i  # add constant to plot trace in its own space.
                 self.ax.plot(times, points, color=trace.color)
 
-            # Annotation trace
+            # Annotate trace
             trace_annotation_text = trace.annotation
             if trace_annotation_text is None:
                 trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
@@ -414,6 +488,18 @@ class TraceViewer:
                                     boxcoords=("axes fraction", "axes fraction"),
                                     box_alignment=(0., 1.0))
                 self.ax.add_artist(ab)
+
+        # y-lim must be set for zoom factor to work
+        self.ax.set_ylim([-1, num_traces])
+
+        # x-lim is used to create zoom factor effect
+        n = self.data.get_num_pts()
+        trace_duration = abs(view_window[1] % n - view_window[0] % n) * self.data.get_int_pts()
+        trace_mid_point = view_window[0] % n * self.data.get_int_pts() + trace_duration / 2
+        zoom_x_radius = trace_duration / self.x_zoom_factor
+        x_center = trace_mid_point + self.get_current_x_pan_offset()  # x window offset from center
+        self.ax.set_xlim([x_center - zoom_x_radius,
+                          x_center + zoom_x_radius])
 
         # Point line (probe type) -- one for the whole plot, now
         if probe_line is not None:
@@ -548,7 +634,6 @@ class TraceViewer:
             ind -= 1
         if self.traces[ind] is None or ind < 0:
             return None
-        print(ind)
         return ind
 
     def get_probe_line_locations(self):
