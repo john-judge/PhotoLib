@@ -23,18 +23,26 @@ class Viewer:
 
     def onpress(self, event):
         if not self.press:
-            if event.button == 1 or event.button == 3:
+            if event.button in [1, 2, 3]:
                 self.clear_waypoints()
                 self.add_waypoint(event)
             self.press = True
 
     def onmove(self, event):
-        if self.press and event.button in [1, 3]:  # left or right mouse
+        if self.press and event.button in [1, 2, 3]:
             self.add_waypoint(event)
             self.moving = True
 
     def is_control_key_held(self):
         return self.control_key_down
+
+    def get_width_in_pixels(self, ax, fig):
+        return ax.get_window_extent().transformed(
+            fig.dpi_scale_trans.inverted()).width * fig.dpi
+
+    def get_height_in_pixels(self, ax, fig):
+        return ax.get_window_extent().transformed(
+            fig.dpi_scale_trans.inverted()).height * fig.dpi
 
     def clear_waypoints(self):
         self.draw_path = []

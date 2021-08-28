@@ -290,8 +290,7 @@ class TraceViewer(Viewer):
     def onmove(self, event):
         if self.press and event.button == 1 and self.x_pan_start is not None:
             if event.xdata is not None:
-                width_in_px = self.ax.get_window_extent().transformed(
-                    self.fig.dpi_scale_trans.inverted()).width * self.fig.dpi
+                width_in_px = self.get_width_in_pixels(self.ax, self.fig)
                 curr_x_lims = self.ax.get_xlim()
                 self.x_pan_offset += (self.x_pan_start - event.x) / width_in_px \
                                      * (curr_x_lims[1] - curr_x_lims[0])
@@ -323,7 +322,6 @@ class TraceViewer(Viewer):
         return self.x_pan_offset
 
     def reset_trace_view(self):
-        print("reset_trace_view")
         self.x_pan_offset = 0.0
         self.x_zoom_factor = 2.0
         self.y_zoom_factor = 1.0

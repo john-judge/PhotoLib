@@ -150,6 +150,7 @@ class GUI:
         figure_canvas_agg.mpl_connect('key_press_event', self.fv.onkeypress)
         figure_canvas_agg.mpl_connect('key_release_event', self.fv.onkeyrelease)
         figure_canvas_agg.mpl_connect('motion_notify_event', self.fv.onmove)
+        figure_canvas_agg.mpl_connect('scroll_event', self.fv.onscroll)
         self.window['frame_canvas'].TKCanvas.focus_set()
         s_max = self.fv.get_slider_max()
         if s_max is not None:

@@ -16,6 +16,11 @@ class FrameViewer(Viewer):
         self.ind = 0
         self.tv = tv  # TraceViewer
         self.show_processed_data = False
+        self.zoom_factor = 1.0
+        self.zoom_bounds = [0.5, 20]
+        self.pan_offset = [0.0, 0.0]
+        self.orig_x_lims = None
+        self.orig_y_lims = None
 
         self.colors = ['red', 'green', 'cyan', 'magenta', 'yellow', 'black', 'blue']
 
@@ -95,6 +100,21 @@ class FrameViewer(Viewer):
             self.im = self.ax.imshow(self.current_frame,
                                      aspect='auto',
                                      cmap=self.get_color_map_option_name())
+            self.orig_x_lims = self.ax.get_xlim()
+            self.orig_y_lims = self.ax.get_ylim()
+            self.set_zoom_pan()
+
+    def set_zoom_pan(self):
+        x0, x1 = self.orig_x_lims
+        y0, y1 = self.orig_y_lims
+        x_center = (x0 + x1) / 2 + self.pan_offset[0]
+        y_center = (y0 + y1) / 2 + self.pan_offset[1]
+        x_rad = (x1 - x0) / 2 * self.zoom_factor
+        y_rad = (y1 - y0) / 2 * self.zoom_factor
+        self.ax.set_xlim([x_center - x_rad,
+                          x_center + x_rad])
+        self.ax.set_ylim([y_center - y_rad,
+                          y_center + y_rad])
 
     def enable_disable_slider(self):
         self.slider_enabled = self.should_use_frame_selector()
@@ -124,6 +144,13 @@ class FrameViewer(Viewer):
         self.press = False
         self.moving = False
 
+    def onmove(self, event):
+        if self.press and event.button in [1, 2, 3]:
+            self.add_waypoint(event)
+            self.moving = True
+        if event.button == 2:
+            self.pan_frame()
+
     def onclick(self, event):
         if event.button == 3:  # right click
             self.tv.clear_traces()
@@ -137,6 +164,10 @@ class FrameViewer(Viewer):
                 for i in range(len(self.fp_axes)):
                     if event.inaxes == self.fp_axes[i]:
                         self.tv.add_trace(fp_index=i)
+        elif event.button == 2:  # middle mouse, pan
+            if event.inaxes == self.ax:
+                if self.is_control_key_held():
+                    self.reset_frame_view()
 
     def get_next_color(self):
         return self.colors[(len(self.tv.traces) - 1) % len(self.colors)]
@@ -144,11 +175,14 @@ class FrameViewer(Viewer):
     # Identified drag has completed
     def ondrag(self, event):
         is_deletion = (event.button == 3)
+        is_panning = (event.button == 2)
         ctrl = self.is_control_key_held()
         color = self.get_next_color()
         draw = np.array(self.draw_path)
         success = False
-        if is_deletion:
+        if is_panning:
+            success = True  # no additional handling needed.
+        elif is_deletion:
             self.tv.remove_from_last_trace(pixel_index=draw)
             success = True
         elif ctrl:
@@ -162,15 +196,67 @@ class FrameViewer(Viewer):
             print('No trace created for this ROI selection.')
         self.draw_path = []
 
+    def onscroll(self, event):
+        if event.button == 'up':
+            self.increase_zoom()
+        elif event.button == 'down':
+            self.decrease_zoom()
+
+    def pan_frame(self):
+        if len(self.draw_path) > 1:
+            w_px = self.get_width_in_pixels(self.ax, self.fig)
+            h_px = self.get_height_in_pixels(self.ax, self.fig)
+            curr_x_lims = self.ax.get_xlim()
+            curr_y_lims = self.ax.get_ylim()
+            dx = (self.draw_path[-1][0] - self.draw_path[-2][0]) / w_px * (
+                (curr_x_lims[1] - curr_x_lims[0])
+            )
+            dy = (self.draw_path[-1][1] - self.draw_path[-2][1]) / h_px * (
+                (curr_y_lims[1] - curr_y_lims[0])
+            )
+            self.pan_offset[0] -= dx
+            self.pan_offset[1] -= dy
+            self.update_zoom_pan_only()
+
+    def reset_frame_view(self):
+        self.pan_offset = [0.0, 0.0]
+        self.zoom_factor = 1.0
+        self.update_zoom_pan_only()
+
+    def update_zoom_pan_only(self):
+        self.set_zoom_pan()
+        self.fig.canvas.draw_idle()
+
+    @staticmethod
+    def get_zoom_int():
+        return 0.2
+
+    def increase_zoom(self):
+        tmp = self.zoom_factor
+        zoom_int = self.get_zoom_int()
+        self.zoom_factor = max(self.zoom_bounds[0], self.zoom_factor - zoom_int)
+        if tmp != self.zoom_factor:
+            self.update_zoom_pan_only()
+
+    def decrease_zoom(self):
+        tmp = self.zoom_factor
+        zoom_int = self.get_zoom_int()
+        self.zoom_factor = min(self.zoom_bounds[1], self.zoom_factor + zoom_int)
+        if tmp != self.zoom_factor:
+            self.update_zoom_pan_only()
+
     def add_waypoint(self, event):
         if event.xdata is not None and event.ydata is not None:
             x = int(event.xdata)
             y = int(event.ydata)
+            if event.button == 2:
+                x = int(event.x)
+                y = int(event.y)
             # avoid duplicate points
-            if x in self.path_x_index and y in self.path_x_index[x]:
+            if event.button in [1, 3] and x in self.path_x_index and y in self.path_x_index[x]:
                 pass
             else:
-                if len(self.draw_path) > 0:
+                if len(self.draw_path) > 0 and event.button != 2:
                     last_point = self.draw_path[-1]
                     self.draw_line(last_point, [x, y], event.button == 3)
                 self.draw_path.append([x, y])
