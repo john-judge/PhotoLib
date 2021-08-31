@@ -10,6 +10,7 @@ from webbrowser import open as open_browser
 from pyPhoto21.viewers.frame import FrameViewer
 from pyPhoto21.viewers.trace import TraceViewer
 from pyPhoto21.viewers.daq import DAQViewer
+from pyPhoto21.viewers.time_course import TimeCourseViewer
 from pyPhoto21.analysis.roi import ROI
 from pyPhoto21.gui_elements.layouts import *
 from pyPhoto21.gui_elements.event_mapping import EventMapping
@@ -34,6 +35,7 @@ class GUI:
         self.tv = TraceViewer(self)
         self.fv = FrameViewer(self.data, self.tv)
         self.dv = DAQViewer(self.data)
+        self.tcv = TimeCourseViewer(self)
         self.roi = ROI(self.data)
         self.exporter = Exporter(self.tv, self.fv)
         self.layouts = Layouts(data)
@@ -91,6 +93,7 @@ class GUI:
         self.plot_trace()
         self.plot_frame()
         self.plot_daq_timeline()
+        self.plot_time_course()
         self.main_workflow_loop()
         self.window.close()
 
@@ -133,6 +136,14 @@ class GUI:
         fig = self.dv.get_fig()
         self.draw_figure(self.window['daq_canvas'].TKCanvas, fig)
         self.dv.update()
+
+    def plot_time_course(self):
+        fig = self.tcv.get_fig()
+        figure_canvas_agg = self.draw_figure(self.window['time_course_canvas'].TKCanvas, fig)
+        figure_canvas_agg.mpl_connect('scroll_event', self.tv.onscroll)
+        figure_canvas_agg.mpl_connect('button_press_event', self.tv.onpress)
+        figure_canvas_agg.mpl_connect('motion_notify_event', self.tv.onmove)
+        self.tcv.update()
 
     def plot_trace(self):
         fig = self.tv.get_fig()
@@ -436,6 +447,7 @@ class GUI:
             self.data.set_save_dir(folder)
             self.data.db.set_save_dir(folder)
             self.exporter.set_save_dir(folder)
+            self.window["Time Course File Selector"].update(self.data.get_data_filenames_in_folder())
             print("New save location:", folder)
 
     def browse_for_file(self, file_extensions, multi_file=False, tsv_only=False):

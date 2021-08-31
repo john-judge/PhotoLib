@@ -17,7 +17,7 @@ class DAQViewer:
 
     def onpress(self, event):
         if event.button == 2:
-            if event.xdata is not None and len(self.axes) > 0:
+            if event.xdata is not None:
                 x = int(event.xdata)
                 self.update()
 

@@ -513,7 +513,6 @@ class Layouts:
         ]])]
 
         frame_viewer_layout = [
-            # [sg.Canvas(key='frame_canvas_controls', tooltip="")],
             [sg.Column(
                 layout=[
                     [sg.Canvas(key='frame_canvas',
@@ -709,7 +708,6 @@ class Layouts:
 
     def create_trace_viewer_tab(self, gui):
         trace_viewer_canvas = [
-            [sg.Canvas(key='trace_canvas_controls')],
             [sg.Canvas(key='trace_canvas', size=self.plot_size,
                        tooltip='Trace Viewer')]
         ]
@@ -721,19 +719,34 @@ class Layouts:
             ]]
         return trace_viewer_canvas + trace_viewer_tab_group
 
-    def create_notepad_tag(self):
+    def create_notepad_tab(self):
         return [[sg.Multiline(key="Notepad",
                               default_text=self.data.meta.notepad_text,
                               enable_events=True,
                               size=(50, 600),
                               tooltip="Notes for this recording, to be saved to metadata file.")]]
 
+    def create_time_course_tab(self, gui):
+        return [
+            [sg.Canvas(key='time_course_canvas', size=self.plot_size,
+                       tooltip='Time Course Viewer')],
+            [sg.Text("Available Records:")],
+            [sg.Listbox(values=gui.data.get_data_filenames_in_folder(),
+                        size=(50, 20),
+                        tooltip="Hold CTRL or SHIFT to select ranges of records"
+                                " for which to plot aggregated values.",
+                        key="Time Course File Selector",
+                        enable_events=True,
+                        select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED)]
+        ]
+
     def create_right_column(self, gui):
 
         tab_group_right = [sg.TabGroup([[
             sg.Tab('Trace Viewer', self.create_trace_viewer_tab(gui)),
             sg.Tab('DAQ Config', self.create_daq_config_tab()),  # plotting a small timeline of record/stim events
-            sg.Tab('Notepad', self.create_notepad_tag(), key='Notes')
+            sg.Tab('Notepad', self.create_notepad_tab(), key='Notes'),
+            sg.Tab('Time Course', self.create_time_course_tab(gui), key='Time Course')
         ]])]
         return [tab_group_right]
 

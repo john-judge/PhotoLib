@@ -107,3 +107,11 @@ class File:
         if all([i.isnumeric() for i in parts]):
             return [int(i) for i in parts] + [ext]
         return [filename, ext]
+
+    def get_data_filenames_in_folder(self, data_ext='.npy', meta_ext='.json'):
+        files = self.get_filenames_in_folder()
+        ret_files = []
+        for f in files:
+            if f.endswith(data_ext) and f.split('.')[0] + meta_ext in files:
+                ret_files.append(f)
+        return ret_files
