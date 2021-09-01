@@ -140,9 +140,9 @@ class GUI:
     def plot_time_course(self):
         fig = self.tcv.get_fig()
         figure_canvas_agg = self.draw_figure(self.window['time_course_canvas'].TKCanvas, fig)
-        figure_canvas_agg.mpl_connect('scroll_event', self.tv.onscroll)
-        figure_canvas_agg.mpl_connect('button_press_event', self.tv.onpress)
-        figure_canvas_agg.mpl_connect('motion_notify_event', self.tv.onmove)
+        figure_canvas_agg.mpl_connect('scroll_event', self.tcv.onscroll)
+        figure_canvas_agg.mpl_connect('button_press_event', self.tcv.onpress)
+        figure_canvas_agg.mpl_connect('motion_notify_event', self.tcv.onmove)
         self.tcv.update()
 
     def plot_trace(self):
@@ -659,6 +659,8 @@ class GUI:
         w['Time Window Start frames pre_stim'].update(str(t_pre_stim[0])[:6])
 
         w['Notepad'].update(self.data.meta.notepad_text)
+        display_value_options = self.tv.get_display_value_options()
+        w["Select Display Value"].update(display_value_options[self.get_display_value_option_index()])
 
         self.update_tracking_num_fields()
 

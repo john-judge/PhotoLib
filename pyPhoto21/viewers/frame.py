@@ -165,9 +165,8 @@ class FrameViewer(Viewer):
                     if event.inaxes == self.fp_axes[i]:
                         self.tv.add_trace(fp_index=i)
         elif event.button == 2:  # middle mouse, pan
-            if event.inaxes == self.ax:
-                if self.is_control_key_held():
-                    self.reset_frame_view()
+            if self.is_control_key_held():
+                self.reset_frame_view()
 
     def get_next_color(self):
         return self.colors[(len(self.tv.traces) - 1) % len(self.colors)]

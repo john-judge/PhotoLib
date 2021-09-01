@@ -579,7 +579,7 @@ class Data(File):
 
         if i >= 100:
             print("data.py: searched 100 filenames for free name. Likely an issue.")
-        self.db.load_mmap_file(self.db.get_current_filename(extension=self.db.extension), mode=None)
+        self.db.load_mmap_file(filename=self.db.get_current_filename(extension=self.db.extension), mode=None)
 
     def get_background_option_index(self):
         return self.db.meta.background_option_index
@@ -738,8 +738,10 @@ class Data(File):
                 if m.shape != master_mask.shape:
                     return None  # image must have changed, region no longer valid.
                 master_mask = np.logical_or(master_mask, m)
-
-            ret_trace = images[:, master_mask]
+            try:
+                ret_trace = images[:, master_mask]
+            except IndexError:
+                return None
             if ret_trace.size < 1:
                 return None
             ret_trace = np.average(ret_trace, axis=1)
@@ -878,7 +880,10 @@ class Data(File):
         rli_light_frames = self.get_rli_images()[d + margins + 1:n - 1 - margins, :, :]
         if rli_light_frames is None or rli_light_frames.shape[0] == 0:
             return None
-        rli_high[:, :] = np.average(rli_light_frames, axis=0)[:, :]
+        try:
+            rli_high[:, :] = np.average(rli_light_frames, axis=0)[:, :]
+        except ValueError:
+            print("We're unable to calculate RLI due to invalid array size assumptions.")
         return rli_high
 
     def calculate_dark_rli_frame(self, margins=40):
@@ -891,7 +896,10 @@ class Data(File):
         rli_dark_frames = self.get_rli_images()[margins + 1:d - margins - 1, :, :]
         if rli_dark_frames is None or rli_dark_frames.shape[0] == 0:
             return None
-        rli_low[:, :] = np.average(rli_dark_frames, axis=0)[:, :]
+        try:
+            rli_low[:, :] = np.average(rli_dark_frames, axis=0)[:, :]
+        except ValueError:
+            print("We're unable to calculate RLI due to invalid array size assumptions.")
         return rli_low
 
     def calculate_max_rli_frame(self):

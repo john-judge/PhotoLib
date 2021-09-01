@@ -733,7 +733,7 @@ class Layouts:
             [sg.Text("Available Records:")],
             [sg.Listbox(values=gui.data.get_data_filenames_in_folder(),
                         size=(50, 20),
-                        tooltip="Hold CTRL or SHIFT to select ranges of records"
+                        tooltip="Hold CTRL to select multiple records"
                                 " for which to plot aggregated values.",
                         key="Time Course File Selector",
                         enable_events=True,

@@ -405,7 +405,7 @@ class TraceViewer(Viewer):
             region_count += 1
         return trace_annotation_text, region_count
 
-    def create_display_value(self, display_type, i, trace):
+    def create_display_value(self, display_type, i, points):
         value_to_display = None
         pixel_index = self.traces[i].pixel_indices
         if display_type == 'RLI':
@@ -427,15 +427,19 @@ class TraceViewer(Viewer):
             else:  # FP, no RLI
                 return ''
         elif display_type == "Max Amp":
-            value_to_display = np.max(trace)
+            value_to_display = np.max(points)
         elif display_type == "MaxAmp/SD":
-            std = np.std(trace)
+            std = np.std(points)
             if std == 0:
                 return ''
-            value_to_display = np.max(trace) / std
+            value_to_display = np.max(points) / std
         elif display_type != "None":
             print("Displaying", display_type, "in trace viewer not implemented")
 
+        return value_to_display
+
+    def create_display_value_label(self, display_type, i, points):
+        value_to_display = self.create_display_value(display_type, i, points)
         if value_to_display is None:
             return ''
 
@@ -477,7 +481,7 @@ class TraceViewer(Viewer):
                 trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
 
             if trace_annotation_text is not None:
-                trace_annotation_text += self.create_display_value(value_type_to_display, i, points)
+                trace_annotation_text += self.create_display_value_label(value_type_to_display, i, points)
                 trace_annotation_text = TextArea(trace_annotation_text)
                 ab = AnnotationBbox(trace_annotation_text,
                                     (-0.14, (i + 0.5) / num_traces),

@@ -35,7 +35,7 @@ class Database(File):
                                  path=path)
 
     # https://numpy.org/doc/stable/reference/generated/numpy.memmap.html#numpy.memmap
-    def load_mmap_file(self, filename=None, mode='r+'):  # w+ allows create/overwrite. mode=None for auto-choose
+    def load_mmap_file(self, meta=None, filename=None, mode='r+', reshape_rli_buffer=True):  # w+ allows create/overwrite. mode=None for auto-choose
         if filename is None:
             if self.open_filename is not None:
                 filename = self.open_filename
@@ -48,12 +48,14 @@ class Database(File):
                 mode = "r+"
             else:
                 mode = "w+"
+        if meta is None:
+            meta = self.meta
 
-        arr_shape = (self.meta.num_trials,
+        arr_shape = (meta.num_trials,
                      2,
-                     self.meta.num_pts + 3,  # the extra 3 frames on the first trial are used for RLI
-                     self.meta.height + 1,  # the extra row on each image stores the FP data for all FPs
-                     self.meta.width)
+                     meta.num_pts + 3,  # the extra 3 frames on the first trial are used for RLI
+                     meta.height + 1,  # the extra row on each image stores the FP data for all FPs
+                     meta.width)
         if mode == "w+":
             print("Creating file:", filename,
                   " with shape", arr_shape,
@@ -67,11 +69,14 @@ class Database(File):
             print("Error while allocating disk space:", str(e))
             if "Disk" in str(e):
                 print("\n Please free up disk space to continue.")
+            else:
+                print("\nLikely, invalid assumptions were made about this file's existence")
 
-        num_rli = self.rli_images.shape[1]
-        rli_mem_shape = (2, num_rli, self.meta.height, self.meta.width)
-        self.rli_images = np.zeros(rli_mem_shape,
-                                   dtype=np.uint16)
+        if reshape_rli_buffer:
+            num_rli = self.rli_images.shape[1]
+            rli_mem_shape = (2, num_rli, meta.height, meta.width)
+            self.rli_images = np.zeros(rli_mem_shape,
+                                       dtype=np.uint16)
 
     def clear_or_resize_mmap_file(self):
         self.open_filename = None
@@ -116,5 +121,5 @@ class Database(File):
         return self.memmap_file[trial, :, :, :-1, :]
 
     def is_current_data_file_empty(self):
-        self.load_mmap_file(self.get_current_filename(extension=self.extension), mode=None)
+        self.load_mmap_file(filename=self.get_current_filename(extension=self.extension), mode=None)
         return np.all(self.memmap_file == 0)  # all zeros
