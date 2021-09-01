@@ -1,3 +1,23 @@
+# pyPhoto21
+
+## Demo Footage
+
+### Region Selector
+https://user-images.githubusercontent.com/40705003/131744469-081272ae-d758-4131-89d2-19b02c2f603b.mp4
+
+### Contrast Adjustment
+https://user-images.githubusercontent.com/40705003/131744018-c3cf2432-2342-4078-a799-026a484438fa.mp4
+
+
+### Zoom and Pan
+https://user-images.githubusercontent.com/40705003/131744436-856f514c-c925-4d4a-841e-409c8aa5e47c.mp4
+
+
+### Time Course Plot
+https://user-images.githubusercontent.com/40705003/131744495-46ed7042-e192-4c0a-a66e-d7a3faf6edf3.mp4
+
+
+
 # PhotoLib
 Builds a camera/electrode management DLL to expose to (Python) applications. Includes a GUI application for acquisition and analysis, written in Python.
 
