@@ -109,8 +109,8 @@ class TimeCourseViewer(TraceViewer):
                 for i in range(len(traces)):
                     if None not in time_courses[i]:
                         points = np.array(time_courses[i])
-                        if i > 0:
-                            points += max(time_courses[i-1])
+                        # if i > 0:
+                        #     points += max(time_courses[i-1])
                         if points.size > 0:
                             if mn is None or mx is None:
                                 mn = np.min(points)
