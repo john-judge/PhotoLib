@@ -6,8 +6,8 @@ from pyPhoto21.viewers.trace import TraceViewer
 
 class TimeCourse(Trace):
 
-    def __init__(self, points, interval, int_pts):
-        super().__init__(points, int_pts)
+    def __init__(self, points, interval):
+        super().__init__(points, interval)
 
 
 class TimeCourseViewer(TraceViewer):
@@ -20,6 +20,19 @@ class TimeCourseViewer(TraceViewer):
     def update(self):
         self.clear_figure()
         self.populate_figure()
+
+    def get_file_map(self, filelist):
+        # open each file's meta, read slice, location, and
+        # record number, then organize into nested dict.
+
+
+    def update_file_list(self, **kwargs):
+        file_list = kwargs['values']
+
+        # sort file list into an organized map.
+        file_map = self.get_file_map(file_list)
+        
+        print(file_list)
 
     def add_time_course(self, tc):
         if isinstance(tc, TimeCourse):
@@ -37,45 +50,29 @@ class TimeCourseViewer(TraceViewer):
         view_window = self.data.get_artifact_exclusion_window()
 
         for i in range(num_courses):
-            trace = self.courses[i]
+            course = self.courses[i]
             points = np.array([])
-            if isinstance(trace, TimeCourse):
-                trace.clip_time_window(view_window)
-                times, points = trace.get_data()
+            if isinstance(course, TimeCourse):
+                course.clip_time_window(view_window)
+                times, points = course.get_data()
             else:
-                print("Not a Trace object:", type(trace))
+                print("Not a Time Course object:", type(course))
 
             if times.shape[0] != points.shape[0]:
-                print("time and trace shape mismatch:", times.shape, points.shape)
+                print("time and course shape mismatch:", times.shape, points.shape)
             else:
-                points += i  # add constant to plot trace in its own space.
-                self.ax.plot(times, points, color=trace.color)
-
-            # Annotate trace
-            trace_annotation_text = trace.annotation
-            if trace_annotation_text is None:
-                trace_annotation_text, region_count = self.create_annotation_text(region_count, i)
-
-            if trace_annotation_text is not None:
-                trace_annotation_text += self.create_display_value(value_type_to_display, i, points)
-                trace_annotation_text = TextArea(trace_annotation_text)
-                ab = AnnotationBbox(trace_annotation_text,
-                                    (-0.14, (i + 0.5) / num_traces),
-                                    xycoords='axes fraction',
-                                    xybox=(-0.14, (i + 0.5) / num_traces),
-                                    boxcoords=("axes fraction", "axes fraction"),
-                                    box_alignment=(0., 1.0))
-                self.ax.add_artist(ab)
+                points += i  # add constant to plot course in its own space.
+                self.ax.plot(times, points, color=course.color)
 
         # y-lim must be set for zoom factor to work
-        self.ax.set_ylim([-1, num_traces])
+        self.ax.set_ylim([-1, num_courses])
 
         # x-lim is used to create zoom factor effect
         n = self.data.get_num_pts()
-        trace_duration = abs(view_window[1] % n - view_window[0] % n) * self.data.get_int_pts()
-        trace_mid_point = view_window[0] % n * self.data.get_int_pts() + trace_duration / 2
-        zoom_x_radius = trace_duration / self.x_zoom_factor
-        x_center = trace_mid_point + self.get_current_x_pan_offset()  # x window offset from center
+        course_duration = abs(view_window[1] % n - view_window[0] % n) * self.data.get_int_pts()
+        course_mid_point = view_window[0] % n * self.data.get_int_pts() + course_duration / 2
+        zoom_x_radius = course_duration / self.x_zoom_factor
+        x_center = course_mid_point + self.get_current_x_pan_offset()  # x window offset from center
         self.ax.set_xlim([x_center - zoom_x_radius,
                           x_center + zoom_x_radius])
 
@@ -88,7 +85,7 @@ class TimeCourseViewer(TraceViewer):
                             linewidth=3,
                             clip_on=False)
             # Point line annotation
-            if num_traces > 0:
+            if num_courses > 0:
                 probe_annotation = TextArea(str(probe_line)[:5] + " ms")
                 y_annotate = self.ax.get_ylim()[1] * 0.9
                 ab = AnnotationBbox(probe_annotation,
@@ -99,11 +96,6 @@ class TimeCourseViewer(TraceViewer):
                                     box_alignment=(0., 0.5),
                                     arrowprops=dict(arrowstyle="->"))
                 self.ax.add_artist(ab)
-
-        # Measure window visualization
-        if num_traces > 0:
-            self.draw_measure_window()
-            self.draw_baseline_window()
 
         self.fig.canvas.draw_idle()
 

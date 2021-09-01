@@ -511,6 +511,10 @@ class EventMapping:
             "Contrast Scaling": {
                 'function': gui.set_contrast_scaling,
                 'args': {}
+            },
+            "Time Course File Selector": {
+                'function': gui.tcv.update_file_list,
+                'args': {}
             }
 
         }
