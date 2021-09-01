@@ -8,14 +8,14 @@ https://user-images.githubusercontent.com/40705003/131744469-081272ae-d758-4131-
 ### Contrast Adjustment
 https://user-images.githubusercontent.com/40705003/131744018-c3cf2432-2342-4078-a799-026a484438fa.mp4
 
-
 ### Zoom and Pan
 https://user-images.githubusercontent.com/40705003/131744436-856f514c-c925-4d4a-841e-409c8aa5e47c.mp4
 
-
 ### Time Course Plot
-https://user-images.githubusercontent.com/40705003/131744495-46ed7042-e192-4c0a-a66e-d7a3faf6edf3.mp4
+https://user-images.githubusercontent.com/40705003/131745807-244bd066-618a-48f9-bead-37c1d4015a60.mp4
 
+### DAQ Config
+https://user-images.githubusercontent.com/40705003/131745935-35572211-6eb3-4fcc-9ad3-3cc4491a4d89.mp4
 
 
 # PhotoLib
