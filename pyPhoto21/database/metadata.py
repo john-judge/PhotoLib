@@ -25,7 +25,7 @@ class Metadata:
         self.num_bursts = [1, 1]
         self.int_bursts = [15, 15]
         self.acqui_onset = 0
-        self.stim_onset = [0, 0]
+        self.stim_onset = [20, 20]
         self.stim_duration = [1, 1]
         self.version = 6  # Little Dave version
 

@@ -17,7 +17,7 @@ class FrameViewer(Viewer):
         self.tv = tv  # TraceViewer
         self.show_processed_data = False
         self.zoom_factor = 1.0
-        self.zoom_bounds = [0.5, 20]
+        self.zoom_bounds = [0.05, 2]
         self.pan_offset = [0.0, 0.0]
         self.orig_x_lims = None
         self.orig_y_lims = None
@@ -324,11 +324,12 @@ class FrameViewer(Viewer):
         self.current_frame = self.data.get_display_frame(index=self.ind,
                                                          get_rli=self.get_show_rli_flag(),
                                                          binning=self.get_digital_binning())
-        # See, contrast scaling applied only to visualization, not to exported data.
-        contrast_scaling = self.data.get_contrast_scaling()
-        new_vmax = np.max(self.current_frame) / contrast_scaling
-        # purposely induce saturation:
-        self.current_frame[self.current_frame >= new_vmax] = new_vmax
+        if self.current_frame is not None:
+            # See, contrast scaling applied only to visualization, not to exported data.
+            contrast_scaling = self.data.get_contrast_scaling()
+            new_vmax = np.max(self.current_frame) / contrast_scaling
+            # purposely induce saturation:
+            self.current_frame[self.current_frame >= new_vmax] = new_vmax
 
     def start_livefeed_animation(self):
         print("Starting livefeed animation...")
@@ -356,6 +357,10 @@ class FrameViewer(Viewer):
             self.im.set_data(self.current_frame)
             self.im.set_clim(vmin=np.min(self.current_frame),
                              vmax=np.max(self.current_frame))
+        else:
+            self.im.set_data(np.zeros((self.data.get_display_height(),
+                                       self.data.get_display_width()),
+                                      dtype=np.uint16))
 
         # self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw_idle()

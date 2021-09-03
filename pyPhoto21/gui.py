@@ -220,10 +220,6 @@ class GUI:
         sleep_trial = self.get_trial_sleep_time()
         sleep_record = self.get_record_sleep_time()
 
-        # resolve any hardware / file conflicting control of settings
-        if self.data.get_is_loaded_from_file():
-            self.data.sync_settings_from_hardware()
-            self.data.resize_image_memory()
         self.data.set_is_loaded_from_file(False)
         exit_recording = False
 
@@ -301,6 +297,7 @@ class GUI:
 
     def take_rli_core(self):
         self.hardware.take_rli(images=self.data.get_rli_memory())
+        self.data.calculate_rli(force_recalculate=True)
         self.data.set_is_loaded_from_file(False)
         self.data.save_metadata_to_json()
         if self.fv.get_show_rli_flag():
@@ -309,9 +306,6 @@ class GUI:
     def take_rli_in_background(self):
         self.freeze_hardware_settings()
         self.hardware.set_stop_flag(False)
-        if self.data.get_is_loaded_from_file():
-            self.data.sync_settings_from_hardware()
-            self.data.resize_image_memory()
         self.take_rli_core()
         self.unfreeze_hardware_settings()
 
@@ -394,6 +388,7 @@ class GUI:
         curr_program = self.data.get_camera_program()
         program_name = kwargs['values']
         program_index = self.data.display_camera_programs.index(program_name)
+        self.tv.clear_traces()
         if program_index == 0 and curr_program != 0:
             self.cached_num_pts = self.data.get_num_pts()
             self.cached_num_trials = self.data.get_num_trials()

@@ -35,8 +35,8 @@ Controller::Controller()
 	char errBuff[2048] = { '\0' };
 	reset = new Channel(0, 100);
 	shutter = new Channel(0, 1210);
-	sti1 = new Channel(300, 1);
-	sti2 = new Channel(300, 1);
+	sti1 = new Channel(20, 1);
+	sti2 = new Channel(20, 1);
 
 	// NI tasks
 	taskHandle_led = NULL;

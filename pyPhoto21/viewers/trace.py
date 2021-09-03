@@ -395,8 +395,10 @@ class TraceViewer(Viewer):
         px_ind = self.traces[i].pixel_indices
         fp_ind = self.traces[i].fp_index
         trace_annotation_text = None
-        if px_ind is None and type(fp_ind) == int:  # FP trace
+        if fp_ind is not None:  # FP trace
             trace_annotation_text = "FP " + str(fp_ind)
+        elif px_ind is None:
+            return '', region_count
         elif len(px_ind) == 1 and len(px_ind[0]) == 2:  # single-px trace
             x_px, y_px = px_ind[0]
             trace_annotation_text = "(" + str(x_px) + ", " + str(y_px) + ") px"

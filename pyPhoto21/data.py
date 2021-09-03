@@ -694,6 +694,7 @@ class Data(File):
         start, end = self.get_artifact_exclusion_window()
         return Trace(traces[:, fp_index],
                      self.get_int_pts(),
+                     fp_index=fp_index,
                      is_fp_trace=True,
                      start_frame=start,
                      end_frame=end)
@@ -722,7 +723,9 @@ class Data(File):
     # fp_index is the integer corresponding to the FP trace index
     def get_display_trace(self, index=None, fp_index=None, zoom_factor=1.0, masks=None):
         if fp_index is not None:
-            return self.get_display_fp_trace(fp_index)
+            tr = self.get_display_fp_trace(fp_index)
+            tr.normalize(zoom_factor=zoom_factor)
+            return tr
 
         images = self.get_acqui_images()
         if images is None:
@@ -869,7 +872,7 @@ class Data(File):
             self.full_data_processor.update_full_processed_data()
 
     # Populate meta.rli_high from RLI raw frames
-    def calculate_light_rli_frame(self, margins=40):
+    def calculate_light_rli_frame(self, margins=40, force_recalculate=False):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
@@ -886,12 +889,12 @@ class Data(File):
             print("We're unable to calculate RLI due to invalid array size assumptions.")
         return rli_high
 
-    def calculate_dark_rli_frame(self, margins=40):
+    def calculate_dark_rli_frame(self, margins=40, force_recalculate=False):
         d = self.hardware.get_num_dark_rli()
         while margins * 2 >= d:
             margins //= 2
         rli_low = self.db.get_rli_low()
-        if np.any(rli_low != 0):
+        if np.any(rli_low != 0) and not force_recalculate:
             return rli_low
         rli_dark_frames = self.get_rli_images()[margins + 1:d - margins - 1, :, :]
         if rli_dark_frames is None or rli_dark_frames.shape[0] == 0:
@@ -902,17 +905,17 @@ class Data(File):
             print("We're unable to calculate RLI due to invalid array size assumptions.")
         return rli_low
 
-    def calculate_max_rli_frame(self):
+    def calculate_max_rli_frame(self, force_recalculate=False):
         rli_max = self.db.get_rli_max()
-        if np.any(rli_max != 0):
+        if np.any(rli_max != 0) and not force_recalculate:
             return rli_max
         rli_frames = self.get_rli_images()
         rli_max[:, :] = np.max(rli_frames, axis=0)[:, :]
         return rli_max
 
-    def calculate_rli(self):
-        light = self.calculate_light_rli_frame()
-        dark = self.calculate_dark_rli_frame()
+    def calculate_rli(self, force_recalculate=False):
+        light = self.calculate_light_rli_frame(force_recalculate=force_recalculate)
+        dark = self.calculate_dark_rli_frame(force_recalculate=force_recalculate)
         if light is None or dark is None:
             return np.zeros((self.get_display_height(),
                              self.get_display_width()),

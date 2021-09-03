@@ -116,9 +116,9 @@ class Database(File):
     def load_trial_fp_data(self, trial):
         return self.memmap_file[trial, 0, :-3, -1, :self.meta.num_fp]  # shape (num_pts, num_fp)
 
-    # Returns the full (x2) memory for hardware to use
+    # Returns the full (x2) IMAGE memory for hardware to use
     def load_trial_all_data(self, trial):
-        return self.memmap_file[trial, :, :, :-1, :]
+        return self.memmap_file[trial, :, :-3, :-1, :]
 
     def is_current_data_file_empty(self):
         self.load_mmap_file(filename=self.get_current_filename(extension=self.extension), mode=None)
