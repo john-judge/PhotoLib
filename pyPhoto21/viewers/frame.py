@@ -245,6 +245,8 @@ class FrameViewer(Viewer):
             self.update_zoom_pan_only()
 
     def add_waypoint(self, event):
+        if self.livefeed_im is not None:
+            return
         if event.xdata is not None and event.ydata is not None:
             x = int(event.xdata)
             y = int(event.ydata)
@@ -262,6 +264,8 @@ class FrameViewer(Viewer):
                 self.path_x_index[x].append(y)
 
     def draw_line(self, p1, p2, is_deletion):
+        if self.livefeed_im is not None:
+            return
         xs = [p1[0], p2[0]]
         ys = [p1[1], p2[1]]
         color = 'white'
