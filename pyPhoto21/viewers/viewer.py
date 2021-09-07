@@ -1,4 +1,5 @@
 from collections import defaultdict
+import keyboard
 
 
 class Viewer:
@@ -34,7 +35,7 @@ class Viewer:
             self.moving = True
 
     def is_control_key_held(self):
-        return self.control_key_down
+        return self.control_key_down or keyboard.is_pressed('ctrl')
 
     def get_width_in_pixels(self, ax, fig):
         return ax.get_window_extent().transformed(

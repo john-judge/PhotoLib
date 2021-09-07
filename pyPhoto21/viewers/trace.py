@@ -390,6 +390,7 @@ class TraceViewer(Viewer):
                     self.traces[i] = trace
                 else:
                     print("Invalid trace generated from pix index:", self.traces[i].pixel_indices)
+        self.gui.window['frame_canvas'].TKCanvas.focus_force()
 
     def create_annotation_text(self, region_count, i):
         px_ind = self.traces[i].pixel_indices

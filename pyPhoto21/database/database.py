@@ -67,7 +67,7 @@ class Database(File):
                                          shape=arr_shape)
         except OSError as e:
             print("Error while allocating disk space:", str(e))
-            if "Disk" in str(e):
+            if "Disk" in str(e) or "space" in str(e):
                 print("\n Please free up disk space to continue.")
             else:
                 print("\nLikely, invalid assumptions were made about this file's existence")
