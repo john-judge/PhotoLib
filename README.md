@@ -17,6 +17,8 @@ https://user-images.githubusercontent.com/40705003/131745807-244bd066-618a-48f9-
 ### DAQ Config
 https://user-images.githubusercontent.com/40705003/131745935-35572211-6eb3-4fcc-9ad3-3cc4491a4d89.mp4
 
+## Live Feed
+![image](https://user-images.githubusercontent.com/40705003/132570244-c1128e61-fd9c-452e-a350-d28eaff47bb4.png)
 
 # PhotoLib
 Builds a camera/electrode management DLL to expose to (Python) applications. Includes a GUI application for acquisition and analysis, written in Python.
