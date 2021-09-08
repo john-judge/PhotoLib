@@ -251,12 +251,11 @@ class GUI:
                 self.hardware.record(images=acqui_mem,
                                      fp_data=self.data.get_fp_data())
 
-                self.data.set_current_trial_index(trial)
                 self.update_tracking_num_fields()
                 print("\tTook trial", trial + 1, "of", self.data.get_num_trials())
                 if not is_last_trial:
                     print("\t\t", sleep_trial, "seconds until next trial...")
-                    self.data.increment_record_until_filename_free()
+
                     exit_recording = self.sleep_and_check_stop_flag(sleep_time=sleep_trial)
                 if exit_recording:
                     break
@@ -270,6 +269,7 @@ class GUI:
                 break
             print("Took recording set", record_index + 1, "of", self.data.get_num_records())
             if not is_last_record:
+                self.data.increment_record_until_filename_free()
                 print("\t", sleep_record, "seconds until next recording set...")
                 exit_recording = self.sleep_and_check_stop_flag(sleep_time=sleep_record)
 

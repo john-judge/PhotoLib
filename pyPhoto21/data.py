@@ -920,7 +920,7 @@ class Data(File):
             return np.zeros((self.get_display_height(),
                              self.get_display_width()),
                             dtype=np.uint16)
-        diff = (light - dark).astype(np.float32)
+        diff = np.abs(light.astype(np.float32) - dark.astype(np.float32))
         diff[diff == 0] = 0.000001  # avoid div by 0
         return diff
 
