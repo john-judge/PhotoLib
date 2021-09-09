@@ -149,6 +149,7 @@ class FrameViewer(Viewer):
             self.add_waypoint(event)
             self.moving = True
         if event.button == 2:
+            print("onmove middle mouse")
             self.pan_frame()
 
     def onclick(self, event):
@@ -215,16 +216,20 @@ class FrameViewer(Viewer):
             )
             self.pan_offset[0] -= dx
             self.pan_offset[1] -= dy
-            self.update_zoom_pan_only()
+            print("Panned frame by ", dx, dy)
+            self.update_zoom_pan_only(redraw=self.livefeed_im is None)
+        else:
+            print("Failed to pan frame. Draw path:", self.draw_path)
 
     def reset_frame_view(self):
         self.pan_offset = [0.0, 0.0]
         self.zoom_factor = 1.0
         self.update_zoom_pan_only()
 
-    def update_zoom_pan_only(self):
+    def update_zoom_pan_only(self, redraw=True):
         self.set_zoom_pan()
-        self.fig.canvas.draw_idle()
+        if redraw:
+            self.fig.canvas.draw_idle()
 
     @staticmethod
     def get_zoom_int():
@@ -245,8 +250,6 @@ class FrameViewer(Viewer):
             self.update_zoom_pan_only()
 
     def add_waypoint(self, event):
-        if self.livefeed_im is not None:
-            return
         if event.xdata is not None and event.ydata is not None:
             x = int(event.xdata)
             y = int(event.ydata)
@@ -324,6 +327,13 @@ class FrameViewer(Viewer):
             self.update()
             self.plot_all_shapes()
 
+    def update_livefeed_image(self, lf_frame):
+        if self.livefeed_im is None:
+            return
+        self.livefeed_im.set_data(lf_frame)
+        self.set_zoom_pan()
+        self.fig.canvas.draw_idle()
+
     def refresh_current_frame(self):
         self.current_frame = self.data.get_display_frame(index=self.ind,
                                                          get_rli=self.get_show_rli_flag(),
@@ -344,10 +354,13 @@ class FrameViewer(Viewer):
                                           interpolation='nearest',
                                           aspect='auto',
                                           cmap=self.get_color_map_option_name())
+        self.orig_x_lims = self.ax.get_xlim()
+        self.orig_y_lims = self.ax.get_ylim()
         self.fig.canvas.draw_idle()
 
     def end_livefeed_animation(self):
         self.livefeed_im = None
+        self.reset_frame_view()
         self.update_new_image()
 
     def update(self, update_hyperslicer=True):

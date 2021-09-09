@@ -341,21 +341,16 @@ class GUI:
 
         num_images_shown = 0
         start = time.time()
-        lf_img = None
-        fig = None
 
         # C++ DLL has stored pointer to lf_frame, no need to keep passing
         while not self.hardware.get_stop_flag():  # the GUI flag
             timeout = 80.0
             if self.hardware.get_livefeed_produced_image_flag():
                 # print(lf_frame[0, :, :], np.std(lf_frame[0, :, :]))
-                if lf_img is not None and fig is not None:  # already started
-                    lf_img.set_data(lf_frame[0, :, :].astype(np.uint16))
-                    fig.canvas.draw_idle()
+                if self.fv.livefeed_im is not None:  # already started
+                    self.fv.update_livefeed_image(lf_frame[0, :, :].astype(np.uint16))
                 else:
                     self.fv.start_livefeed_animation()
-                    lf_img = self.fv.livefeed_im
-                    fig = self.fv.get_fig()
                 num_images_shown += 1
 
                 # Allows DLL to continue to next image
