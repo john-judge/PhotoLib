@@ -493,23 +493,41 @@ void Camera::reassembleImages(unsigned short* images, int nImages) {
 // Subtract reset data (stripes) for correlated double sampling (CDS) for a single image.
 // This halves the number of columns of each raw image
 // quad_width is the final width of the frame
+// 9/15 update: Reset row is to be subtracted from the following frame!
+// So the first frame will not be CDS subtracted but we will still condense it down.
 void Camera::subtractCDS(unsigned short* image_data, int nImages, int quad_height, int quad_width)
 {
 	int CDS_add = 2048;
 	int CDS_width_fixed = quad_width / 2; // 6/25/21 - empirically, seems like this is always half of cfg width
-	int CDS_height_total = nImages * (quad_width / CDS_width_fixed) / 2 * quad_height * NUM_PDV_CHANNELS; // div by 2 since loop skips 2 CDS-size rows per iter
-
+	int rows_per_channel = (quad_width / CDS_width_fixed) / 2 * quad_height;
+	int frame_height = rows_per_channel * NUM_PDV_CHANNELS; // div by 2 since loop skips 2 CDS-size rows per iter
+	int CDS_height_total = nImages * frame_height;
+	
 	unsigned short* new_data = image_data;
 	unsigned short* reset_data = image_data + CDS_width_fixed;
 	unsigned short* old_data = image_data;
 
-	for (int i = 0; i < CDS_height_total; i++) {
-		for (int j = 0; j < CDS_width_fixed; j++) {
-			*new_data++ = CDS_add + *old_data++ - *reset_data++;
+	// data is in channel-major order
+	for (int ipdv = 0; i < NUM_PDV_CHANNELS; ipdv++) {
+		// frame 1 does not have reset data collected.
+		for (int i = 0; i < rows_per_channel; i++) {
+			for (int j = 0; j < CDS_width_fixed; j++) {
+				*new_data++ = CDS_add + *old_data++ - *reset_data++;
+			}
+			reset_data += CDS_width_fixed;
+			old_data += CDS_width_fixed;
 		}
-		reset_data += CDS_width_fixed;
-		old_data += CDS_width_fixed;
+
+		for (int i = frame_height; i < rows_per_channel; i++) {
+			for (int j = 0; j < CDS_width_fixed; j++) {
+				*new_data++ = CDS_add + *old_data++ - *reset_data++;
+			}
+			reset_data += CDS_width_fixed;
+			old_data += CDS_width_fixed;
+		}
 	}
+
+	
 }
 
 // This deinterleave follows Chun's specs over email (row-by-row) instead of quadrant_readout.docx

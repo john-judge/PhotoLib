@@ -509,41 +509,40 @@ void Controller::continueLiveFeed() {
 	int width = liveFeedCam->width();
 	int height = liveFeedCam->height();
 	int quadrantSize = width * height;
-	cout << "live cam program" << getCameraProgram() <<
-		"\nheight: " << height <<
-		"\nwidth: " << width << "\n";
-
 
 	NI_openShutter(1);
-
-
-	// Serial version -- maybe it's fast enough for single-image live feeding?
-	unsigned char* image;
 
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		liveFeedCam->start_images(ipdv, 0); // start free run
 	}
+	unsigned char* image; 
+	
 	while (!liveFeedFlags[1]) {
 		
+		// Gather first image just for reset rows.
 		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-			// acquire data for this image from the IPDVth channel	
 			image = liveFeedCam->wait_image(ipdv);
-			memcpy(liveFeedFrame + (ipdv * quadrantSize), image, quadrantSize * sizeof(short));
+			memcpy(liveFeedFrame + (quadrantSize * ipdv * 2), image, quadrantSize * sizeof(short)); // * 2 because acquiring 2 images
+		}
+		// Gather second image to display. Keep in channel-major order
+		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+			image = liveFeedCam->wait_image(ipdv);
+			memcpy(liveFeedFrame + (quadrantSize * (ipdv * 2 + 1)), image, quadrantSize * sizeof(short));
 		}
 
-		liveFeedCam->reassembleImages(liveFeedFrame, 1); // Time should be negligible
+		liveFeedCam->reassembleImages(liveFeedFrame, 2); // Time should be negligible
+		//memcpy(liveFeedFrame, liveFeedFrame + quadrantSize * NUM_PDV_CHANNELS / 2, quadrantSize * NUM_PDV_CHANNELS * sizeof(short) / 2);
 		liveFeedFlags[0] = true;
 
 		// Debug -- output to file
-		//std::string filename = "full-out-livefeed.txt";
+		//std::string filename = "full-out1.txt";
 		//liveFeedCam->printFinishedImage(liveFeedFrame, filename.c_str(), true);
 
 		while (liveFeedFlags[0] and !liveFeedFlags[1]) { // wait for plotter to be ready for next image
-			Sleep(1);
+			Sleep(10);
 		}
 	}
-	cout << "Acqui daemon read stop-loop flag, stopping.\n";
-
+	cout << "Acqui daemon has read stop-loop flag, stopping.\n";
 
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		liveFeedCam->start_images(ipdv, 1); // end free run

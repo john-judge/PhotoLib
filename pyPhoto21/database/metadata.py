@@ -51,7 +51,7 @@ class Metadata:
 
         # FrameViewer settings
         self.show_rli = False
-        self.color_map_option = 0  # default jet
+        self.color_map_option = 1  # default grayscale
         self.binning = 1
         self.contrast_scaling = 1.0  # the original max intensity is kept as the saturation point, and
         #                               all values are scaled by this factor.

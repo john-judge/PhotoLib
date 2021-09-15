@@ -1095,7 +1095,7 @@ class Data(File):
             else:
                 w = self.get_display_width()
                 h = self.get_display_height()
-                self.livefeed_frame = np.zeros((2, h, w), dtype=np.uint16)
+                self.livefeed_frame = np.zeros((4, h, w), dtype=np.uint16)
                 return self.livefeed_frame
 
     def clear_livefeed_frame(self):

@@ -346,7 +346,6 @@ class GUI:
         while not self.hardware.get_stop_flag():  # the GUI flag
             timeout = 80.0
             if self.hardware.get_livefeed_produced_image_flag():
-                # print(lf_frame[0, :, :], np.std(lf_frame[0, :, :]))
                 if self.fv.livefeed_im is not None:  # already started
                     self.fv.update_livefeed_image(lf_frame[0, :, :].astype(np.uint16))
                 else:
