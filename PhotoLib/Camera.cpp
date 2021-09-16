@@ -500,31 +500,41 @@ void Camera::subtractCDS(unsigned short* image_data, int nImages, int quad_heigh
 	int CDS_add = 2048;
 	int CDS_width_fixed = quad_width / 2; // 6/25/21 - empirically, seems like this is always half of cfg width
 	int rows_per_channel = (quad_width / CDS_width_fixed) / 2 * quad_height;
-	int frame_height = rows_per_channel * NUM_PDV_CHANNELS; // div by 2 since loop skips 2 CDS-size rows per iter
-	int CDS_height_total = nImages * frame_height;
+	int rows_per_image = rows_per_channel * NUM_PDV_CHANNELS; // div by 2 since loop skips 2 CDS-size rows per iter
+	int CDS_height_total = nImages * rows_per_image;
 	
-	unsigned short* new_data = image_data;
 	unsigned short* reset_data = image_data + CDS_width_fixed;
 	unsigned short* old_data = image_data;
 
 	// data is in channel-major order
-	for (int ipdv = 0; i < NUM_PDV_CHANNELS; ipdv++) {
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		// frame 1 does not have reset data collected.
 		for (int i = 0; i < rows_per_channel; i++) {
 			for (int j = 0; j < CDS_width_fixed; j++) {
-				*new_data++ = CDS_add + *old_data++;
+				old_data++;
 			}
 			if (ipdv > 0) reset_data += CDS_width_fixed * 2; // keep advancing reset for channels 1, 2, 3
 			old_data += CDS_width_fixed;
 		}
 		// frames after frame 1 have reset data.
-		for (int i = frame_height; i < rows_per_channel; i++) {
+		for (int i = rows_per_channel; i < rows_per_channel * nImages; i++) {
 			for (int j = 0; j < CDS_width_fixed; j++) {
-				*new_data++ = CDS_add + *old_data++ - *reset_data++;
+				*old_data = *old_data + CDS_add - *reset_data++;
+				old_data++;
+				//*new_data++ = CDS_add + *old_data++ - *reset_data++;
 			}
 			reset_data += CDS_width_fixed;
 			old_data += CDS_width_fixed;
 		}
+	}
+	unsigned short* new_data = image_data;
+	old_data = image_data;
+	// condense images
+	for (int i = 0; i < CDS_height_total; i++) {
+		for (int j = 0; j < CDS_width_fixed; j++) {
+			*new_data++ = *old_data++;
+		}
+		old_data += CDS_width_fixed;
 	}
 
 	
