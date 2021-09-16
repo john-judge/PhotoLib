@@ -512,12 +512,12 @@ void Camera::subtractCDS(unsigned short* image_data, int nImages, int quad_heigh
 		// frame 1 does not have reset data collected.
 		for (int i = 0; i < rows_per_channel; i++) {
 			for (int j = 0; j < CDS_width_fixed; j++) {
-				*new_data++ = CDS_add + *old_data++ - *reset_data++;
+				*new_data++ = CDS_add + *old_data++;
 			}
-			reset_data += CDS_width_fixed;
+			if (ipdv > 0) reset_data += CDS_width_fixed * 2; // keep advancing reset for channels 1, 2, 3
 			old_data += CDS_width_fixed;
 		}
-
+		// frames after frame 1 have reset data.
 		for (int i = frame_height; i < rows_per_channel; i++) {
 			for (int j = 0; j < CDS_width_fixed; j++) {
 				*new_data++ = CDS_add + *old_data++ - *reset_data++;
