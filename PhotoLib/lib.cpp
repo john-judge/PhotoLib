@@ -168,6 +168,16 @@ extern "C"
 		return controller->getStimDuration(ch);
 	}
 
+	__declspec(dllexport) void setShutterOnset(Controller* controller, float v)
+	{
+		controller->setShutterOnset(v);
+	}
+
+	__declspec(dllexport) float getShutterOnset(Controller* controller)
+	{
+		return controller->getShutterOnset();
+	}
+
 	__declspec(dllexport) void resetCamera(Controller* controller)
 	{
 		return controller->resetCamera();
