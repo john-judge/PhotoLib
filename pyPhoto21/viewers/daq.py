@@ -25,6 +25,16 @@ class DAQViewer:
         self.clear_figure()
         self.populate_figure()
 
+    def plot_shutter(self):
+        shutter_onset = self.data.hardware.get_shutter_onset()
+        acqui_onset = self.data.get_acqui_onset()
+        acqui_duration = self.data.get_acqui_duration()
+        end_time = acqui_onset + acqui_duration
+        if shutter_onset < end_time:
+            self.ax.broken_barh([(shutter_onset, end_time-shutter_onset)],
+                                (10 * (self.num_stim_channels+2), 9),
+                                facecolors='tab:blue')
+
     def plot_stimulator(self, channel, col):
         if channel in range(1, self.num_stim_channels+1):
             stim_onset = self.data.get_stim_onset(channel)
@@ -45,6 +55,7 @@ class DAQViewer:
     def create_y_labels(self):
         self.y_labels = ['Stim #' + str(ch+1) for ch in range(self.num_stim_channels)]
         self.y_labels.append('Acquisition')
+        self.y_labels.append('Shutter')
 
     def populate_figure(self):
         self.ax = self.fig.add_subplot(1, 1, 1)
@@ -54,7 +65,7 @@ class DAQViewer:
         # plot acquisition
         acqui_onset = self.data.get_acqui_onset()
         acqui_duration = self.data.get_acqui_duration()
-        self.ax.broken_barh([(acqui_onset, acqui_duration+acqui_onset)],
+        self.ax.broken_barh([(acqui_onset, acqui_duration)],
                             (10 * (self.num_stim_channels+1), 9),
                             facecolors='tab:blue')
 
@@ -63,8 +74,9 @@ class DAQViewer:
         for ch in range(1, self.num_stim_channels+1):
             self.plot_stimulator(ch, stim_colors[ch-1])
 
+        self.plot_shutter()
         self.ax.set_xlabel("Time (ms)")
-        self.ax.set_yticks([10*i for i in range(1, self.num_stim_channels+2)])
+        self.ax.set_yticks([10*i for i in range(1, self.num_stim_channels+3)])
         self.ax.set_yticklabels(self.y_labels)
 
         self.fig.canvas.draw_idle()

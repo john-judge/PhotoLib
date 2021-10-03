@@ -199,6 +199,16 @@ class Hardware:
             return 0
         return self.lib.getStimOnset(self.controller, kwargs['channel'])
 
+    def get_shutter_onset(self, **kwargs):
+        if not self.hardware_enabled:
+            return 0
+        return self.lib.getShutterOnset(self.controller)
+
+    def set_shutter_onset(self, **kwargs):
+        if self.hardware_enabled:
+            v = kwargs['value']
+            self.lib.setShutterOnset(self.controller, float(v))
+
     def get_stim_duration(self, **kwargs):
         if not self.hardware_enabled:
             return 0
@@ -335,6 +345,11 @@ class Hardware:
 
         self.lib.getStimDuration.restype = ctypes.c_float
         self.lib.getStimDuration.argtypes = [controller_handle, ctypes.c_int]
+
+        self.lib.setShutterOnset.argtypes = [controller_handle, ctypes.c_float]
+
+        self.lib.getShutterOnset.restype = ctypes.c_float
+        self.lib.getShutterOnset.argtypes = [controller_handle]
 
         self.lib.setStimOnset.argtypes = [controller_handle, ctypes.c_int, ctypes.c_float]
         self.lib.setStimDuration.argtypes = [controller_handle, ctypes.c_int, ctypes.c_float]

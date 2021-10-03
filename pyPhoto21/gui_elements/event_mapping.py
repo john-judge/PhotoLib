@@ -78,6 +78,10 @@ class EventMapping:
                 'function': gui.validate_and_pass_channel,
                 'args': {'channel': 1, 'call': gui.data.hardware.set_stim_onset},
             },
+            'Shutter Onset': {
+                'function': gui.validate_and_pass_channel,
+                'args': {'channel': None, 'call': gui.data.hardware.set_shutter_onset},
+            },
             'Stimulator #2 Onset': {
                 'function': gui.validate_and_pass_channel,
                 'args': {'channel': 2, 'call': gui.data.hardware.set_stim_onset},
