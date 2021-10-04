@@ -515,22 +515,27 @@ void Controller::continueLiveFeed() {
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		liveFeedCam->start_images(ipdv, 0); // start free run
 	}
-	unsigned char* image; 
+	unsigned char* images[NUM_PDV_CHANNELS]; 
+	// Gather first image just for reset rows.
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+		images[ipdv] = liveFeedCam->wait_image(ipdv);
+	}
 	
 	while (!liveFeedFlags[1]) {
-		
-		// Gather first image just for reset rows.
+
+		// Move current frame into first position to make use of CDS subtract rows only
 		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-			image = liveFeedCam->wait_image(ipdv);
-			memcpy(liveFeedFrame + (quadrantSize * ipdv * 2), image, quadrantSize * sizeof(short)); // * 2 because acquiring 2 images
+			memcpy(liveFeedFrame + (quadrantSize * ipdv * 2), images[ipdv], quadrantSize * sizeof(short));
 		}
+		
 		// Gather second image to display. Keep in channel-major order
 		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-			image = liveFeedCam->wait_image(ipdv);
-			memcpy(liveFeedFrame + (quadrantSize * (ipdv * 2 + 1)), image, quadrantSize * sizeof(short));
+			images[ipdv] = liveFeedCam->wait_image(ipdv);
+			memcpy(liveFeedFrame + (quadrantSize * (ipdv * 2 + 1)), images[ipdv], quadrantSize * sizeof(short));
 		}
 
-		liveFeedCam->reassembleImages(liveFeedFrame, 2); // Time should be negligible
+		liveFeedCam->reassembleImages(liveFeedFrame, 2); 
+
 		//memcpy(liveFeedFrame, liveFeedFrame + quadrantSize * NUM_PDV_CHANNELS / 2, quadrantSize * NUM_PDV_CHANNELS * sizeof(short) / 2);
 		liveFeedFlags[0] = true;
 
@@ -541,6 +546,7 @@ void Controller::continueLiveFeed() {
 		while (liveFeedFlags[0] and !liveFeedFlags[1]) { // wait for plotter to be ready for next image
 			Sleep(10);
 		}
+
 	}
 	cout << "Acqui daemon has read stop-loop flag, stopping.\n";
 

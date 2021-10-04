@@ -347,7 +347,7 @@ class GUI:
             timeout = 80.0
             if self.hardware.get_livefeed_produced_image_flag():
                 if self.fv.livefeed_im is not None:  # already started
-                    self.fv.update_livefeed_image(lf_frame[1, :, :].astype(np.uint16))
+                    self.fv.update_livefeed_image(lf_frame[1, :, :])
                 else:
                     self.fv.start_livefeed_animation()
                 num_images_shown += 1

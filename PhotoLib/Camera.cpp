@@ -509,13 +509,9 @@ void Camera::subtractCDS(unsigned short* image_data, int nImages, int quad_heigh
 	// data is in channel-major order
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		// frame 1 does not have reset data collected.
-		for (int i = 0; i < rows_per_channel; i++) {
-			for (int j = 0; j < CDS_width_fixed; j++) {
-				old_data++;
-			}
-			if (ipdv > 0) reset_data += CDS_width_fixed * 2; // keep advancing reset for channels 1, 2, 3
-			old_data += CDS_width_fixed;
-		}
+		if (ipdv > 0) reset_data += CDS_width_fixed * rows_per_channel * 2; // introduce reset pointer lag at beginning
+		old_data += CDS_width_fixed * rows_per_channel * 2;
+		
 		// frames after frame 1 have reset data.
 		for (int i = rows_per_channel; i < rows_per_channel * nImages; i++) {
 			for (int j = 0; j < CDS_width_fixed; j++) {

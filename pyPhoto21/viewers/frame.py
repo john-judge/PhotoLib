@@ -367,7 +367,11 @@ class FrameViewer(Viewer):
         self.refresh_current_frame()
 
         if self.data.get_is_livefeed_enabled():
-            self.livefeed_im.set_data(self.current_frame)
+            p_low, p_high = np.percentile(self.current_frame,
+                                          [2.5, 97.5])
+            self.livefeed_im.set_data(self.current_frame,
+                                      vmin=p_low,
+                                      vmax=p_high)
             update_hyperslicer = False
 
         elif self.current_frame is not None:
