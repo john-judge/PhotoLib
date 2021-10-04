@@ -156,7 +156,7 @@ int Controller::takeRli(unsigned short* memory) {
 	}
 
 	// parallel section closes momentarily, threads sync and close, then split up again.
-	NI_openShutter(1);
+	//NI_openShutter(1);
 	Sleep(100);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	// parallel acquisition resumes now that light is on	
@@ -182,7 +182,7 @@ int Controller::takeRli(unsigned short* memory) {
 		}
 		cam.end_images(ipdv);
 	}
-	NI_openShutter(0); // light off	
+	//NI_openShutter(0); // light off	
 	NI_stopTasks();
 	NI_clearTasks();
 
@@ -247,7 +247,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 		DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
 
 		// To write a clock to trigger camera, open line0 channel also: "Dev1/port0/line0,Dev1/port0/line2" (and see NI_fillOutputs)
-		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
+		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line1:2", "", DAQmx_Val_ChanForAllLines));
 
 		// Change this to "/Dev1/PFI12" for external trigger. But for now, trigger DO tasks from camera clock (PFI0)
 		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", getIntPts(),
@@ -287,7 +287,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	
 	//-------------------------------------------
 	// Camera Acquisition loops
-	NI_openShutter(1);
+	//NI_openShutter(1);
 	Sleep(100);
 	int16* NI_ptr = fp_memory;
 	omp_set_num_threads(NUM_PDV_CHANNELS);
@@ -328,7 +328,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 		}
 		cam.end_images(ipdv);
 	}
-	NI_openShutter(0);
+	//NI_openShutter(0);
 	cout << "Total read: " << total_read << "\n";
 
 	//=============================================================================	
@@ -427,23 +427,21 @@ void Controller::NI_fillOutputs()
 	
 	float start, end;
 	size_t do_size = get_digital_output_size();
-	int num_DO_channels = 1; // number of DO channels in the DO task 
+	int num_DO_channels = 2; // number of DO channels in the DO task 
 	outputs = new uInt8[do_size * num_DO_channels];
 
 	//--------------------------------------------------------------
 	// Reset the array
 	memset(outputs, 0, sizeof(uInt8) * do_size * num_DO_channels);
 	//--------------------------------------------------------------
-	// Shutter (instead of this, handled as a simple separate task, since exact sync not needed)
-	/*
-	if (realFlag) {
-		start = shutter->getOnset();
-		end = (start + shutter->getDuration());
-		for (i = (int)start; i < end; i++)
-			outputs[i] |= shutter_mask;
-	}*/
-	//--------------------------------------------------------------
+	// Shutter (can instead be handled as a simple separate task, since exact sync not needed)
+	//uInt8 shutter_mask = 1;
+	//uInt8 stim1_mask = 1 << 1;
 
+	start = getShutterOnset();
+	for (int i = (int)start; i < do_size; i++)
+		outputs[i] = 1; // |= shutter_mask;
+	//--------------------------------------------------------------
 
 	// If we want a clock to trigger camera, write this to line0
 	/*
@@ -468,7 +466,7 @@ void Controller::NI_fillOutputs()
 			start = sti1->getOnset() + j * intPulses1 + k * intBursts1;
 			end = (start + sti1->getDuration());
 			for (int i = (int)start; i < end; i++)
-				outputs[i] = (uInt8)1;
+				outputs[i] = 1; // |= stim1_mask;
 		}
 	}
 	//--------------------------------------------------------------
@@ -840,6 +838,14 @@ int Controller::getDisplayHeight() {
 void Controller::setStimOnset(int ch, float v) {
 	if (ch == 1) sti1->setOnset(v);
 	else sti2->setOnset(v);
+}
+
+void Controller::setShutterOnset(float v) {
+	shutter->setOnset(v);
+}
+
+float Controller::getShutterOnset() {
+	return shutter->getOnset();
 }
 
 void Controller::setStimDuration(int ch, float v) {

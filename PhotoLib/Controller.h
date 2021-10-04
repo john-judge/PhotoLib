@@ -89,6 +89,8 @@ public:
 	int getDisplayHeight();
 
 	void setStimOnset(int ch, float v);
+	void setShutterOnset(float v);
+	float getShutterOnset();
 	void setStimDuration(int ch, float v);
 	float getStimOnset(int ch);
 	float getStimDuration(int ch);
