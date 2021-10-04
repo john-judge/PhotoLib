@@ -435,12 +435,12 @@ void Controller::NI_fillOutputs()
 	memset(outputs, 0, sizeof(uInt8) * do_size * num_DO_channels);
 	//--------------------------------------------------------------
 	// Shutter (can instead be handled as a simple separate task, since exact sync not needed)
-	uInt8 shutter_mask = 1;
-	uInt8 stim1_mask = 1 << 1;
+	//uInt8 shutter_mask = 1;
+	//uInt8 stim1_mask = 1 << 1;
 
 	start = getShutterOnset();
 	for (int i = (int)start; i < do_size; i++)
-		outputs[i] |= shutter_mask;
+		outputs[i] = 1; // |= shutter_mask;
 	//--------------------------------------------------------------
 
 	// If we want a clock to trigger camera, write this to line0
@@ -466,7 +466,7 @@ void Controller::NI_fillOutputs()
 			start = sti1->getOnset() + j * intPulses1 + k * intBursts1;
 			end = (start + sti1->getDuration());
 			for (int i = (int)start; i < end; i++)
-				outputs[i] |= stim1_mask;
+				outputs[i] = 1; // |= stim1_mask;
 		}
 	}
 	//--------------------------------------------------------------
