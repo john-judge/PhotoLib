@@ -76,7 +76,7 @@ public:
 	void NI_clearTasks();
 
 	// Buffers for digital output
-	uInt8 *outputs;
+	uInt32 *outputs;
 
 	// RLI
 	int takeRli(unsigned short*);

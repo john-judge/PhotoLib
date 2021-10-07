@@ -549,7 +549,7 @@ class Layouts:
                               size=cell_size,
                               tooltip='Time at which LED shutter, in milliseconds.'),
                  sg.Text("", size=cell_size),
-                 sg.Text(" ms", size=cell_size)],
+                 sg.Text("ms", size=cell_size)],
                 [sg.Text("Stimulator #1", size=cell_size),
                  sg.InputText(key="Stimulator #1 Onset",
                               default_text=str(self.data.get_stim_onset(1)),

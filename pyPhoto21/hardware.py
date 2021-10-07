@@ -45,7 +45,7 @@ class Hardware:
             print("Could not record. Are the camera and NI-USB connected?")
             print(e)
         imgs = imgs.reshape(imgs_orig_shape)
-        kwargs['images'][:, :, :, :] = imgs[:, :, :, :]
+        kwargs['images'][:, :, :, :] = imgs[:, :, :, :] # np.flip(imgs[:, :, :, :], axis=1)  # flip time axis
 
         # FP shape (num_pts, num_fp)
         fp_data = fp_data.reshape(t, fp_n)
