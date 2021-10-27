@@ -271,7 +271,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
 	
-	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle_out, get_digital_output_size(), false, 0, 
+	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, get_digital_output_size(), false, 0,
 					DAQmx_Val_GroupByChannel, outputs, &total_written, NULL));
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
@@ -427,20 +427,24 @@ void Controller::NI_fillOutputs()
 	
 	float start, end;
 	size_t do_size = get_digital_output_size();
-	int num_DO_channels = 2; // number of DO channels in the DO task 
-	outputs = new uInt8[do_size * num_DO_channels];
+	int num_DO_channels = 1; // number of DO channels in the DO task 
+	outputs = new uInt32[do_size * num_DO_channels];
 
 	//--------------------------------------------------------------
 	// Reset the array
-	memset(outputs, 0, sizeof(uInt8) * do_size * num_DO_channels);
+	memset(outputs, 0, sizeof(uInt32) * do_size * num_DO_channels);
 	//--------------------------------------------------------------
 	// Shutter (can instead be handled as a simple separate task, since exact sync not needed)
-	//uInt8 shutter_mask = 1;
-	//uInt8 stim1_mask = 1 << 1;
+	uInt32 shutter_mask = 1 << 1; //line1
+	uInt32 stim1_mask = 1 << 2; //line2
 
-	start = getShutterOnset();
-	for (int i = (int)start; i < do_size; i++)
-		outputs[i] = 1; // |= shutter_mask;
+	start = getShutterOnset() / intPts;
+
+
+	for (int i = (int)start; i < do_size - 1; i++) {
+		cout << "Shutter high at " << i << "\n";
+		outputs[i] |= shutter_mask;
+	}
 	//--------------------------------------------------------------
 
 	// If we want a clock to trigger camera, write this to line0
@@ -457,35 +461,41 @@ void Controller::NI_fillOutputs()
 	// Stimulator #1
 	cout << "\n\tNum bursts 1: " << numBursts1 << "\n\tNum Pulses 1: " << numPulses1 << "\n";
 	cout << "\n\tInt bursts 1: " << intBursts1 << "\n\tInt Pulses 1: " << intPulses1 << "\n";
-	cout << "\n\tOnset 1:" << sti1->getOnset() << "\n";
-	cout << "\n\Duration 1:" << sti1->getDuration() << "\n";
+	cout << "\n\tOnset 1: " << sti1->getOnset() << "\n";
+	cout << "\n\Duration 1: " << sti1->getDuration() << "\n";
 	for (int k = 0; k < numBursts1; k++)
 	{
 		for (int j = 0; j < numPulses1; j++)
 		{
-			start = sti1->getOnset() + j * intPulses1 + k * intBursts1;
-			end = (start + sti1->getDuration());
-			for (int i = (int)start; i < end; i++)
-				outputs[i] = 1; // |= stim1_mask;
+			start = sti1->getOnset() / intPts + j * intPulses1 + k * intBursts1;
+			end = (start + sti1->getDuration() / intPts);
+			for (int i = (int)start; i < end; i++) {
+				cout << "stim 1 is high at " << i << "\n";
+				outputs[i] |= stim1_mask;
+			}
 		}
 	}
 	//--------------------------------------------------------------
 	// Stimulator #2
 	/*
+	cout << "\n\tNum bursts 2: " << numBursts2 << "\n\tNum Pulses 2: " << numPulses2 << "\n";
+	cout << "\n\tInt bursts 2: " << intBursts2 << "\n\tInt Pulses 2: " << intPulses2 << "\n";
+	cout << "\n\tOnset 2: " << sti2->getOnset() << "\n";
+	cout << "\n\Duration 2: " << sti2->getDuration() << "\n";
 	for (int k = 0; k < numBursts2; k++)
 	{
 		for (int j = 0; j < numPulses2; j++)
 		{
-			start = sti2->getOnset() + j * intPulses2 + k * intBursts2;
-			end = (start + sti2->getDuration());
-			cout << "start2: " << start << "\tend2: " << end << "\n";
-			for (int i = (int)start; i < end; i++)
-				outputs[i + do_size] = 1;
+			start = sti2->getOnset() / intPts + j * intPulses2 + k * intBursts2;
+			end = (start + sti2->getDuration() / intPts);
+			for (int i = (int)start; i < end; i++) {
+				cout << "stim 2 is high at " << i << "\n";
+				outputs[i + 2 * do_size] = 1; // |= stim2_mask;
+			}
 		}
 	}*/
 
-	// Future developers (or hackers): Add new stimulators or stimulation features and patterns here
-
+	// Add new stimulators or stimulation features and patterns here
 }
 
 //=============================================================================
