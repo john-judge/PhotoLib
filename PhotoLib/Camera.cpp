@@ -230,7 +230,7 @@ void Camera::init_cam()				// entire module based on code from Chun - sm_init_ca
 
 	Sleep(50);
 	// @TXC 1 -- external control from DO.0 (line 0 -- black sync). This is needed if you want p-clamp to trigger camera
-	// @TXC 0 -- camera will start from software and then trigger all other writing/acquisition on clock PFI0. Simple, seems to work well.
+	// @TXC 0 -- camera will start from software (then trigger all other writing/acquisition on clock PFI0)
 	sprintf(command, "@TXC 0"); 
 	serial_write(command);
 	sprintf(command, "@SEQ 1"); // start 

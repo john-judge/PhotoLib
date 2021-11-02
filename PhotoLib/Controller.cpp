@@ -246,8 +246,8 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	if (!taskHandle_out) {
 		DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
 
-		// To write a clock to trigger camera, open line0 channel also: "Dev1/port0/line0,Dev1/port0/line2" (and see NI_fillOutputs)
-		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line1:2", "", DAQmx_Val_ChanForAllLines));
+		// To write a clock to trigger camera, open line0 channel also: "Dev1/port0/line0" (and see NI_fillOutputs)
+		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0:2", "", DAQmx_Val_ChanForAllLines));
 
 		// Change this to "/Dev1/PFI12" for external trigger. But for now, trigger DO tasks from camera clock (PFI0)
 		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", getIntPts(),
@@ -263,7 +263,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 		DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
 		DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
 		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync (cam clock) to trigger input
-			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size() - (float64)getAcquiOnset()));
+			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size()));
 		//DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_in, "/Dev1/PFI2", DAQmx_Val_Rising));
 		DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
 	}
@@ -428,11 +428,11 @@ void Controller::NI_fillOutputs()
 	float start, end;
 	size_t do_size = get_digital_output_size();
 	int num_DO_channels = 1; // number of DO channels in the DO task 
-	outputs = new uInt32[do_size * num_DO_channels];
+	outputs = new uInt32[do_size];
 
 	//--------------------------------------------------------------
 	// Reset the array
-	memset(outputs, 0, sizeof(uInt32) * do_size * num_DO_channels);
+	memset(outputs, 0, sizeof(uInt32) * do_size);
 	//--------------------------------------------------------------
 	// Shutter (can instead be handled as a simple separate task, since exact sync not needed)
 	uInt32 shutter_mask = 1 << 1; //line1
@@ -442,21 +442,21 @@ void Controller::NI_fillOutputs()
 
 
 	for (int i = (int)start; i < do_size - 1; i++) {
-		cout << "Shutter high at " << i << "\n";
 		outputs[i] |= shutter_mask;
 	}
 	//--------------------------------------------------------------
 
 	// If we want a clock to trigger camera, write this to line0
-	/*
-	uInt8 resting_voltage = 1;
-	uInt8 trigger_voltage = 0;
+	
+	uInt32 resting_voltage = 1 << 0; // line0
+	uInt32 trigger_voltage = 0 << 0; // line0
 	// If BNC_ratio > 1, the resting/triggering voltages are switched
+	outputs[0] |= resting_voltage;
 
 	// Assuming BNC ratio == 1:
-	for (int i = 0; i < do_size; i++) {
-		outputs[i] = trigger_voltage;
-	}*/
+	for (int i = 1; i < do_size; i++) {
+		outputs[i] |= trigger_voltage;
+	}
 
 	// Stimulator #1
 	cout << "\n\tNum bursts 1: " << numBursts1 << "\n\tNum Pulses 1: " << numPulses1 << "\n";
@@ -470,7 +470,6 @@ void Controller::NI_fillOutputs()
 			start = sti1->getOnset() / intPts + j * intPulses1 + k * intBursts1;
 			end = (start + sti1->getDuration() / intPts);
 			for (int i = (int)start; i < end; i++) {
-				cout << "stim 1 is high at " << i << "\n";
 				outputs[i] |= stim1_mask;
 			}
 		}
