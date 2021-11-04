@@ -249,9 +249,17 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 		// To write a clock to trigger camera, open line0 channel also: "Dev1/port0/line0" (and see NI_fillOutputs)
 		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0:2", "", DAQmx_Val_ChanForAllLines));
 
-		// Change this to "/Dev1/PFI12" for external trigger. But for now, trigger DO tasks from camera clock (PFI0)
-		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", getIntPts(),
-			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));	
+		// Get line0 resting voltage up to high (before setting up triggering)
+		uInt32 resting_voltages[1];
+		resting_voltages[0] = 1;
+		DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, (const uInt32)1, true, 0,
+			DAQmx_Val_GroupByChannel, resting_voltages, NULL, NULL));
+
+
+		// Comment out for no trigger? - start in software and trigger everything else off of this.
+		// First solution was to trigger DO tasks from camera clock (PFI0)
+		//DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0, getIntPts(),
+		//	DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));	
 	}
 
 	// External trigger:
@@ -270,8 +278,8 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	//-------------------------------------------
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
-	
-	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, get_digital_output_size(), false, 0,
+
+	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, get_digital_output_size(), true, 10.0,
 					DAQmx_Val_GroupByChannel, outputs, &total_written, NULL));
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
@@ -451,10 +459,9 @@ void Controller::NI_fillOutputs()
 	uInt32 resting_voltage = 1 << 0; // line0
 	uInt32 trigger_voltage = 0 << 0; // line0
 	// If BNC_ratio > 1, the resting/triggering voltages are switched
-	outputs[0] |= resting_voltage;
 
 	// Assuming BNC ratio == 1:
-	for (int i = 1; i < do_size; i++) {
+	for (int i = 0; i < do_size; i++) {
 		outputs[i] |= trigger_voltage;
 	}
 
