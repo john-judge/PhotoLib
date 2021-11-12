@@ -275,40 +275,49 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 		//DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_in, "/Dev1/PFI2", DAQmx_Val_Rising));
 		DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
 	}
+	/*
+	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, numPts, 10, // timeout: 10 seconds to wait for samples?
+		DAQmx_Val_GroupByScanNumber, fp_memory, 4 * get_digital_output_size(), successfulSamplesIn, NULL));
+	*/
+
 	//-------------------------------------------
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
 
 	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, get_digital_output_size(), true, 10.0,
 					DAQmx_Val_GroupByChannel, outputs, &total_written, NULL));
+	bool32 isTaskDone = 0;
+	DAQmxErrChk(DAQmxIsTaskDone(taskHandle_in, &isTaskDone));
+	cout << "is AI task done: " << isTaskDone << "\n";
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
-	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
+
 	DAQmxErrChk(DAQmxStartTask(taskHandle_clk));
 	cout << "Total written: " << total_written << "\n\t Size of output: " << get_digital_output_size() << "\n";
 
-	/*
-	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, numPts, 10, // timeout: 10 seconds to wait for samples?
-		DAQmx_Val_GroupByScanNumber, tmp_fp_memory, 4 * numPts, successfulSamplesIn, NULL));
-	*/
 
-	
 	//-------------------------------------------
 	// Camera Acquisition loops
 	//NI_openShutter(1);
+	int loops = getNumPts() / superframe_factor; // superframing 
 	Sleep(100);
 	int16* NI_ptr = fp_memory;
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 
-		unsigned char* image;
-		int loops = getNumPts() / superframe_factor; // superframing 
-
 		// Start all images
 		cam.start_images(ipdv, loops);
+	}
 
+	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
+
+	#pragma omp parallel for	
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		unsigned short* privateMem = memory + (ipdv * quadrantSize * getNumPts()); // pointer to this thread's section of MEMORY	
+
+		unsigned char* image;
+
 		for (int i = 0; i < loops; i++)
 		{
 			// acquire data for this image from the IPDVth channel	
