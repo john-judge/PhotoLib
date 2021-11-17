@@ -19,7 +19,7 @@ private:
 
 	TaskHandle taskHandle_out; // Digital Output
 	TaskHandle taskHandle_in; // Analog Input
-	TaskHandle taskHandle_clk; // Chun: "M series don't have internal clock for output." -- X series though?
+	//TaskHandle taskHandle_clk; // Chun: "M series don't have internal clock for output." -- X series though?
 	TaskHandle taskHandle_led;
 
 	int numPts;

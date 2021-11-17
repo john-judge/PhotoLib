@@ -40,7 +40,6 @@ Controller::Controller()
 
 	// NI tasks
 	taskHandle_led = NULL;
-	taskHandle_clk = NULL;
 	taskHandle_in = NULL;
 	taskHandle_out = NULL;
 
@@ -211,6 +210,23 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	cam.setCamProgram(getCameraProgram());
 	cam.init_cam();
 
+	int superframe_factor = cam.get_superframe_factor();
+
+
+	//-------------------------------------------
+	// Camera Acquisition loops
+	//NI_openShutter(1);
+	int loops = getNumPts() / superframe_factor; // superframing 
+	Sleep(100);
+	int16* NI_ptr = fp_memory;
+	omp_set_num_threads(NUM_PDV_CHANNELS);
+	#pragma omp parallel for	
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+
+		// Start all images
+		cam.start_images(ipdv, loops);
+	}
+	Sleep(100);
 	//-------------------------------------------
 	// Initialize NI tasks
 	//int16* tmp_fp_memory = new(std::nothrow) int16[numPts * NUM_BNC_CHANNELS];
@@ -224,7 +240,6 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	int height = cam.height();
 	int quadrantSize = width * height;
 
-	int superframe_factor = cam.get_superframe_factor();
 
 	int32 defaultSuccess = -1;
 	int32* successfulSamples = &defaultSuccess;
@@ -236,12 +251,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 				// config clock channel M series don't have internal clock for output.
 	// clk frequency calculation: see SM's BNC_ratio, BNC_R_list, output_rate, and frame_interval
 	//			output_rate = BNC_ratio*1000.0 / frame_interval;
-	if (!taskHandle_clk) {
-		DAQmxErrChk(DAQmxCreateTask("Clock", &taskHandle_clk));
-		DAQmxErrChk(DAQmxCreateCOPulseChanTime(taskHandle_clk, "Dev1/ctr0", "",
-			DAQmx_Val_Seconds, DAQmx_Val_Low, 0.00, 0.50 / getIntPts(), 0.50 / getIntPts()));
-		DAQmxErrChk(DAQmxCfgImplicitTiming(taskHandle_clk, DAQmx_Val_ContSamps, get_digital_output_size()));
-	}
+
 	// Stimulator outputs (line2) and Clock for synchronizing tasks w camera (line0)
 	if (!taskHandle_out) {
 		DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
@@ -273,7 +283,6 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync (cam clock) to trigger input
 			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size()));
 		//DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_in, "/Dev1/PFI2", DAQmx_Val_Rising));
-		DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
 	}
 	/*
 	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, numPts, 10, // timeout: 10 seconds to wait for samples?
@@ -292,23 +301,8 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
 
-	DAQmxErrChk(DAQmxStartTask(taskHandle_clk));
 	cout << "Total written: " << total_written << "\n\t Size of output: " << get_digital_output_size() << "\n";
 
-
-	//-------------------------------------------
-	// Camera Acquisition loops
-	//NI_openShutter(1);
-	int loops = getNumPts() / superframe_factor; // superframing 
-	Sleep(100);
-	int16* NI_ptr = fp_memory;
-	omp_set_num_threads(NUM_PDV_CHANNELS);
-	#pragma omp parallel for	
-	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-
-		// Start all images
-		cam.start_images(ipdv, loops);
-	}
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
 
@@ -405,7 +399,6 @@ void Controller::NI_stopTasks()
 {
 	if (taskHandle_in) DAQmxErrChk(DAQmxStopTask(taskHandle_in));
 	if (taskHandle_out) DAQmxErrChk(DAQmxStopTask(taskHandle_out));
-	if (taskHandle_clk) DAQmxErrChk(DAQmxStopTask(taskHandle_clk));
 	if (taskHandle_led) DAQmxErrChk(DAQmxStopTask(taskHandle_led));
 }
 
@@ -424,11 +417,9 @@ void Controller::NI_clearTasks()
 {
 	if (taskHandle_in) DAQmxErrChk(DAQmxClearTask(taskHandle_in));
 	if (taskHandle_out) DAQmxErrChk(DAQmxClearTask(taskHandle_out));
-	if (taskHandle_clk) DAQmxErrChk(DAQmxClearTask(taskHandle_clk));
 	if (taskHandle_led) DAQmxErrChk(DAQmxClearTask(taskHandle_led));
 
 	taskHandle_led = NULL;
-	taskHandle_clk = NULL;
 	taskHandle_in = NULL;
 	taskHandle_out = NULL;
 }
