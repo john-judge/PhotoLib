@@ -86,6 +86,9 @@ public:
 	void load_cfg();
 	void init_cam();
 
+	void prepare_acqui();
+	void set_freerun_mode();
+
 	void setCamProgram(int p);
 	unsigned char* wait_image(int ipdv);
 	unsigned char** wait_images(int ipdv, int count);

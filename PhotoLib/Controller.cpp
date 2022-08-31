@@ -38,6 +38,9 @@ Controller::Controller()
 	sti1 = new Channel(20, 1);
 	sti2 = new Channel(20, 1);
 
+	// Cam 
+	setup_camera();
+
 	// NI tasks
 	taskHandle_led = NULL;
 	taskHandle_clk = NULL;
@@ -75,8 +78,6 @@ Controller::Controller()
 
 	// Live Feed Frame
 	liveFeedFrame = NULL;
-	liveFeedCam = NULL;
-
 }
 
 
@@ -97,6 +98,10 @@ void NiErrorDump(int32 error) {
 	cout << errBuff;
 }
 
+void setup_camera() {
+	cam.setCamProgram(getCameraProgram());
+	cam.init_cam();
+}
 
 int32 CVICALLBACK DoneCallback(TaskHandle taskHandle, int32 status, void* callbackData)
 {
@@ -120,10 +125,7 @@ Error:
 //=============================================================================
 int Controller::takeRli(unsigned short* memory) {
 
-	Camera cam;
-
-	cam.setCamProgram(getCameraProgram());
-	cam.init_cam();
+	cam.prepare_acqui();
 
 	int rliPts = darkPts + lightPts;
 
@@ -202,14 +204,14 @@ int Controller::takeRli(unsigned short* memory) {
 		(img - (unsigned short*)memory) / quadrantSize << " quadrant-sizes\n";
 	*/
 
+	cam.set_freerun_mode();
+
 	return 0;
 }
 
 int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 {
-	Camera cam;
-	cam.setCamProgram(getCameraProgram());
-	cam.init_cam();
+	cam.prepare_acqui();
 
 	//-------------------------------------------
 	// Initialize NI tasks
@@ -358,6 +360,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 
 	//delete[] tmp_fp_memory;
 
+	cam.set_freerun_mode();
 
 	return 0;
 }
@@ -503,19 +506,14 @@ void Controller::NI_fillOutputs()
 void Controller::startLiveFeed(unsigned short* frame, bool* flags) {
 	liveFeedFrame = frame;
 	liveFeedFlags = flags;
-	if (liveFeedCam) delete liveFeedCam;
-		
-	liveFeedCam = new Camera();
-	liveFeedCam->setCamProgram(getCameraProgram());
-	liveFeedCam->init_cam();
 }
 
 // This is launched by Python application as a separate thread (sep from GUI and plotter daemons)
 void Controller::continueLiveFeed() {
 	// populate liveFeedFrame with the next image.
-	if (!liveFeedCam) return;
-	int width = liveFeedCam->width();
-	int height = liveFeedCam->height();
+	if (!cam) return;
+	int width = cam->width();
+	int height = cam->height();
 	int quadrantSize = width * height;
 
 	// Temporary memory for storing last image
@@ -524,12 +522,12 @@ void Controller::continueLiveFeed() {
 	NI_openShutter(1);
 
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-		liveFeedCam->start_images(ipdv, 0); // start free run
+		cam->start_images(ipdv, 0); // start free run
 	}
 	unsigned char* images[NUM_PDV_CHANNELS]; 
 	// Gather first image just for reset rows.
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-		images[ipdv] = liveFeedCam->wait_image(ipdv);
+		images[ipdv] = cam->wait_image(ipdv);
 		memcpy(tmp + quadrantSize * ipdv, images[ipdv], quadrantSize * sizeof(short));
 	}
 	
@@ -542,19 +540,19 @@ void Controller::continueLiveFeed() {
 		
 		// Gather second image to display. Keep in channel-major order
 		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-			images[ipdv] = liveFeedCam->wait_image(ipdv);
+			images[ipdv] = cam->wait_image(ipdv);
 			memcpy(liveFeedFrame + (quadrantSize * (ipdv * 2 + 1)), images[ipdv], quadrantSize * sizeof(short));
 			memcpy(tmp + quadrantSize * ipdv, images[ipdv], quadrantSize * sizeof(short)); // and for next image also
 		}
 
-		liveFeedCam->reassembleImages(liveFeedFrame, 2); 
+		cam->reassembleImages(liveFeedFrame, 2); 
 
 		//memcpy(liveFeedFrame, liveFeedFrame + quadrantSize * NUM_PDV_CHANNELS / 2, quadrantSize * NUM_PDV_CHANNELS * sizeof(short) / 2);
 		liveFeedFlags[0] = true;
 
 		// Debug -- output to file
 		//std::string filename = "full-out1.txt";
-		//liveFeedCam->printFinishedImage(liveFeedFrame, filename.c_str(), true);
+		//cam->printFinishedImage(liveFeedFrame, filename.c_str(), true);
 
 		while (liveFeedFlags[0] and !liveFeedFlags[1]) { // wait for plotter to be ready for next image
 			Sleep(10);
@@ -564,100 +562,19 @@ void Controller::continueLiveFeed() {
 	cout << "Acqui daemon has read stop-loop flag, stopping.\n";
 
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-		liveFeedCam->start_images(ipdv, 1); // end free run
-		liveFeedCam->end_images(ipdv);
+		cam->start_images(ipdv, 1); // end free run
+		cam->end_images(ipdv);
 	}
 
 	stopLiveFeed(); // prepare for later hardware use
 
-
-	/*
-	bool barrier[4] = { false, false, false, false };
-	
-	omp_set_num_threads(NUM_PDV_CHANNELS);
-
-	// Sync with plotter daemon is done via liveFeedFlags.
-	// All omp threads may read flags, but only threadid 0 is designated flag writer.
-	#pragma omp parallel shared(barrier)
-	{
-		int ipdv = omp_get_thread_num();
-
-		cout << "thread ID: " << ipdv << "\n";
-		unsigned short* privateMem = liveFeedFrame + (ipdv * quadrantSize); // pointer to this thread's quadrant
-		unsigned char* image;
-		while (!liveFeedFlags[1]) {
-
-			#pragma omp barrier
-
-			liveFeedCam->start_images(ipdv, 1);
-
-			// acquire data for this image from the IPDVth channel	
-			image = liveFeedCam->wait_image(ipdv);
-
-			// Save the image(s) to process later	
-			memcpy(privateMem, image, quadrantSize * sizeof(short));
-
-			#pragma omp barrier
-
-			if (ipdv == 0) {
-				liveFeedCam->reassembleImages(liveFeedFrame, 1); // Time should be negligible
-				liveFeedFlags[0] = true; // signal that image is produced
-				cout << "Produced an image.\n";
-				
-				// Debug -- output to file
-				std::string filename = "full-out-livefeed.txt";
-				liveFeedCam->printFinishedImage(liveFeedFrame, filename.c_str(), true);
-			}
-			
-			// Custom sync barrier =========================
-			barrier[ipdv] = true;
-			while (!(barrier[0] && barrier[1] && barrier[2] && barrier[3])) {
-				Sleep(2);
-				if (liveFeedFlags[1]) break;
-			}
-			if (liveFeedFlags[1]) break;
-			barrier[ipdv] = false;
-			// End Custom sync barrier =====================
-
-			// Note that some compiler optimizations could remove empty while loop
-			// Plus, sleeping may improve performance
-			int interval = 5;
-			while(liveFeedFlags[0]) { // wait for plotter to be ready for next image
-				Sleep(interval);
-			}
-
-			// Custom sync barrier =========================
-			barrier[ipdv] = true;
-			while (!(barrier[0] && barrier[1] && barrier[2] && barrier[3])) {
-				Sleep(2);
-				if (liveFeedFlags[1]) break;
-			}
-			if (liveFeedFlags[1]) break;
-			barrier[ipdv] = false;
-			// End Custom sync barrier =====================
-			
-		}
-		cout << "Acqui daemon omp thread " << ipdv << " read stop-loop flag, stopping.\n";
-		liveFeedCam->end_images(ipdv);
-	}
-
-	//=============================================================================	
-	// implicit sync barrier here -- parallelism stops before we continue
-
-	
-	stopLiveFeed(); // prepare for later hardware use
-	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:
-	liveFeedFlags[1] = false; */
 }
 
 void Controller::stopLiveFeed() {
 	NI_openShutter(0);
 	NI_stopTasks();
 	NI_clearTasks();
-	if (liveFeedCam) {
-		delete liveFeedCam;
-	}
-	liveFeedCam = NULL;
+
 	liveFeedFrame = NULL; // This will be freed by Python side
 
 	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:

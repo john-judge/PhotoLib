@@ -76,6 +76,10 @@ class Hardware:
         p = kwargs['program']
         if type(p) != int or p < 0 or p > 7:
             return
+
+        curr_program = self.get_camera_program()
+        if curr_program != p:
+            self.setup_camera()
         self.lib.setCameraProgram(self.controller, kwargs['program'])
 
     def get_camera_program(self):
@@ -354,6 +358,8 @@ class Hardware:
         self.lib.setStimOnset.argtypes = [controller_handle, ctypes.c_int, ctypes.c_float]
         self.lib.setStimDuration.argtypes = [controller_handle, ctypes.c_int, ctypes.c_float]
 
+        self.lib.setupCamera.argtypes = [controller_handle]
+
     def load_dll(self, dll_path='./x64/Release/', verbose=False):
         dll_path = os.path.abspath(dll_path)
         if hasattr(os, 'add_dll_directory'):
@@ -390,6 +396,9 @@ class Hardware:
 
     def reset_camera(self):
         self.lib.resetCamera(self.controller)
+
+    def setup_camera(self):
+        self.lib.setupCamera(self.controller)
 
     def get_livefeed_produced_image_flag(self):
         return self.livefeed_flags[0]

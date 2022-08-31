@@ -135,7 +135,7 @@ int Camera::open_channel(int ipdv) {
 		return 1;
 
 	pdv_enable_external_trigger(pdv_pt[ipdv], 0);	 // disable the trigger in case it was left on - it persists over restarts
-	pdv_set_timeout(pdv_pt[ipdv], 1000);
+	pdv_set_timeout(pdv_pt[ipdv], 0);
 	pdv_flush_fifo(pdv_pt[ipdv]);
 	m_depth = pdv_get_depth(pdv_pt[ipdv]);
 	// allocate ring buffers, 4 (per channel) is EDT's recommendation
@@ -235,8 +235,18 @@ void Camera::init_cam()				// entire module based on code from Chun - sm_init_ca
 	serial_write(command);
 	sprintf(command, "@SEQ 1"); // start 
 	serial_write(command);
+}
 
+void Camera::prepare_acqui() {
+	char command[80];
+	sprintf(command, "@TXC 1");
+	serial_write(command);
+}
 
+void Camera::set_freerun_mode() {
+	char command[80];
+	sprintf(command, "@TXC 0");
+	serial_write(command);
 }
 
 // Starts image acquisition for one channel

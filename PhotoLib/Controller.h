@@ -45,7 +45,7 @@ private:
 
 	// Live Feed 
 	unsigned short* liveFeedFrame;
-	Camera *liveFeedCam;
+	Camera cam;
 	bool *liveFeedFlags;
 
 	// Ch1
@@ -99,6 +99,7 @@ public:
 	void NI_fillOutputs();
 
 	// Acquisition Control
+	void setup_camera();
 	int acqui(unsigned short*, int16*);
 	int stop();
 	void resetCamera();

@@ -193,4 +193,9 @@ extern "C"
 		return controller->continueLiveFeed();
 	}
 
+	__declspec(dllexport) void setup_camera(Controller* controller)
+	{
+		return controller->setup_camera();
+	}
+
 };
