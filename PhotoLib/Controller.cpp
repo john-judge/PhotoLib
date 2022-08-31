@@ -212,6 +212,16 @@ int Controller::takeRli(unsigned short* memory) {
 int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 {
 	cam.prepare_acqui();
+	int superframe_factor = cam.get_superframe_factor();
+
+	// Start image for cam FIRST, THEN start NI tasks
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+
+		int loops = getNumPts() / superframe_factor; // superframing 
+
+		// Start all images
+		cam.start_images(ipdv, loops);
+	}
 
 	//-------------------------------------------
 	// Initialize NI tasks
@@ -225,8 +235,6 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 	int width = cam.width();
 	int height = cam.height();
 	int quadrantSize = width * height;
-
-	int superframe_factor = cam.get_superframe_factor();
 
 	int32 defaultSuccess = -1;
 	int32* successfulSamples = &defaultSuccess;
@@ -298,9 +306,6 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 
 		unsigned char* image;
 		int loops = getNumPts() / superframe_factor; // superframing 
-
-		// Start all images
-		cam.start_images(ipdv, loops);
 
 		unsigned short* privateMem = memory + (ipdv * quadrantSize * getNumPts()); // pointer to this thread's section of MEMORY	
 		for (int i = 0; i < loops; i++)
