@@ -6,6 +6,7 @@
 #define _Controller_h
 //=============================================================================
 #include "edtinc.h"
+#include "Camera.h"
 #include <fstream>
 #include "NIDAQmx.h"
 
@@ -45,7 +46,7 @@ private:
 
 	// Live Feed 
 	unsigned short* liveFeedFrame;
-	Camera cam;
+	Camera* cam;
 	bool *liveFeedFlags;
 
 	// Ch1

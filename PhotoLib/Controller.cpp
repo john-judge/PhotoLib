@@ -39,6 +39,7 @@ Controller::Controller()
 	sti2 = new Channel(20, 1);
 
 	// Cam 
+	cam = new Camera();
 	setup_camera();
 
 	// NI tasks
@@ -98,9 +99,9 @@ void NiErrorDump(int32 error) {
 	cout << errBuff;
 }
 
-void setup_camera() {
-	cam.setCamProgram(getCameraProgram());
-	cam.init_cam();
+void Controller::setup_camera() {
+	cam->setCamProgram(getCameraProgram());
+	cam->init_cam();
 }
 
 int32 CVICALLBACK DoneCallback(TaskHandle taskHandle, int32 status, void* callbackData)
@@ -125,15 +126,15 @@ Error:
 //=============================================================================
 int Controller::takeRli(unsigned short* memory) {
 
-	cam.prepare_acqui();
+	cam->prepare_acqui();
 
 	int rliPts = darkPts + lightPts;
 
-	int width = cam.width();
-	int height = cam.height();
+	int width = cam->width();
+	int height = cam->height();
 	int quadrantSize = width * height;
 
-	int superframe_factor = cam.get_superframe_factor();
+	int superframe_factor = cam->get_superframe_factor();
 
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	// acquire dark frames with LED off	
@@ -143,13 +144,13 @@ int Controller::takeRli(unsigned short* memory) {
 		int loops = darkPts / superframe_factor; // superframing 
 
 		// Start all images
-		cam.start_images(ipdv, loops);
+		cam->start_images(ipdv, loops);
 
 		unsigned short* privateMem = memory + (ipdv * quadrantSize * rliPts); // pointer to this thread's section of MEMORY	
 		for (int i = 0; i < loops; i++)
 		{
 			// acquire data for this image from the IPDVth channel	
-			image = cam.wait_image(ipdv);
+			image = cam->wait_image(ipdv);
 
 			// Save the image(s) to process later	
 			memcpy(privateMem, image, quadrantSize * sizeof(short) * superframe_factor);
@@ -167,7 +168,7 @@ int Controller::takeRli(unsigned short* memory) {
 		unsigned char* image;
 		int loops = lightPts / superframe_factor; // superframing 
 
-		cam.start_images(ipdv, loops);
+		cam->start_images(ipdv, loops);
 
 		unsigned short* privateMem = memory + (ipdv * quadrantSize * rliPts) // pointer to this thread's section of MEMORY	
 			+ (quadrantSize * darkPts); // offset of where we left off	
@@ -175,14 +176,14 @@ int Controller::takeRli(unsigned short* memory) {
 		for (int i = 0; i < loops; i++) 		// acquire rest of frames with LED on	
 		{
 			// acquire data for this image from the IPDVth channel	
-			image = cam.wait_image(ipdv);
+			image = cam->wait_image(ipdv);
 
 			// Save the image(s) to process later	
 			memcpy(privateMem, image, quadrantSize * sizeof(short) * superframe_factor);
 			privateMem += quadrantSize * superframe_factor; // stride to the next destination for this channel's memory	
 
 		}
-		cam.end_images(ipdv);
+		cam->end_images(ipdv);
 	}
 	NI_openShutter(0); // light off	
 	NI_stopTasks();
@@ -190,7 +191,7 @@ int Controller::takeRli(unsigned short* memory) {
 
 	//=============================================================================	
 	// Image reassembly	
-	cam.reassembleImages(memory, rliPts); // deinterleaves, CDS subtracts, and arranges data
+	cam->reassembleImages(memory, rliPts); // deinterleaves, CDS subtracts, and arranges data
 
 	// Debug: print reassembled images out
 	/*
@@ -199,20 +200,20 @@ int Controller::takeRli(unsigned short* memory) {
 
 
 	std::string filename = "full-out355.txt";
-	cam.printFinishedImage(img, filename.c_str(), true);
+	cam->printFinishedImage(img, filename.c_str(), true);
 	cout << "\t This full image was located in MEMORY at offset " <<
 		(img - (unsigned short*)memory) / quadrantSize << " quadrant-sizes\n";
 	*/
 
-	cam.set_freerun_mode();
+	cam->set_freerun_mode();
 
 	return 0;
 }
 
 int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 {
-	cam.prepare_acqui();
-	int superframe_factor = cam.get_superframe_factor();
+	cam->prepare_acqui();
+	int superframe_factor = cam->get_superframe_factor();
 
 	// Start image for cam FIRST, THEN start NI tasks
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
@@ -220,7 +221,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 		int loops = getNumPts() / superframe_factor; // superframing 
 
 		// Start all images
-		cam.start_images(ipdv, loops);
+		cam->start_images(ipdv, loops);
 	}
 
 	//-------------------------------------------
@@ -232,8 +233,8 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 
 	//-------------------------------------------
 	// Initialize variables for camera data management
-	int width = cam.width();
-	int height = cam.height();
+	int width = cam->width();
+	int height = cam->height();
 	int quadrantSize = width * height;
 
 	int32 defaultSuccess = -1;
@@ -311,7 +312,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 		for (int i = 0; i < loops; i++)
 		{
 			// acquire data for this image from the IPDVth channel	
-			image = cam.wait_image(ipdv);
+			image = cam->wait_image(ipdv);
 
 			// Save the image(s) to process later	
 			memcpy(privateMem, image, quadrantSize * sizeof(short) * superframe_factor);
@@ -333,7 +334,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 				total_read += read;
 			}
 		}
-		cam.end_images(ipdv);
+		cam->end_images(ipdv);
 	}
 	//NI_openShutter(0);
 	cout << "Total read: " << total_read << "\n";
@@ -347,7 +348,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 
 	//=============================================================================	
 	// Image reassembly	
-	cam.reassembleImages(memory, numPts);
+	cam->reassembleImages(memory, numPts);
 
 	//=============================================================================	
 	// FP reassembly
@@ -365,7 +366,7 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 
 	//delete[] tmp_fp_memory;
 
-	cam.set_freerun_mode();
+	cam->set_freerun_mode();
 
 	return 0;
 }
@@ -590,13 +591,12 @@ void Controller::stopLiveFeed() {
 
 void Controller::resetCamera()
 {
-	Camera cam;
 	for (int ipdv = 0; ipdv < 4; ipdv++) {
-		cam.end_images(ipdv);
+		cam->end_images(ipdv);
 	}
-	cam.close_channels();
+	cam->close_channels();
 
-	cam.init_cam();
+	cam->init_cam();
 }
 
 /*
