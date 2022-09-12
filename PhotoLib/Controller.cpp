@@ -38,10 +38,6 @@ Controller::Controller()
 	sti1 = new Channel(20, 1);
 	sti2 = new Channel(20, 1);
 
-	// Cam 
-	cam = new Camera();
-	setup_camera();
-
 	// NI tasks
 	taskHandle_led = NULL;
 	taskHandle_clk = NULL;
@@ -79,6 +75,10 @@ Controller::Controller()
 
 	// Live Feed Frame
 	liveFeedFrame = NULL;
+
+	// Cam 
+	cam = new Camera();
+	setupCamera();
 }
 
 
@@ -99,7 +99,7 @@ void NiErrorDump(int32 error) {
 	cout << errBuff;
 }
 
-void Controller::setup_camera() {
+void Controller::setupCamera() {
 	cam->setCamProgram(getCameraProgram());
 	cam->init_cam();
 }
@@ -127,7 +127,6 @@ Error:
 int Controller::takeRli(unsigned short* memory) {
 
 	cam->prepare_acqui();
-
 	int rliPts = darkPts + lightPts;
 
 	int width = cam->width();
@@ -157,7 +156,6 @@ int Controller::takeRli(unsigned short* memory) {
 			privateMem += quadrantSize * superframe_factor; // stride to the next destination for this channel's memory	
 		}
 	}
-
 	// parallel section closes momentarily, threads sync and close, then split up again.
 	NI_openShutter(1);
 	Sleep(100);

@@ -14,12 +14,14 @@ class Hardware:
         self.hardware_enabled = True
         try:
             self.load_dll(dll_path=dll_path)
+            print("added DLL paths")
             self.define_c_types()
             self.controller = self.lib.createController()
         except Exception as e:
+            print(e)
             print(dll_path, "not found or otherwise unable to load. Photo21 will continue",
                   "in analysis mode without access to hardware for data acquisition.")
-            print(e)
+
             self.hardware_enabled = False
         self.stop_flag = False
         self.livefeed_flags = None  # used to synchronize live feed
@@ -377,7 +379,7 @@ class Hardware:
                 except:
                     if verbose:
                         print('Failed to add DLL dependency path:', path)
-            self.lib = ctypes.cdll.LoadLibrary(dll_path + os.path.sep  + 'PhotoLib.dll')
+            self.lib = ctypes.cdll.LoadLibrary(dll_path + os.path.sep + 'PhotoLib.dll')
         else:
             os.environ['PATH'] = os.path.dirname(dll_path + os.path.sep + "PhotoLib.dll") + ';'\
                                  + os.path.dirname(os.path.abspath('./PhotoLib/Include/EDT')) + ';' \

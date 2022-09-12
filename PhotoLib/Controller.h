@@ -6,7 +6,6 @@
 #define _Controller_h
 //=============================================================================
 #include "edtinc.h"
-#include "Camera.h"
 #include <fstream>
 #include "NIDAQmx.h"
 
@@ -100,7 +99,7 @@ public:
 	void NI_fillOutputs();
 
 	// Acquisition Control
-	void setup_camera();
+	void setupCamera();
 	int acqui(unsigned short*, int16*);
 	int stop();
 	void resetCamera();
