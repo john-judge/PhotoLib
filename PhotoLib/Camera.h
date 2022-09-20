@@ -97,6 +97,9 @@ public:
 
 	void get_image_info(int ipdv);
 	int get_buffer_size(int ipdv);
+	
+	void prepare_acqui();
+	void set_freerun_mode();
 
 	int program();
 	void program(int p);

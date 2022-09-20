@@ -240,6 +240,18 @@ void Camera::init_cam()				// entire module based on code from Chun - sm_init_ca
 
 }
 
+void Camera::prepare_acqui() {
+	char command[80];
+	sprintf(command, "@TXC 1");
+	serial_write(command);
+}
+
+void Camera::set_freerun_mode() {
+	char command[80];
+	sprintf(command, "@TXC 0");
+	serial_write(command);
+}
+
 // Starts image acquisition for one channel
 void Camera::start_images(int ipdv, int count) {
 	if (!pdv_pt[ipdv]) 		return;

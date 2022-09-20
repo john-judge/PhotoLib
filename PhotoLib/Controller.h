@@ -22,6 +22,8 @@ private:
 	TaskHandle taskHandle_clk; // Chun: "M series don't have internal clock for output." -- X series though?
 	TaskHandle taskHandle_led;
 
+	Camera* cam;
+
 	int numPts;
 
 	int32_t error = 0;
