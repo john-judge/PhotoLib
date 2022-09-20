@@ -133,14 +133,10 @@ int Controller::takeRli(unsigned short* memory) {
 
 	int rliPts = darkPts + lightPts;
 
-<<<<<<< HEAD
 	unsigned char* image;
 	int width = cam->width();
 	int height = cam->height();
-=======
-	int width = cam.width();
-	int height = cam.height();
->>>>>>> ba5ea387642dbfa5e1e36deb0d9461b8b99e49cd
+
 	int quadrantSize = width * height;
 
 	int superframe_factor = cam->get_superframe_factor();
@@ -230,14 +226,11 @@ int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 
 	//-------------------------------------------
 	// Initialize variables for camera data management
-<<<<<<< HEAD
+
 	unsigned char *image;
 	int width = cam->width();
 	int height = cam->height();
-=======
-	int width = cam.width();
-	int height = cam.height();
->>>>>>> ba5ea387642dbfa5e1e36deb0d9461b8b99e49cd
+
 	int quadrantSize = width * height;
 
 	int superframe_factor = cam->get_superframe_factor();

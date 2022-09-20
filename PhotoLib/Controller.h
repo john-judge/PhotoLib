@@ -104,6 +104,7 @@ public:
 	int acqui(unsigned short*, int16*);
 	int stop();
 	void resetCamera();
+	void setup_camera();
 
 	// Acquisition Duration
 	void setAcquiOnset(int);
