@@ -5,6 +5,16 @@
 **/*.pbz2
 **/*.zda
 **/*.roi
+**/*.npy
+**/*.png
+**/*.tsv
+**/*.json
+
+## Pyinstaller build and dist
+build
+dist
+*.exe
+*.spec
 
 ## Debug data
 *.txt

@@ -29,7 +29,7 @@ private:
 	int32_t error = 0;
 	char errBuff[2048];
 
-	float acquiOnset;
+	int acquiOnset;
 	float intPts;
 	float duration;
 	int program;
@@ -45,6 +45,10 @@ private:
 	int numBursts1;
 	int intBursts1;
 
+	// Live Feed 
+	unsigned short* liveFeedFrame;
+	Camera *liveFeedCam;
+	bool *liveFeedFlags;
 
 	// Ch1
 	int numPulses2;
@@ -57,7 +61,6 @@ private:
 	char stopFlag;
 	char ltpIndFlag;
 	char scheduleFlag;
-	char scheduleRliFlag;
 
 public:
 	// Constructors
@@ -74,12 +77,8 @@ public:
 	void NI_stopTasks();
 	void NI_clearTasks();
 
-	// Flags
-	void setScheduleRliFlag(char);
-	char getScheduleRliFlag();
-
 	// Buffers for digital output
-	uInt8 *outputs;
+	uInt32 *outputs;
 
 	// RLI
 	int takeRli(unsigned short*);
@@ -92,6 +91,8 @@ public:
 	int getDisplayHeight();
 
 	void setStimOnset(int ch, float v);
+	void setShutterOnset(float v);
+	float getShutterOnset();
 	void setStimDuration(int ch, float v);
 	float getStimOnset(int ch);
 	float getStimDuration(int ch);
@@ -100,13 +101,13 @@ public:
 	void NI_fillOutputs();
 
 	// Acquisition Control
-	int acqui(unsigned short*, float64*);
+	int acqui(unsigned short*, int16*);
 	int stop();
 	void resetCamera();
 
 	// Acquisition Duration
-	void setAcquiOnset(float);
-	float getAcquiOnset();
+	void setAcquiOnset(int);
+	int getAcquiOnset();
 	float getAcquiDuration();
 	size_t get_digital_output_size();
 
@@ -120,7 +121,6 @@ public:
 	float getIntPts();
 
 	// Duration of the whole Process
-	void setDuration();
 	float getDuration();
 
 	// Stimulator
@@ -133,6 +133,12 @@ public:
 	int getNumBursts(int ch);
 	void setIntBursts(int ch, int num);
 	int getIntBursts(int ch);
+
+	// Live Feed
+
+	void stopLiveFeed();
+	void startLiveFeed(unsigned short* frame, bool* flags);
+	void continueLiveFeed();
 };
 
 //=============================================================================

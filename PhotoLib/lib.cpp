@@ -33,7 +33,7 @@ extern "C"
 	}
 
 
-	__declspec(dllexport) void acqui(Controller* controller, unsigned short* images, float64* fp_data)
+	__declspec(dllexport) void acqui(Controller* controller, unsigned short* images, int16* fp_data)
 	{
 		controller->acqui(images, fp_data);
 	}
@@ -98,22 +98,12 @@ extern "C"
 		return controller->getIntBursts(channel);
 	}
 
-	__declspec(dllexport) void setScheduleRliFlag(Controller* controller, char v)
-	{
-		controller->setScheduleRliFlag(v);
-	}
-
-	__declspec(dllexport) int getScheduleRliFlag(Controller* controller)
-	{
-		return controller->getScheduleRliFlag();
-	}
-
 	__declspec(dllexport) int getDuration(Controller* controller)
 	{
 		return controller->getDuration();
 	}
 
-	__declspec(dllexport) void setAcquiOnset(Controller* controller, float onset)
+	__declspec(dllexport) void setAcquiOnset(Controller* controller, int onset)
 	{
 		controller->setAcquiOnset(onset);
 	}
@@ -177,4 +167,30 @@ extern "C"
 	{
 		return controller->getStimDuration(ch);
 	}
+
+	__declspec(dllexport) void setShutterOnset(Controller* controller, float v)
+	{
+		controller->setShutterOnset(v);
+	}
+
+	__declspec(dllexport) float getShutterOnset(Controller* controller)
+	{
+		return controller->getShutterOnset();
+	}
+
+	__declspec(dllexport) void resetCamera(Controller* controller)
+	{
+		return controller->resetCamera();
+	}
+
+	__declspec(dllexport) void startLiveFeed(Controller* controller, unsigned short* frame, bool* flags)
+	{
+		return controller->startLiveFeed(frame, flags);
+	}
+
+	__declspec(dllexport) void continueLiveFeed(Controller* controller)
+	{
+		return controller->continueLiveFeed();
+	}
+
 };

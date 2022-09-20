@@ -103,7 +103,12 @@ Camera::Camera() {
 
 }
 
+
 Camera::~Camera() {
+	close_channels();
+}
+
+int Camera::close_channels() {
 	int retries = 2;
 	for (int i = 0; i < NUM_PDV_CHANNELS; i++) {
 		if (pdv_pt[i]) {
@@ -117,6 +122,7 @@ Camera::~Camera() {
 			}
 		}
 	}
+	return (retries == 2) ? 1 : 0;
 }
 
 int Camera::open_channel(int ipdv) {
@@ -129,22 +135,13 @@ int Camera::open_channel(int ipdv) {
 		return 1;
 
 	pdv_enable_external_trigger(pdv_pt[ipdv], 0);	 // disable the trigger in case it was left on - it persists over restarts
-	pdv_set_timeout(pdv_pt[ipdv], 1000);
+	pdv_set_timeout(pdv_pt[ipdv], 0);
 	pdv_flush_fifo(pdv_pt[ipdv]);
 	m_depth = pdv_get_depth(pdv_pt[ipdv]);
 	// allocate ring buffers, 4 (per channel) is EDT's recommendation
 	pdv_multibuf(pdv_pt[ipdv], 4);
 
 	return 0;
-}
-
-unsigned char* Camera::single_image(int ipdv)			//used by LiveFeed.cpp
-{
-	if (!pdv_pt[ipdv])
-		return nullptr;
-	pdv_flush_fifo(pdv_pt[ipdv]);
-	pdv_start_image(pdv_pt[ipdv]);
-	return pdv_wait_image_raw(pdv_pt[ipdv]);
 }
 
 // Load cfg files by running PDV initcam script. Do this before opening channels.
@@ -232,7 +229,9 @@ void Camera::init_cam()				// entire module based on code from Chun - sm_init_ca
 	system(command);
 
 	Sleep(50);
-	sprintf(command, "@TXC 1"); // external control from DO.0 (line 0 -- black sync)
+	// @TXC 1 -- external control from DO.0 (line 0 -- black sync). This is needed if you want p-clamp to trigger camera
+	// @TXC 0 -- camera will start from software (then trigger all other writing/acquisition on clock PFI0)
+	sprintf(command, "@TXC 1"); 
 	serial_write(command);
 	sprintf(command, "@SEQ 1"); // start 
 	serial_write(command);
@@ -506,23 +505,47 @@ void Camera::reassembleImages(unsigned short* images, int nImages) {
 // Subtract reset data (stripes) for correlated double sampling (CDS) for a single image.
 // This halves the number of columns of each raw image
 // quad_width is the final width of the frame
+// 9/15 update: Reset row is to be subtracted from the following frame!
+// So the first frame will not be CDS subtracted but we will still condense it down.
 void Camera::subtractCDS(unsigned short* image_data, int nImages, int quad_height, int quad_width)
 {
 	int CDS_add = 2048;
 	int CDS_width_fixed = quad_width / 2; // 6/25/21 - empirically, seems like this is always half of cfg width
-	int CDS_height_total = nImages * (quad_width / CDS_width_fixed) / 2 * quad_height * NUM_PDV_CHANNELS; // div by 2 since loop skips 2 CDS-size rows per iter
-
-	unsigned short* new_data = image_data;
+	int rows_per_channel = (quad_width / CDS_width_fixed) / 2 * quad_height;
+	int rows_per_image = rows_per_channel * NUM_PDV_CHANNELS; // div by 2 since loop skips 2 CDS-size rows per iter
+	int CDS_height_total = nImages * rows_per_image;
+	
 	unsigned short* reset_data = image_data + CDS_width_fixed;
 	unsigned short* old_data = image_data;
 
+	// data is in channel-major order
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+		// frame 1 does not have reset data collected.
+		if (ipdv > 0) reset_data += CDS_width_fixed * rows_per_channel * 2; // introduce reset pointer lag at beginning
+		old_data += CDS_width_fixed * rows_per_channel * 2;
+		
+		// frames after frame 1 have reset data.
+		for (int i = rows_per_channel; i < rows_per_channel * nImages; i++) {
+			for (int j = 0; j < CDS_width_fixed; j++) {
+				*old_data = *old_data + CDS_add - *reset_data++;
+				old_data++;
+				//*new_data++ = CDS_add + *old_data++ - *reset_data++;
+			}
+			reset_data += CDS_width_fixed;
+			old_data += CDS_width_fixed;
+		}
+	}
+	unsigned short* new_data = image_data;
+	old_data = image_data;
+	// condense images
 	for (int i = 0; i < CDS_height_total; i++) {
 		for (int j = 0; j < CDS_width_fixed; j++) {
-			*new_data++ = CDS_add + *old_data++ - *reset_data++;
+			*new_data++ = *old_data++;
 		}
-		reset_data += CDS_width_fixed;
 		old_data += CDS_width_fixed;
 	}
+
+	
 }
 
 // This deinterleave follows Chun's specs over email (row-by-row) instead of quadrant_readout.docx

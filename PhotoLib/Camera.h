@@ -79,7 +79,8 @@ public:
 
 	int open_channel(int ipdv);
 
-	unsigned char* single_image(int ipdv);
+	int close_channels();
+
 	void start_images(int ipdv, int count);
 	void end_images(int ipdv);
 	void load_cfg();
@@ -90,7 +91,6 @@ public:
 	unsigned char** wait_images(int ipdv, int count);
 
 	void serial_write(const char* buf);
-	void serial_read(char* buf, int size);
 	void serial_command(const char* command);
 
 	int num_timeouts(int ipdv);

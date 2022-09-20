@@ -24,9 +24,6 @@
 // #pragma comment(lib,".\\lib\\NIDAQmx.lib")  Chun suggested it but turns out not to make any difference
 using namespace std;
 
-/* hacky way of synchronizing things, but it seems to work and nothing better
- * was found
- */
 #define CAM_INPUT_OFFSET 10
 #define NUM_BNC_CHANNELS 4
 #define DAQmxErrChk(functionCall)  if( DAQmxFailed(error=(functionCall))) NiErrorDump(error); else
@@ -38,8 +35,8 @@ Controller::Controller()
 	char errBuff[2048] = { '\0' };
 	reset = new Channel(0, 100);
 	shutter = new Channel(0, 1210);
-	sti1 = new Channel(300, 1);
-	sti2 = new Channel(300, 1);
+	sti1 = new Channel(20, 1);
+	sti2 = new Channel(20, 1);
 
 	// Cam 
 	cam = new Camera();
@@ -52,7 +49,7 @@ Controller::Controller()
 	taskHandle_out = NULL;
 
 	// Acquisition
-	acquiOnset = float(50);
+	acquiOnset = 0;
 
 	// Number of points per trace
 	program = 7;
@@ -65,8 +62,6 @@ Controller::Controller()
 
 	// Flags
 	stopFlag = 0;
-	scheduleFlag = 0;
-	scheduleRliFlag = 0;
 
 	// Ch1
 	numPulses1 = 1;
@@ -82,8 +77,10 @@ Controller::Controller()
 	numBursts2 = 1;
 	intBursts2 = 200;
 
-	// Set Duration
-	setDuration();
+	// Live Feed Frame
+	liveFeedFrame = NULL;
+	liveFeedCam = NULL;
+
 }
 
 
@@ -136,9 +133,14 @@ int Controller::takeRli(unsigned short* memory) {
 
 	int rliPts = darkPts + lightPts;
 
+<<<<<<< HEAD
 	unsigned char* image;
 	int width = cam->width();
 	int height = cam->height();
+=======
+	int width = cam.width();
+	int height = cam.height();
+>>>>>>> ba5ea387642dbfa5e1e36deb0d9461b8b99e49cd
 	int quadrantSize = width * height;
 
 	int superframe_factor = cam->get_superframe_factor();
@@ -147,7 +149,7 @@ int Controller::takeRli(unsigned short* memory) {
 	// acquire dark frames with LED off	
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-
+		unsigned char* image;
 		int loops = darkPts / superframe_factor; // superframing 
 
 		// Start all images
@@ -166,13 +168,13 @@ int Controller::takeRli(unsigned short* memory) {
 	}
 
 	// parallel section closes momentarily, threads sync and close, then split up again.
-	NI_openShutter(1);
+	//NI_openShutter(1);
 	Sleep(100);
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	// parallel acquisition resumes now that light is on	
 	#pragma omp parallel for	
 	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-
+		unsigned char* image;
 		int loops = lightPts / superframe_factor; // superframing 
 
 		cam->start_images(ipdv, loops);
@@ -192,8 +194,7 @@ int Controller::takeRli(unsigned short* memory) {
 		}
 		cam->end_images(ipdv);
 	}
-	Sleep(100);
-	NI_openShutter(0); // light off	
+	//NI_openShutter(0); // light off	
 	NI_stopTasks();
 	NI_clearTasks();
 
@@ -216,23 +217,27 @@ int Controller::takeRli(unsigned short* memory) {
 	return 0;
 }
 
-int Controller::acqui(unsigned short *memory, float64 *fp_memory)
+int Controller::acqui(unsigned short *memory, int16 *fp_memory)
 {
 	cam->prepare_acqui();
 
 	//-------------------------------------------
 	// Initialize NI tasks
-	int16* tmp_fp_memory = new(std::nothrow) int16[numPts * NUM_BNC_CHANNELS];
-	memset(tmp_fp_memory, 0, numPts * NUM_BNC_CHANNELS * sizeof(int16));
+	//int16* tmp_fp_memory = new(std::nothrow) int16[numPts * NUM_BNC_CHANNELS];
+	//memset(tmp_fp_memory, 0, numPts * NUM_BNC_CHANNELS * sizeof(int16));
 	float64 samplingRate = 1000.0 / getIntPts(); 
-	setDuration();
 	NI_fillOutputs();
 
 	//-------------------------------------------
 	// Initialize variables for camera data management
+<<<<<<< HEAD
 	unsigned char *image;
 	int width = cam->width();
 	int height = cam->height();
+=======
+	int width = cam.width();
+	int height = cam.height();
+>>>>>>> ba5ea387642dbfa5e1e36deb0d9461b8b99e49cd
 	int quadrantSize = width * height;
 
 	int superframe_factor = cam->get_superframe_factor();
@@ -241,33 +246,6 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	int32* successfulSamples = &defaultSuccess;
 	int32 defaultReadSuccess = -1;
 	int32* successfulSamplesIn = &defaultReadSuccess;
-
-	//-------------------------------------------
-	// Configure NI tasks and channels
-	/*
-	// Digital Output
-	DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
-	DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0", samplingRate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, 348));
-
-	// Analog Input
-	DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
-	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync
-		DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size() - getAcquiOnset()));	//frame-by-frame clock trigger
-
-
-	cout << "starting tasks...\n";
-
-	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
-	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, duration + 10, false, 0, DAQmx_Val_GroupByChannel, outputs, successfulSamples, NULL));
-	int start_offset = (int)((double)(CAM_INPUT_OFFSET + acquiOnset) / intPts);
-	//int32 DAQmxReadBinaryI16 (TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved);	
-	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, numPts, 0, DAQmx_Val_GroupByScanNumber, tmp_fp_memory, 4 * numPts, successfulSamplesIn, NULL));
-	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
-
-	cout << "started tasks...\n";
-	*/
 	
 	//-------------------------------------------
 	// Configure NI outputs and trigger
@@ -283,9 +261,21 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 	// Stimulator outputs (line2) and Clock for synchronizing tasks w camera (line0)
 	if (!taskHandle_out) {
 		DAQmxErrChk(DAQmxCreateTask("Stimulators", &taskHandle_out));
-		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0,Dev1/port0/line2", "", DAQmx_Val_ChanForAllLines));
-		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI12", getIntPts(),
-			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));	
+
+		// To write a clock to trigger camera, open line0 channel also: "Dev1/port0/line0" (and see NI_fillOutputs)
+		DAQmxErrChk(DAQmxCreateDOChan(taskHandle_out, "Dev1/port0/line0:2", "", DAQmx_Val_ChanForAllLines));
+
+		// Get line0 resting voltage up to high (before setting up triggering)
+		uInt32 resting_voltages[1];
+		resting_voltages[0] = 1;
+		DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, (const uInt32)1, true, 0,
+			DAQmx_Val_GroupByChannel, resting_voltages, NULL, NULL));
+
+
+		// Comment out for no trigger? - start in software and trigger everything else off of this.
+		// First solution was to trigger DO tasks from camera clock (PFI0)
+		//DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_out, "/Dev1/PFI0, getIntPts(),
+		//	DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, get_digital_output_size()));	
 	}
 
 	// External trigger:
@@ -297,43 +287,50 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 		DAQmxErrChk(DAQmxCreateTask("FP Input", &taskHandle_in));
 		DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle_in, "Dev1/ai0:3", "", DAQmx_Val_RSE, -10.0, 10.0, DAQmx_Val_Volts, NULL));
 		DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle_in, "/Dev1/PFI0", float64(1005.0) / getIntPts(), // sync (cam clock) to trigger input
-			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size() - getAcquiOnset()));
+			DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, (float64)get_digital_output_size()));
 		//DAQmxErrChk(DAQmxCfgDigEdgeStartTrig(taskHandle_in, "/Dev1/PFI2", DAQmx_Val_Rising));
 		DAQmxErrChk(DAQmxRegisterDoneEvent(taskHandle_clk, 0, DoneCallback, NULL));
 	}
+	/*
+	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, numPts, 10, // timeout: 10 seconds to wait for samples?
+		DAQmx_Val_GroupByScanNumber, fp_memory, 4 * get_digital_output_size(), successfulSamplesIn, NULL));
+	*/
+
 	//-------------------------------------------
 	// Start NI tasks
 	long total_written = 0, total_read = 0;
-	
-	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle_out, get_digital_output_size(), false, 0, 
+
+	DAQmxErrChk(DAQmxWriteDigitalU32(taskHandle_out, get_digital_output_size(), true, 10.0,
 					DAQmx_Val_GroupByChannel, outputs, &total_written, NULL));
+	bool32 isTaskDone = 0;
+	DAQmxErrChk(DAQmxIsTaskDone(taskHandle_in, &isTaskDone));
+	cout << "is AI task done: " << isTaskDone << "\n";
 
 	DAQmxErrChk(DAQmxStartTask(taskHandle_in));
-	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
+
 	DAQmxErrChk(DAQmxStartTask(taskHandle_clk));
 	cout << "Total written: " << total_written << "\n\t Size of output: " << get_digital_output_size() << "\n";
 
-	/*
-	DAQmxErrChk(DAQmxReadBinaryI16(taskHandle_in, numPts, 10, // timeout: 10 seconds to wait for samples?
-		DAQmx_Val_GroupByScanNumber, tmp_fp_memory, 4 * numPts, successfulSamplesIn, NULL));
-	*/
 
-	
 	//-------------------------------------------
 	// Camera Acquisition loops
-	NI_openShutter(1);
+	//NI_openShutter(1);
+	int loops = getNumPts() / superframe_factor; // superframing 
 	Sleep(100);
-	int16* NI_ptr = tmp_fp_memory;
+	int16* NI_ptr = fp_memory;
 	omp_set_num_threads(NUM_PDV_CHANNELS);
 	#pragma omp parallel for	
-	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
-
-		int loops = getNumPts() / superframe_factor; // superframing 
-
-		// Start all images
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) 
 		cam->start_images(ipdv, loops);
 
+	DAQmxErrChk(DAQmxStartTask(taskHandle_out));
+
+	#pragma omp parallel for	
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
 		unsigned short* privateMem = memory + (ipdv * quadrantSize * getNumPts()); // pointer to this thread's section of MEMORY	
+
+		unsigned char* image;
+
 		for (int i = 0; i < loops; i++)
 		{
 			// acquire data for this image from the IPDVth channel	
@@ -361,8 +358,7 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 		}
 		cam->end_images(ipdv);
 	}
-	Sleep(100);
-	NI_openShutter(0);
+	//NI_openShutter(0);
 	cout << "Total read: " << total_read << "\n";
 
 	//=============================================================================	
@@ -378,52 +374,28 @@ int Controller::acqui(unsigned short *memory, float64 *fp_memory)
 
 	//=============================================================================	
 	// FP reassembly
-	float64* dst_fp = fp_memory;
+	/*
+	int16* dst_fp = fp_memory;
 	for (int i_bnc = 0; i_bnc < NUM_BNC_CHANNELS; i_bnc++) {
 		int16* src_fp = tmp_fp_memory + i_bnc;
 		for (int m = 0; m < total_read; m++) {
 			*dst_fp++ = *src_fp;
 			src_fp += NUM_BNC_CHANNELS;
 		}
-		dst_fp += numPts - (int)total_read; // skip to next FP trace start
+		dst_fp += numPts - total_read; // skip to next FP trace start (nonzero iff missing read)
 	}
+	*/
 
-	delete[] tmp_fp_memory;
+	//delete[] tmp_fp_memory;
 
 	cam->set_freerun_mode();
 	return 0;
 }
 
 //=============================================================================
-/*
 int Controller::NI_openShutter(uInt8 on)
 {
-	int32       error = 0;
-	TaskHandle  taskHandle = 0;
-	uInt8       data[4] = { 0,on,0,0 };
-	char        errBuff[2048] = { '\0' };
-
-	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
-	DAQmxErrChk(DAQmxCreateDOChan(taskHandle, "Dev1/port0/line0:1", "", DAQmx_Val_ChanForAllLines));
-	DAQmxErrChk(DAQmxStartTask(taskHandle));
-	DAQmxErrChk(DAQmxWriteDigitalLines(taskHandle, 1, 1, 10.0, DAQmx_Val_GroupByChannel, data, NULL, NULL));
-
-Error:
-	if (DAQmxFailed(error))
-		DAQmxGetExtendedErrorInfo(errBuff, 2048);
-	if (taskHandle != 0) {
-		DAQmxStopTask(taskHandle);
-		DAQmxClearTask(taskHandle);
-	}
-	if (DAQmxFailed(error))
-		printf("DAQmx Error: %s\n", errBuff);
-	return 0;
-}*/
-
-//=============================================================================
-int Controller::NI_openShutter(uInt8 on)
-{
-	uInt8       data[1] = { on };
+	uInt8       data[2] = { on };
 
 	if (!taskHandle_led) {
 		DAQmxErrChk(DAQmxCreateTask("LED", &taskHandle_led));
@@ -485,88 +457,254 @@ void Controller::NI_fillOutputs()
 	
 	float start, end;
 	size_t do_size = get_digital_output_size();
-	int num_DO_channels = 3; // number of DO channels in the DO task 
-	outputs = new uInt8[do_size * num_DO_channels];
+	int num_DO_channels = 1; // number of DO channels in the DO task 
+	outputs = new uInt32[do_size];
 
 	//--------------------------------------------------------------
 	// Reset the array
-	memset(outputs, 0, sizeof(uInt8) * do_size * num_DO_channels);
+	memset(outputs, 0, sizeof(uInt32) * do_size);
 	//--------------------------------------------------------------
-	// Shutter (handled as a simple separate task, since exact sync not needed)
-	/*
-	if (realFlag) {
-		start = shutter->getOnset();
-		end = (start + shutter->getDuration());
-		for (i = (int)start; i < end; i++)
-			outputs[i] |= shutter_mask;
-	}*/
+	// Shutter (can instead be handled as a simple separate task, since exact sync not needed)
+	uInt32 shutter_mask = 1 << 1; //line1
+	uInt32 stim1_mask = 1 << 2; //line2
+
+	start = getShutterOnset() / intPts;
+
+
+	for (int i = (int)start; i < do_size - 1; i++) {
+		outputs[i] |= shutter_mask;
+	}
 	//--------------------------------------------------------------
-	// clock to trigger camera
-	uInt8 resting_voltage = 1;
-	uInt8 trigger_voltage = 0;
+
+	// If we want a clock to trigger camera, write this to line0
+	
+	uInt32 resting_voltage = 1 << 0; // line0
+	uInt32 trigger_voltage = 0 << 0; // line0
 	// If BNC_ratio > 1, the resting/triggering voltages are switched
 
 	// Assuming BNC ratio == 1:
 	for (int i = 0; i < do_size; i++) {
-		outputs[i] = trigger_voltage;
+		outputs[i] |= trigger_voltage;
 	}
 
 	// Stimulator #1
 	cout << "\n\tNum bursts 1: " << numBursts1 << "\n\tNum Pulses 1: " << numPulses1 << "\n";
 	cout << "\n\tInt bursts 1: " << intBursts1 << "\n\tInt Pulses 1: " << intPulses1 << "\n";
-	cout << "\n\tOnset 1:" << sti1->getOnset() << "\n";
+	cout << "\n\tOnset 1: " << sti1->getOnset() << "\n";
+	cout << "\n\Duration 1: " << sti1->getDuration() << "\n";
 	for (int k = 0; k < numBursts1; k++)
 	{
 		for (int j = 0; j < numPulses1; j++)
 		{
-			start = sti1->getOnset() + j * intPulses1 + k * intBursts1;
-			end = (start + sti1->getDuration());
-			cout << "start1: " << start << "\tend1: " << end << "\n";
-			for (int i = (int)start; i < end; i++)
-				outputs[i + do_size] = 1;
+			start = sti1->getOnset() / intPts + j * intPulses1 + k * intBursts1;
+			end = (start + sti1->getDuration() / intPts);
+			for (int i = (int)start; i < end; i++) {
+				outputs[i] |= stim1_mask;
+			}
 		}
 	}
 	//--------------------------------------------------------------
 	// Stimulator #2
+	/*
+	cout << "\n\tNum bursts 2: " << numBursts2 << "\n\tNum Pulses 2: " << numPulses2 << "\n";
+	cout << "\n\tInt bursts 2: " << intBursts2 << "\n\tInt Pulses 2: " << intPulses2 << "\n";
+	cout << "\n\tOnset 2: " << sti2->getOnset() << "\n";
+	cout << "\n\Duration 2: " << sti2->getDuration() << "\n";
 	for (int k = 0; k < numBursts2; k++)
 	{
 		for (int j = 0; j < numPulses2; j++)
 		{
-			start = sti2->getOnset() + j * intPulses2 + k * intBursts2;
-			end = (start + sti2->getDuration());
-			cout << "start2: " << start << "\tend2: " << end << "\n";
-			for (int i = (int)start; i < end; i++)
-				outputs[i + 2 * do_size] = 1;
+			start = sti2->getOnset() / intPts + j * intPulses2 + k * intBursts2;
+			end = (start + sti2->getDuration() / intPts);
+			for (int i = (int)start; i < end; i++) {
+				cout << "stim 2 is high at " << i << "\n";
+				outputs[i + 2 * do_size] = 1; // |= stim2_mask;
+			}
 		}
+	}*/
+
+	// Add new stimulators or stimulation features and patterns here
+}
+
+//=============================================================================
+//============================  Live Feed  ====================================
+void Controller::startLiveFeed(unsigned short* frame, bool* flags) {
+	liveFeedFrame = frame;
+	liveFeedFlags = flags;
+	if (liveFeedCam) delete liveFeedCam;
+		
+	liveFeedCam = new Camera();
+	liveFeedCam->setCamProgram(getCameraProgram());
+	liveFeedCam->init_cam();
+}
+
+// This is launched by Python application as a separate thread (sep from GUI and plotter daemons)
+void Controller::continueLiveFeed() {
+	// populate liveFeedFrame with the next image.
+	if (!liveFeedCam) return;
+	int width = liveFeedCam->width();
+	int height = liveFeedCam->height();
+	int quadrantSize = width * height;
+
+	NI_openShutter(1);
+
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+		liveFeedCam->start_images(ipdv, 0); // start free run
+	}
+	unsigned char* images[NUM_PDV_CHANNELS]; 
+	// Gather first image just for reset rows.
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+		images[ipdv] = liveFeedCam->wait_image(ipdv);
+	}
+	
+	while (!liveFeedFlags[1]) {
+
+		// Move current frame into first position to make use of CDS subtract rows only
+		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+			memcpy(liveFeedFrame + (quadrantSize * ipdv * 2), images[ipdv], quadrantSize * sizeof(short));
+		}
+		
+		// Gather second image to display. Keep in channel-major order
+		for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+			images[ipdv] = liveFeedCam->wait_image(ipdv);
+			memcpy(liveFeedFrame + (quadrantSize * (ipdv * 2 + 1)), images[ipdv], quadrantSize * sizeof(short));
+		}
+
+		liveFeedCam->reassembleImages(liveFeedFrame, 2); 
+
+		//memcpy(liveFeedFrame, liveFeedFrame + quadrantSize * NUM_PDV_CHANNELS / 2, quadrantSize * NUM_PDV_CHANNELS * sizeof(short) / 2);
+		liveFeedFlags[0] = true;
+
+		// Debug -- output to file
+		//std::string filename = "full-out1.txt";
+		//liveFeedCam->printFinishedImage(liveFeedFrame, filename.c_str(), true);
+
+		while (liveFeedFlags[0] and !liveFeedFlags[1]) { // wait for plotter to be ready for next image
+			Sleep(10);
+		}
+
+	}
+	cout << "Acqui daemon has read stop-loop flag, stopping.\n";
+
+	for (int ipdv = 0; ipdv < NUM_PDV_CHANNELS; ipdv++) {
+		liveFeedCam->start_images(ipdv, 1); // end free run
+		liveFeedCam->end_images(ipdv);
 	}
 
-	// Debug
-	for (int i = 0; i < get_digital_output_size() * num_DO_channels; i++) 
-		if (outputs[i] > 0) cout << outputs[i] << "\n";
+	stopLiveFeed(); // prepare for later hardware use
 
-	// Future developers (or hackers): Add new stimulators or stimulation features and patterns here
 
+	/*
+	bool barrier[4] = { false, false, false, false };
+	
+	omp_set_num_threads(NUM_PDV_CHANNELS);
+
+	// Sync with plotter daemon is done via liveFeedFlags.
+	// All omp threads may read flags, but only threadid 0 is designated flag writer.
+	#pragma omp parallel shared(barrier)
+	{
+		int ipdv = omp_get_thread_num();
+
+		cout << "thread ID: " << ipdv << "\n";
+		unsigned short* privateMem = liveFeedFrame + (ipdv * quadrantSize); // pointer to this thread's quadrant
+		unsigned char* image;
+		while (!liveFeedFlags[1]) {
+
+			#pragma omp barrier
+
+			liveFeedCam->start_images(ipdv, 1);
+
+			// acquire data for this image from the IPDVth channel	
+			image = liveFeedCam->wait_image(ipdv);
+
+			// Save the image(s) to process later	
+			memcpy(privateMem, image, quadrantSize * sizeof(short));
+
+			#pragma omp barrier
+
+			if (ipdv == 0) {
+				liveFeedCam->reassembleImages(liveFeedFrame, 1); // Time should be negligible
+				liveFeedFlags[0] = true; // signal that image is produced
+				cout << "Produced an image.\n";
+				
+				// Debug -- output to file
+				std::string filename = "full-out-livefeed.txt";
+				liveFeedCam->printFinishedImage(liveFeedFrame, filename.c_str(), true);
+			}
+			
+			// Custom sync barrier =========================
+			barrier[ipdv] = true;
+			while (!(barrier[0] && barrier[1] && barrier[2] && barrier[3])) {
+				Sleep(2);
+				if (liveFeedFlags[1]) break;
+			}
+			if (liveFeedFlags[1]) break;
+			barrier[ipdv] = false;
+			// End Custom sync barrier =====================
+
+			// Note that some compiler optimizations could remove empty while loop
+			// Plus, sleeping may improve performance
+			int interval = 5;
+			while(liveFeedFlags[0]) { // wait for plotter to be ready for next image
+				Sleep(interval);
+			}
+
+			// Custom sync barrier =========================
+			barrier[ipdv] = true;
+			while (!(barrier[0] && barrier[1] && barrier[2] && barrier[3])) {
+				Sleep(2);
+				if (liveFeedFlags[1]) break;
+			}
+			if (liveFeedFlags[1]) break;
+			barrier[ipdv] = false;
+			// End Custom sync barrier =====================
+			
+		}
+		cout << "Acqui daemon omp thread " << ipdv << " read stop-loop flag, stopping.\n";
+		liveFeedCam->end_images(ipdv);
+	}
+
+	//=============================================================================	
+	// implicit sync barrier here -- parallelism stops before we continue
+
+	
+	stopLiveFeed(); // prepare for later hardware use
+	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:
+	liveFeedFlags[1] = false; */
 }
+
+void Controller::stopLiveFeed() {
+	NI_openShutter(0);
+	NI_stopTasks();
+	NI_clearTasks();
+	if (liveFeedCam) {
+		delete liveFeedCam;
+	}
+	liveFeedCam = NULL;
+	liveFeedFrame = NULL; // This will be freed by Python side
+
+	// let plotter daemon know it's ok to cleanup up flags and mark hardware ready:
+	liveFeedFlags[1] = false;
+}
+//=============================================================================
+
 
 void Controller::resetCamera()
 {
-	int	sure = 1; // fl_ask("Are you sure you want to reset camera?");
-	Camera cam;
-	if (sure == 1) {
-		for (int ipdv = 0; ipdv < 4; ipdv++) {
-			cam->end_images(ipdv);
-		}
-		char command1[80];
-		sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv0_0 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");	//	command sequence from Chun B 4/22/2020
-		system(command1);
-		sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv1_0 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");
-		system(command1);
-		sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv0_1 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");
-		system(command1);
-		sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv1_1 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");
-		system(command1);
-		cout << " DapC resetCamera reset camera " << endl;
+	for (int ipdv = 0; ipdv < 4; ipdv++) {
+		cam->end_images(ipdv);
 	}
+	char command1[80];
+	sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv0_0 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");	//	command sequence from Chun B 4/22/2020
+	system(command1);
+	sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv1_0 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");
+	system(command1);
+	sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv0_1 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");
+	system(command1);
+	sprintf(command1, "c:\\EDT\\pdv\\initcam -u pdv1_1 -f c:\\EDT\\pdv\\camera_config\\DM2K_1024x20.cfg");
+	system(command1);
+	cout << " DapC resetCamera reset camera " << endl;
+
 	for (int ipdv = 0; ipdv < 4; ipdv++) {
 		try {
 			if (cam->open_channel(ipdv)) {
@@ -579,6 +717,7 @@ void Controller::resetCamera()
 	}
 }
 
+/*
 //=============================================================================
 void Controller::setDuration()
 {
@@ -611,9 +750,8 @@ void Controller::setDuration()
 		return;
 	}
 }
-
+*/
 float Controller::getDuration() {
-	setDuration();
 	return duration;
 }
 
@@ -666,16 +804,6 @@ int Controller::getIntPulses(int ch) {
 }
 
 //=============================================================================
-void Controller::setScheduleRliFlag(char p) {
-	scheduleRliFlag = p;
-}
-
-//=============================================================================
-char Controller::getScheduleRliFlag() {
-	return scheduleRliFlag;
-}
-
-//=============================================================================
 // Number of Points per Trace
 //=============================================================================
 void Controller::setNumPts(int p)
@@ -692,13 +820,13 @@ int Controller::getNumPts()
 //=============================================================================
 // Acquisition Onset
 //=============================================================================
-void Controller::setAcquiOnset(float p)
+void Controller::setAcquiOnset(int p)
 {
 	acquiOnset = p;
 }
 
 //=============================================================================
-float Controller::getAcquiOnset()
+int Controller::getAcquiOnset()
 {
 	return acquiOnset;
 }
@@ -767,6 +895,14 @@ void Controller::setStimOnset(int ch, float v) {
 	else sti2->setOnset(v);
 }
 
+void Controller::setShutterOnset(float v) {
+	shutter->setOnset(v);
+}
+
+float Controller::getShutterOnset() {
+	return shutter->getOnset();
+}
+
 void Controller::setStimDuration(int ch, float v) {
 	if (ch == 1) sti1->setDuration(v);
 	else sti2->setDuration(v);
@@ -781,14 +917,3 @@ float Controller::getStimDuration(int ch) {
 	if (ch == 1) return sti1->getDuration();
 	return sti2->getDuration();
 }
-
-
-//=============================================================================
-
-// Notes:
-//Defining functions in files (like .dap files) which can send the signals to NI
-//Dap820Put is used to send system commands. Figure out port equivalent to SYSin
-//(or check if it's even needed as tasks can define and what needs to be done and
-//  when executed will automatically send signals for niboards ports to the LED and STIMULATOR)
-
-//Burst mode usage
